@@ -99,7 +99,7 @@ def delete_user(uid):
     return ok(deleted=True)
 
 # ── TOPOS ─────────────────────────────────────────────────────────────────────
-@app.route('/api/topos', methods=['GET'])
+@app.route('/api/topos', methods=['get'])
 def list_topos():
     conn = get_db()
     rows = conn.execute('''SELECT * FROM topos ORDER BY title''').fetchall()
@@ -134,7 +134,7 @@ def upload_topo():
     title    = (request.form.get('title') or '').strip() or Path(filename).stem
     location = (request.form.get('location') or '').strip()
     raw = f.read()
-    dest = UPLOAD_FOLDER / f'{filename}.pdf'
+    dest = UPLOAD_FOLDER / f'{filename}'
     if not dest.exists(): dest.write_bytes(raw)
     conn = get_db()
     existing = conn.execute('SELECT id FROM topos WHERE filename=?', (filename,)).fetchone()
@@ -170,7 +170,7 @@ def get_route(route_id):
     comments = conn.execute('''SELECT c.*, u.username FROM comments c JOIN users u ON u.id = c.user_id WHERE c.route_id=? ORDER BY c.created_at DESC''', (route_id,)).fetchall()
     attempt = []
     if user: attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone()
-    tags = conn.execute('SELECT t.name FROM tag_routes tr JOIN tag t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
+    tags = conn.execute('SELECT t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
     conn.close()
     return ok(route=dict(route), comments=[dict(c) for c in comments], attempt=dict(attempt), tags=[dict(t) for t in tags])
 

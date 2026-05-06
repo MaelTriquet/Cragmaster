@@ -3,6 +3,9 @@ import { AuthProvider } from './contexts/AuthContext'
 import PrivateRoute from './components/PrivateRoute'
 import Login from './pages/Login'
 import Upload from './pages/Upload'
+import Topos from './pages/Topos'
+import TopoDetail from './pages/Topo-details'
+import RouteDetail from './pages/Route-details'
 
 function ComingSoon({ name }) {
   return (
@@ -21,9 +24,9 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
 
-          <Route path="/topos"        element={<PrivateRoute><ComingSoon name="Topos" /></PrivateRoute>} />
-          <Route path="/topos/:id"    element={<PrivateRoute><ComingSoon name="Topo Detail" /></PrivateRoute>} />
-          <Route path="/routes/:id"   element={<PrivateRoute><ComingSoon name="Route Detail" /></PrivateRoute>} />
+          <Route path="/topos"        element={<PrivateRoute><Topos /></PrivateRoute>} />
+          <Route path="/topos/:id"    element={<PrivateRoute><TopoDetail /></PrivateRoute>} />
+          <Route path="/routes/:id"   element={<PrivateRoute><RouteDetail /></PrivateRoute>} />
           <Route path="/search"       element={<PrivateRoute><ComingSoon name="Search" /></PrivateRoute>} />
           <Route path="/upload"       element={<PrivateRoute><Upload /></PrivateRoute>} />
           <Route path="/admin"        element={<PrivateRoute adminOnly><ComingSoon name="Admin" /></PrivateRoute>} />
