@@ -17,7 +17,7 @@ def init_db():
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             username      TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            is_admin      INTEGER DEFAULT 0,
+            is_admin      INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS topos (
@@ -26,17 +26,17 @@ def init_db():
             title         TEXT NOT NULL,
             location      TEXT DEFAULT '',
             ocr_text      TEXT DEFAULT '',
-            uploaded_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            uploaded_by   INTEGER REFERENCES users(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS routes (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             topo_id    INTEGER REFERENCES topos(id) ON DELETE CASCADE,
-            index      INTEGER DEFAULT -1,
+            route_index      INTEGER DEFAULT -1,
             name       TEXT NOT NULL,
             grade      TEXT DEFAULT '',
             sorting_grade INTEGER DEFAULT -1,
-            length   REAL DEFAULT -1,
+            length   REAL DEFAULT -1
         );
 
         CREATE TABLE IF NOT EXISTS attempts (
@@ -61,7 +61,7 @@ def init_db():
 
         CREATE TABLE IF NOT EXISTS tags (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            name       TEXT NOT NULL,
+            name       TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS tag_routes (
