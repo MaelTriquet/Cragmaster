@@ -1,5 +1,51 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import api from '../api/client'
+
+const getGradeColor = (grade) => {
+  // Keyframe stops: [sorting_grade_index, hue, saturation%, lightness%]
+const stops = [
+  [0,  105, 55, 48],  // 3a  — muted green
+  [11.5, 88,  60, 46],  // between 4c+ and 5a
+  [17.5, 65,  70, 46],  // between 5c+ and 6a
+  [19.5, 45,  75, 48],  // between 6a+ and 6b
+  [21.5, 30,  78, 46],  // between 6b+ and 6c
+  [23.5, 18,  80, 45],  // between 6c+ and 7a
+  [25.5, 6,   82, 44],  // between 7a+ and 7b
+  [27.5, 352, 80, 42],  // between 7b+ and 7c
+  [29.5, 330, 75, 38],  // between 7c+ and 8a
+  [35,   285, 70, 32],  // 8b+ — dark purple
+]
+  // Clamp to range
+  if (grade <= stops[0][0]) {
+    return `hsl(${stops[0][1]}, ${stops[0][2]}%, ${stops[0][3]}%)`
+  }
+  if (grade >= stops[stops.length - 1][0]) {
+    const s = stops[stops.length - 1]
+    return `hsl(${s[1]}, ${s[2]}%, ${s[3]}%)`
+  }
+
+  // Find surrounding stops and interpolate
+  let lo, hi
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (grade >= stops[i][0] && grade <= stops[i + 1][0]) {
+      lo = stops[i]
+      hi = stops[i + 1]
+      break
+    }
+  }
+
+  const t = (grade - lo[0]) / (hi[0] - lo[0])
+  // Interpolate hue the short way around the color wheel
+  let dh = hi[1] - lo[1]
+  if (dh > 180)  dh -= 360
+  if (dh < -180) dh += 360
+  const h = lo[1] + dh * t
+  const s = lo[2] + (hi[2] - lo[2]) * t
+  const l = lo[3] + (hi[3] - lo[3]) * t
+
+  return `hsl(${h.toFixed(1)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`
+}
 
 const S = {
   root: {
@@ -9,127 +55,306 @@ const S = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
   },
 
-  header: {
+  noise: {
+    position: "fixed",
+    inset: 0,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
+    backgroundSize: "128px",
+    pointerEvents: "none",
+    opacity: 0.5,
+    zIndex: 0,
+  },
+
+  container: {
     width: "100%",
     maxWidth: "800px",
+    position: "relative",
+    zIndex: 1,
+  },
+
+  // ── BACK ──
+  backBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.4rem",
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    color: "var(--muted)",
+    cursor: "pointer",
+    background: "none",
+    border: "none",
+    padding: "0",
+    marginBottom: "1.75rem",
+    transition: "color 0.15s",
+  },
+
+  // ── HEADER ──
+  header: {
+    borderLeft: "4px solid var(--hold)",
+    paddingLeft: "1.5rem",
     marginBottom: "2rem",
   },
 
   eyebrow: {
-    fontSize: "0.8rem",
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.68rem",
+    fontWeight: 600,
+    letterSpacing: "0.2em",
+    color: "var(--hold)",
     textTransform: "uppercase",
-    letterSpacing: "0.1em",
-    color: "var(--muted)",
+    display: "block",
+    marginBottom: "0.4rem",
   },
 
   title: {
-    fontSize: "2.2rem",
-    margin: "0.5rem 0",
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "3.5rem",
+    fontWeight: 800,
+    letterSpacing: "0.02em",
+    textTransform: "uppercase",
+    color: "var(--chalk)",
+    margin: "0 0 0.5rem 0",
+    lineHeight: 0.95,
   },
 
-  rule: {
-    height: "2px",
-    width: "60px",
-    background: "var(--hold)",
+  metaRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.75rem",
+    flexWrap: "wrap",
+    marginTop: "0.75rem",
   },
 
-  meta: {
-    marginTop: "0.5rem",
+  metaText: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.9rem",
     color: "var(--muted)",
   },
 
-  toggleRow: {
-    display: "flex",
-    gap: "1rem",
-    margin: "1.5rem 0",
-  },
-
-  button: {
-    padding: "0.4rem 0.8rem",
+  routeCount: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.72rem",
+    fontWeight: 700,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    color: "var(--chalk)",
+    background: "rgba(255,255,255,0.06)",
     border: "1px solid var(--line)",
-    borderRadius: "6px",
+    padding: "0.2rem 0.6rem",
+  },
+
+  // ── TOOLBAR ──
+  toolbar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "1.75rem",
+    gap: "1rem",
+    flexWrap: "wrap",
+  },
+
+  toggleGroup: {
+    display: "flex",
+    border: "1px solid var(--line)",
+    overflow: "hidden",
+  },
+
+  toggleBtn: (active) => ({
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.78rem",
+    fontWeight: 700,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase",
+    padding: "0.5rem 1.1rem",
     cursor: "pointer",
+    border: "none",
+    background: active ? "var(--hold)" : "transparent",
+    color: active ? "var(--chalk)" : "var(--muted)",
+    transition: "background 0.15s, color 0.15s",
+    borderRight: "1px solid var(--line)",
+  }),
+
+  downloadBtn: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.78rem",
+    fontWeight: 700,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase",
+    padding: "0.5rem 1.1rem",
+    cursor: "pointer",
+    background: "transparent",
+    color: "var(--muted)",
+    border: "1px solid var(--line)",
+    transition: "border-color 0.15s, color 0.15s",
   },
 
-  activeButton: {
-    border: "1px solid var(--hold)",
-    color: "var(--hold)",
-  },
-
-  section: {
-    width: "100%",
-    maxWidth: "800px",
+  // ── HISTOGRAM ──
+  histogramSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0",
   },
 
   histogramRow: {
     display: "flex",
     alignItems: "center",
-    gap: "1rem",
+    gap: "0",
     cursor: "pointer",
-    marginBottom: "0.5rem",
-  },
-
-  bar: {
-    height: "12px",
-    background: "var(--hold)",
-    borderRadius: "4px",
+    padding: "0.5rem 0",
+    borderBottom: "1px solid var(--line)",
+    transition: "background 0.1s",
   },
 
   gradeLabel: {
-    width: "50px",
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.85rem",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    color: "var(--chalk)",
+    width: "52px",
+    flexShrink: 0,
   },
 
-  routeList: {
-    marginLeft: "60px",
-    marginBottom: "1rem",
+  barTrack: {
+    flex: 1,
+    height: "8px",
+    background: "rgba(255,255,255,0.04)",
+    position: "relative",
+    marginRight: "0.75rem",
+  },
+
+  bar: (width, color) => ({
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: "100%",
+    width: `${width}%`,
+    background: color,
+    transition: "width 0.3s ease",
+  }),
+
+  countLabel: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.72rem",
+    fontWeight: 600,
+    letterSpacing: "0.1em",
+    color: "var(--muted)",
+    width: "28px",
+    textAlign: "right",
+    flexShrink: 0,
+  },
+
+  chevron: (expanded) => ({
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.75rem",
+    color: "var(--muted)",
+    marginLeft: "0.75rem",
+    transition: "transform 0.2s",
+    transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+    display: "inline-block",
+    width: "14px",
+    flexShrink: 0,
+  }),
+
+  // ── EXPANDED ROUTES ──
+  routeDrawer: {
+    background: "var(--granite)",
+    borderBottom: "1px solid var(--line)",
+    padding: "0.5rem 0 0.75rem 52px",
     display: "flex",
     flexDirection: "column",
-    gap: "0.3rem",
+    gap: "0",
   },
 
-  route: {
+  routeRow: {
+    display: "flex",
+    alignItems: "center",
+    padding: "0.45rem 0.75rem 0.45rem 0",
     cursor: "pointer",
+    gap: "0.75rem",
+    transition: "background 0.1s",
+  },
+
+  routeName: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.9rem",
+    fontWeight: 400,
     color: "var(--chalk)",
+    flex: 1,
+    transition: "color 0.15s",
   },
 
-  routeHover: {
-    color: "var(--hold)",
+  routeNameHover: {
+    color: "var(--hold-lt)",
   },
 
-  item: {
-    padding: "0.9rem 1.2rem",
-    borderRadius: "10px",
-    background: "var(--granite)",
-    border: "1px solid var(--line)",
+  routeLength: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.72rem",
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    color: "var(--muted)",
+  },
+
+  routeArrow: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.75rem",
+    color: "var(--line)",
+    transition: "color 0.15s",
+  },
+
+  // ── INDEX VIEW ──
+  indexList: {
+    display: "flex",
+    flexDirection: "column",
+  },
+
+  indexRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "1rem",
+    padding: "0.65rem 0",
+    borderBottom: "1px solid var(--line)",
     cursor: "pointer",
-    transition: "all 0.15s ease",
+    transition: "background 0.1s",
   },
 
-  itemHover: {
-    background: "var(--line)",              // lighter than granite
-    transform: "translateY(-2px)",
-    boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
-    border: "1px solid var(--hold)",        // strong accent
+  indexNum: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.72rem",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    color: "var(--muted)",
+    width: "36px",
+    flexShrink: 0,
+    textAlign: "right",
   },
 
-  itemActive: {
-    padding: "0.9rem 1.2rem",
-    borderRadius: "10px",
-    background: "var(--hold)",
-    border: "1px solid var(--line)",
+  indexName: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.9rem",
+    color: "var(--chalk)",
+    flex: 1,
+    transition: "color 0.15s",
   },
 
-}
-
-const getGradeColor = (grade) => {
-  const t = grade * grade / 30.0 / 30.0
-
-  // interpolate hue: 120 (green) → 0 (red)
-  const hue = 130 - 130 * t
-
-  return `hsl(${hue}, 70%, 45%)`
+  indexGrade: (color) => ({
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.72rem",
+    fontWeight: 700,
+    letterSpacing: "0.1em",
+    color: "var(--chalk)",
+    background: color,
+    padding: "0.15rem 0.5rem",
+    flexShrink: 0,
+  }),
 }
 
 export default function TopoDetail() {
@@ -138,138 +363,166 @@ export default function TopoDetail() {
 
   const [topo, setTopo] = useState(null)
   const [routes, setRoutes] = useState([])
-  const [view, setView] = useState("grades") // "grades" | "index"
+  const [view, setView] = useState("grades")
   const [expandedGrades, setExpandedGrades] = useState({})
-  const [hovered, setHovered] = useState(null)
+  const [hoveredBtn, setHoveredBtn] = useState(null)
   const [hoveredRoute, setHoveredRoute] = useState(null)
 
   useEffect(() => {
-    fetch(`/api/topos/${id}`)
-      .then(res => res.json())
-      .then(data => {
-        setTopo(data.topo)
-        setRoutes(data.routes)
+    api.get(`/topos/${id}`)
+      .then(res => {
+        setTopo(res.data.topo)
+        setRoutes(res.data.routes)
       })
       .catch(err => console.error(err))
   }, [id])
 
-  if (!topo) {
-    return (
-      <div style={S.root}>
-        <p>Loading...</p>
-      </div>
-    )
-  }
+  if (!topo) return (
+    <div style={{ ...S.root, justifyContent: "center" }}>
+      <span style={{ fontFamily: "Barlow Condensed", fontSize: "1.2rem", letterSpacing: "0.1em", color: "var(--muted)" }}>
+        LOADING…
+      </span>
+    </div>
+  )
 
-  // group routes by grade
   const gradesMap = routes.reduce((acc, r) => {
     if (!acc[r.grade]) acc[r.grade] = []
     acc[r.grade].push(r)
     return acc
   }, {})
 
-  const grades = Object.keys(gradesMap).sort()
+  // Sort grades by sorting_grade value for proper climbing grade order
+  const grades = Object.keys(gradesMap).sort((a, b) => {
+    const sa = gradesMap[a][0].sorting_grade
+    const sb = gradesMap[b][0].sorting_grade
+    return sa - sb
+  })
 
   const maxCount = Math.max(...grades.map(g => gradesMap[g].length), 1)
 
   const toggleGrade = (g) => {
-    setExpandedGrades(prev => ({
-      ...prev,
-      [g]: !prev[g],
-    }))
+    setExpandedGrades(prev => ({ ...prev, [g]: !prev[g] }))
   }
 
   return (
     <div style={S.root}>
-      <div style={S.header}>
-        <span style={S.eyebrow}>Topo</span>
-        <h1 style={S.title}>{topo.title}</h1>
-        <div style={S.rule} />
-        {topo.location && <div style={S.meta}>{topo.location}</div>}
-		<div style={{ marginTop: "1rem" }}>
-		  <button
-		    style={{
-		      ...S.item,
-		      ...(hovered === "download" ? S.itemHover : {}),
-		    }}
-		    onMouseEnter={() => setHovered("download")}
-		    onMouseLeave={() => setHovered(null)}
-			onClick={() => window.open(`/api/topos/${id}/download`, "_blank")}
-		  >
-			Download PDF
-		  </button>
-		</div>
+      <div style={S.noise} />
 
-      </div>
+      <div style={S.container}>
 
-      {/* VIEW TOGGLE */}
-      <div style={S.toggleRow}>
-        <div
-			style={{
-                ...S.item,
-                ...(hovered === "grades" ? S.itemHover : {}),
-				...(view === "grades" ? S.itemActive : {}),
-              }}
-              onMouseEnter={() => setHovered("grades")}
-              onMouseLeave={() => setHovered(null)}
-			onClick={() => setView("grades")}
+        {/* ── BACK ── */}
+        <button
+          style={{
+            ...S.backBtn,
+            color: hoveredBtn === "back" ? "var(--chalk)" : "var(--muted)",
+          }}
+          onMouseEnter={() => setHoveredBtn("back")}
+          onMouseLeave={() => setHoveredBtn(null)}
+          onClick={() => navigate("/topos")}
         >
-          Grades
+          ← All Topos
+        </button>
+
+        {/* ── HEADER ── */}
+        <div style={S.header}>
+          <span style={S.eyebrow}>Topo</span>
+          <h1 style={S.title}>{topo.title}</h1>
+          <div style={S.metaRow}>
+            {topo.location && (
+              <>
+                <span style={S.metaText}>{topo.location}</span>
+                <span style={{ color: "var(--line)" }}>·</span>
+              </>
+            )}
+            <span style={S.routeCount}>{routes.length} route{routes.length !== 1 ? "s" : ""}</span>
+          </div>
         </div>
 
-        <div
-		  style={{
-			...S.item,
-			...(hovered === "index" ? S.itemHover : {}),
-			...(view === "index" ? S.itemActive : {}),
-		  }}
-		  onMouseEnter={() => setHovered("index")}
-		  onMouseLeave={() => setHovered(null)}
-		  onClick={() => setView("index")}
-        >
-          By Index
-        </div>
-      </div>
+        {/* ── TOOLBAR ── */}
+        <div style={S.toolbar}>
+          <div style={S.toggleGroup}>
+            <button
+              style={S.toggleBtn(view === "grades")}
+              onClick={() => setView("grades")}
+            >
+              By Grade
+            </button>
+            <button
+              style={{ ...S.toggleBtn(view === "index"), borderRight: "none" }}
+              onClick={() => setView("index")}
+            >
+              By Index
+            </button>
+          </div>
 
-      <div style={S.section}>
-        {/* GRADES VIEW */}
+          <button
+            style={{
+              ...S.downloadBtn,
+              borderColor: hoveredBtn === "dl" ? "var(--hold)" : "var(--line)",
+              color: hoveredBtn === "dl" ? "var(--hold)" : "var(--muted)",
+            }}
+            onMouseEnter={() => setHoveredBtn("dl")}
+            onMouseLeave={() => setHoveredBtn(null)}
+            onClick={() => window.open(`/api/topos/${id}/download`, "_blank")}
+          >
+            ↓ PDF
+          </button>
+        </div>
+
+        {/* ── GRADES VIEW ── */}
         {view === "grades" && (
-          <>
+          <div style={S.histogramSection}>
             {grades.map(g => {
               const count = gradesMap[g].length
-              const width = (count / maxCount) * 90
+              const barWidth = (count / maxCount) * 85
+              const color = getGradeColor(gradesMap[g][0].sorting_grade)
+              const expanded = expandedGrades[g]
 
               return (
                 <div key={g}>
                   <div
-                    style={S.histogramRow}
+                    style={{
+                      ...S.histogramRow,
+                      background: hoveredBtn === `grade-${g}` ? "rgba(255,255,255,0.02)" : "transparent",
+                    }}
+                    onMouseEnter={() => setHoveredBtn(`grade-${g}`)}
+                    onMouseLeave={() => setHoveredBtn(null)}
                     onClick={() => toggleGrade(g)}
                   >
-                    <div style={S.gradeLabel}>{g}</div>
-                    <div
-                      style={{
-                        ...S.bar,
-                        width: `${width}%`,
-						background: getGradeColor(gradesMap[g][0].sorting_grade),
-                      }}
-                    />
-                    <div>({count})</div>
+                    <span style={S.gradeLabel}>{g}</span>
+                    <div style={S.barTrack}>
+                      <div style={S.bar(barWidth, color)} />
+                    </div>
+                    <span style={S.countLabel}>{count}</span>
+                    <span style={S.chevron(expanded)}>›</span>
                   </div>
 
-                  {expandedGrades[g] && (
-                    <div style={S.routeList}>
+                  {expanded && (
+                    <div style={S.routeDrawer}>
                       {gradesMap[g].map(route => (
                         <div
                           key={route.id}
                           style={{
-                            ...S.route,
-                            ...(hoveredRoute === route.id ? S.routeHover : {}),
+                            ...S.routeRow,
+                            background: hoveredRoute === route.id ? "rgba(255,255,255,0.03)" : "transparent",
                           }}
                           onMouseEnter={() => setHoveredRoute(route.id)}
                           onMouseLeave={() => setHoveredRoute(null)}
                           onClick={() => navigate("/routes/" + route.id)}
                         >
-                          {route.name}
+                          <span style={{
+                            ...S.routeName,
+                            ...(hoveredRoute === route.id ? S.routeNameHover : {}),
+                          }}>
+                            {route.name}
+                          </span>
+                          {route.length > 0 && (
+                            <span style={S.routeLength}>{route.length}m</span>
+                          )}
+                          <span style={{
+                            ...S.routeArrow,
+                            color: hoveredRoute === route.id ? "var(--hold)" : "var(--line)",
+                          }}>›</span>
                         </div>
                       ))}
                     </div>
@@ -277,30 +530,45 @@ export default function TopoDetail() {
                 </div>
               )
             })}
-          </>
+          </div>
         )}
 
-        {/* INDEX VIEW */}
+        {/* ── INDEX VIEW ── */}
         {view === "index" && (
-          <div style={S.routeList}>
+          <div style={S.indexList}>
             {[...routes]
               .sort((a, b) => (a.route_index ?? 0) - (b.route_index ?? 0))
               .map(route => (
                 <div
                   key={route.id}
                   style={{
-                    ...S.route,
-                    ...(hoveredRoute === route.id ? S.routeHover : {}),
+                    ...S.indexRow,
+                    background: hoveredRoute === route.id ? "rgba(255,255,255,0.02)" : "transparent",
                   }}
                   onMouseEnter={() => setHoveredRoute(route.id)}
                   onMouseLeave={() => setHoveredRoute(null)}
-                  onClick={() => navigate("/coming-soon")}
+                  onClick={() => navigate("/routes/" + route.id)}
                 >
-                  #{route.route_index ?? "?"} — {route.name} ({route.grade})
+                  <span style={S.indexNum}>
+                    {route.route_index >= 0 ? `#${route.route_index}` : "—"}
+                  </span>
+                  <span style={{
+                    ...S.indexName,
+                    color: hoveredRoute === route.id ? "var(--hold-lt)" : "var(--chalk)",
+                  }}>
+                    {route.name}
+                  </span>
+                  {route.length > 0 && (
+                    <span style={S.routeLength}>{route.length}m</span>
+                  )}
+                  <span style={S.indexGrade(getGradeColor(route.sorting_grade))}>
+                    {route.grade}
+                  </span>
                 </div>
               ))}
           </div>
         )}
+
       </div>
     </div>
   )

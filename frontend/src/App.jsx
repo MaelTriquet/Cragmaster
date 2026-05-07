@@ -6,6 +6,9 @@ import Upload from './pages/Upload'
 import Topos from './pages/Topos'
 import TopoDetail from './pages/Topo-details'
 import RouteDetail from './pages/Route-details'
+import Search from './pages/Search'
+import Navbar from './components/Navbar'
+import Profile from './pages/Profile'
 
 function ComingSoon({ name }) {
   return (
@@ -21,15 +24,17 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+		<Navbar />
         <Routes>
           <Route path="/login" element={<Login />} />
 
           <Route path="/topos"        element={<PrivateRoute><Topos /></PrivateRoute>} />
           <Route path="/topos/:id"    element={<PrivateRoute><TopoDetail /></PrivateRoute>} />
           <Route path="/routes/:id"   element={<PrivateRoute><RouteDetail /></PrivateRoute>} />
-          <Route path="/search"       element={<PrivateRoute><ComingSoon name="Search" /></PrivateRoute>} />
+          <Route path="/search"       element={<PrivateRoute><Search /></PrivateRoute>} />
           <Route path="/upload"       element={<PrivateRoute><Upload /></PrivateRoute>} />
           <Route path="/admin"        element={<PrivateRoute adminOnly><ComingSoon name="Admin" /></PrivateRoute>} />
+		  <Route path="/profile"      element={<PrivateRoute><Profile /></PrivateRoute>} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
