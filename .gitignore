@@ -1,4 +1,4 @@
-/__pycache__
+backend/__pycache__
 /db/*.db
 /uploads
 /frontend/node_modules
