@@ -16,7 +16,7 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET', 'topo-secret-change-in-prod')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 jwt = JWTManager(app)
-UPLOAD_FOLDER = Path('../uploads')
+UPLOAD_FOLDER = Path('/app/uploads')
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────

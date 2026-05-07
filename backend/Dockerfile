@@ -4,8 +4,8 @@ WORKDIR /app
 
 COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
 
-RUN micromamba create -y -f /tmp/environment.yml && \
-    micromamba clean --all --yes
+RUN micromamba create -y -f /tmp/environment.yml
+RUN micromamba clean --all --yes
 
 COPY --chown=$MAMBA_USER:$MAMBA_USER . /app
 

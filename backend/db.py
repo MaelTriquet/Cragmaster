@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-DB_PATH = os.environ.get('DB_PATH', '../db/topos.db')
+DB_PATH = os.environ.get('DB_PATH', '/app/db/topos.db')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
