@@ -1,0 +1,616 @@
+import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import api from '../api/client'
+
+// ── Grade colour (same palette as the rest of the app) ──────────────────────
+const getGradeColor = (sorting_grade) => {
+  const stops = [
+    [0,    105, 55, 48],
+    [11.5,  88, 60, 46],
+    [17.5,  65, 70, 46],
+    [19.5,  45, 75, 48],
+    [21.5,  30, 78, 46],
+    [23.5,  18, 80, 45],
+    [25.5,   6, 82, 44],
+    [27.5, 352, 80, 42],
+    [29.5, 330, 75, 38],
+    [35,   285, 70, 32],
+  ]
+  if (sorting_grade <= stops[0][0]) return `hsl(${stops[0][1]},${stops[0][2]}%,${stops[0][3]}%)`
+  if (sorting_grade >= stops[stops.length-1][0]) {
+    const s = stops[stops.length-1]
+    return `hsl(${s[1]},${s[2]}%,${s[3]}%)`
+  }
+  let lo, hi
+  for (let i = 0; i < stops.length-1; i++) {
+    if (sorting_grade >= stops[i][0] && sorting_grade <= stops[i+1][0]) {
+      lo = stops[i]; hi = stops[i+1]; break
+    }
+  }
+  const t = (sorting_grade - lo[0]) / (hi[0] - lo[0])
+  let dh = hi[1] - lo[1]
+  if (dh > 180) dh -= 360
+  if (dh < -180) dh += 360
+  return `hsl(${(lo[1]+dh*t).toFixed(1)},${(lo[2]+(hi[2]-lo[2])*t).toFixed(1)}%,${(lo[3]+(hi[3]-lo[3])*t).toFixed(1)}%)`
+}
+
+// ── Tiny bar-chart component ─────────────────────────────────────────────────
+function BarChart({ data, valueKey, labelKey, sortingKey, title, unit = '' }) {
+  const [hovered, setHovered] = useState(null)
+  if (!data || data.length === 0) return (
+    <div style={S.emptyChart}>No data yet</div>
+  )
+  const max = Math.max(...data.map(d => d[valueKey]), 1)
+  return (
+    <div>
+      <div style={S.chartTitle}>{title}</div>
+      <div style={S.barChart}>
+        {data.map((d, i) => {
+          const pct = (d[valueKey] / max) * 100
+          const color = getGradeColor(d[sortingKey])
+          const isHov = hovered === i
+          return (
+            <div
+              key={i}
+              style={S.barGroup}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              {/* Tooltip */}
+              {isHov && (
+                <div style={S.tooltip}>
+                  {d[valueKey]}{unit}
+                </div>
+              )}
+              {/* Bar */}
+              <div style={S.barWrapper}>
+                <div
+                  style={{
+                    ...S.bar,
+                    height: `${Math.max(pct, 4)}%`,
+                    background: color,
+                    opacity: isHov ? 1 : 0.8,
+                    transform: isHov ? 'scaleX(1.08)' : 'scaleX(1)',
+                  }}
+                />
+              </div>
+              {/* Grade label */}
+              <span style={{ ...S.barLabel, color: isHov ? 'var(--chalk)' : 'var(--muted)' }}>
+                {d[labelKey]}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Horizontal bar chart (for avg attempts) ──────────────────────────────────
+function HBarChart({ data, valueKey, labelKey, sortingKey, title, unit = '' }) {
+  const [hovered, setHovered] = useState(null)
+  if (!data || data.length === 0) return (
+    <div style={S.emptyChart}>No data yet</div>
+  )
+  const max = Math.max(...data.map(d => d[valueKey]), 1)
+  return (
+    <div>
+      <div style={S.chartTitle}>{title}</div>
+      <div style={S.hBarChart}>
+        {data.map((d, i) => {
+          const pct = (d[valueKey] / max) * 100
+          const color = getGradeColor(d[sortingKey])
+          const isHov = hovered === i
+          return (
+            <div
+              key={i}
+              style={S.hBarRow}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              <span style={{ ...S.hBarLabel, color: isHov ? 'var(--chalk)' : 'var(--muted)' }}>
+                {d[labelKey]}
+              </span>
+              <div style={S.hBarTrack}>
+                <div style={{
+                  ...S.hBar,
+                  width: `${Math.max(pct, 2)}%`,
+                  background: color,
+                  opacity: isHov ? 1 : 0.8,
+                }} />
+              </div>
+              <span style={{
+                ...S.hBarValue,
+                color: isHov ? 'var(--chalk)' : 'var(--muted)',
+              }}>
+                {d[valueKey]}{unit}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+const S = {
+  root: {
+    minHeight: '100vh',
+    background: 'var(--rock)',
+    padding: '3rem 2rem',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  noise: {
+    position: 'fixed',
+    inset: 0,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
+    backgroundSize: '128px',
+    pointerEvents: 'none',
+    opacity: 0.5,
+    zIndex: 0,
+  },
+  container: {
+    width: '100%',
+    maxWidth: '860px',
+    position: 'relative',
+    zIndex: 1,
+  },
+
+  // ── Header
+  header: {
+    borderLeft: '4px solid var(--hold)',
+    paddingLeft: '1.5rem',
+    marginBottom: '2.5rem',
+  },
+  eyebrow: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.68rem',
+    fontWeight: 600,
+    letterSpacing: '0.2em',
+    color: 'var(--hold)',
+    textTransform: 'uppercase',
+    display: 'block',
+    marginBottom: '0.4rem',
+  },
+  title: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '3.5rem',
+    fontWeight: 800,
+    letterSpacing: '0.02em',
+    textTransform: 'uppercase',
+    color: 'var(--chalk)',
+    margin: 0,
+    lineHeight: 0.95,
+  },
+
+  // ── Summary row
+  summaryRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '1rem',
+    marginBottom: '2rem',
+  },
+  statCard: {
+    background: 'var(--granite)',
+    borderLeft: '4px solid var(--hold)',
+    padding: '1.25rem 1.5rem',
+  },
+  statValue: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '3.5rem',
+    fontWeight: 800,
+    color: 'var(--chalk)',
+    lineHeight: 1,
+    letterSpacing: '-0.01em',
+  },
+  statLabel: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    marginTop: '0.3rem',
+  },
+
+  // ── Max grade hero card
+  heroCard: {
+    background: 'var(--granite)',
+    padding: '1.75rem 2rem',
+    marginBottom: '2rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '1rem',
+    flexWrap: 'wrap',
+  },
+  heroLabel: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.68rem',
+    fontWeight: 700,
+    letterSpacing: '0.2em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    marginBottom: '0.4rem',
+  },
+  heroGrade: (color) => ({
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '5rem',
+    fontWeight: 800,
+    letterSpacing: '0.02em',
+    color,
+    lineHeight: 1,
+    textShadow: `0 0 60px ${color}55`,
+  }),
+  heroSub: {
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: '0.85rem',
+    color: 'var(--muted)',
+    marginTop: '0.25rem',
+  },
+  heroNone: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '1.5rem',
+    fontWeight: 700,
+    letterSpacing: '0.05em',
+    color: 'var(--muted)',
+    textTransform: 'uppercase',
+  },
+
+  // ── Chart grid
+  chartGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1.5rem',
+    marginBottom: '2rem',
+  },
+  chartCard: {
+    background: 'var(--granite)',
+    borderLeft: '2px solid var(--line)',
+    padding: '1.5rem',
+  },
+  chartCardFull: {
+    background: 'var(--granite)',
+    borderLeft: '2px solid var(--line)',
+    padding: '1.5rem',
+    gridColumn: '1 / -1',
+  },
+  chartTitle: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.68rem',
+    fontWeight: 700,
+    letterSpacing: '0.2em',
+    textTransform: 'uppercase',
+    color: 'var(--hold)',
+    marginBottom: '1.25rem',
+  },
+  emptyChart: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.82rem',
+    letterSpacing: '0.08em',
+    color: 'var(--muted)',
+    padding: '1.5rem 0',
+    textTransform: 'uppercase',
+  },
+
+  // ── Vertical bar chart
+  barChart: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: '6px',
+    height: '160px',
+  },
+  barGroup: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    height: '100%',
+    gap: '4px',
+    position: 'relative',
+    cursor: 'default',
+  },
+  barWrapper: {
+    flex: 1,
+    width: '100%',
+    display: 'flex',
+    alignItems: 'flex-end',
+  },
+  bar: {
+    width: '100%',
+    transition: 'height 0.4s ease, transform 0.15s, opacity 0.15s',
+    transformOrigin: 'bottom',
+  },
+  barLabel: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.6rem',
+    fontWeight: 700,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    transition: 'color 0.15s',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  tooltip: {
+    position: 'absolute',
+    top: '-28px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'var(--rock)',
+    border: '1px solid var(--line)',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    color: 'var(--chalk)',
+    padding: '2px 6px',
+    whiteSpace: 'nowrap',
+    pointerEvents: 'none',
+    zIndex: 10,
+  },
+
+  // ── Horizontal bar chart
+  hBarChart: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  hBarRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    cursor: 'default',
+  },
+  hBarLabel: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    width: '36px',
+    flexShrink: 0,
+    transition: 'color 0.15s',
+  },
+  hBarTrack: {
+    flex: 1,
+    height: '8px',
+    background: 'rgba(255,255,255,0.04)',
+    position: 'relative',
+  },
+  hBar: {
+    height: '100%',
+    transition: 'width 0.5s ease, opacity 0.15s',
+  },
+  hBarValue: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    letterSpacing: '0.06em',
+    width: '40px',
+    textAlign: 'right',
+    flexShrink: 0,
+    transition: 'color 0.15s',
+  },
+
+  // ── Working routes
+  workingList: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  workingRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '0.65rem 0',
+    borderBottom: '1px solid var(--line)',
+    cursor: 'pointer',
+  },
+  workingGrade: (color) => ({
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    padding: '0.15rem 0.45rem',
+    flexShrink: 0,
+    color: 'var(--chalk)',
+    background: color,
+  }),
+  workingName: {
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: '0.9rem',
+    color: 'var(--chalk)',
+    flex: 1,
+    transition: 'color 0.15s',
+  },
+  workingTopo: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+  },
+  workingAttempts: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    color: 'var(--muted)',
+    flexShrink: 0,
+  },
+  workingArrow: {
+    fontSize: '0.85rem',
+    color: 'var(--line)',
+    flexShrink: 0,
+    transition: 'color 0.15s',
+  },
+
+  loadingText: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '1.2rem',
+    letterSpacing: '0.1em',
+    color: 'var(--muted)',
+  },
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export default function Stats() {
+  const [stats, setStats]   = useState(null)
+  const [hovered, setHovered] = useState(null)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    api.get('/stats').then(res => setStats(res.data)).catch(console.error)
+  }, [])
+
+  if (!stats) return (
+    <div style={{ ...S.root, justifyContent: 'center', alignItems: 'center' }}>
+      <span style={S.loadingText}>LOADING…</span>
+    </div>
+  )
+
+  const { max_grade, grade_pyramid, avg_attempts_per_grade, working, summary } = stats
+
+  return (
+    <div style={S.root}>
+      <div style={S.noise} />
+
+      <div style={S.container}>
+
+        {/* ── HEADER ── */}
+        <div style={S.header}>
+          <span style={S.eyebrow}>Your Progress</span>
+          <h1 style={S.title}>Stats</h1>
+        </div>
+
+        {/* ── SUMMARY NUMBERS ── */}
+        <div style={S.summaryRow}>
+          {[
+            { value: summary.total_sent,     label: 'Routes sent'    },
+            { value: summary.total_attempts, label: 'Total attempts' },
+            { value: summary.total_working,  label: 'In progress'    },
+          ].map((s, i) => (
+            <div key={i} style={S.statCard}>
+              <div style={S.statValue}>{s.value}</div>
+              <div style={S.statLabel}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── MAX GRADE HERO ── */}
+        <div style={S.heroCard}>
+          <div>
+            <div style={S.heroLabel}>Hardest grade sent</div>
+            {max_grade ? (
+              <>
+                <div style={S.heroGrade(getGradeColor(max_grade.sorting_grade))}>
+                  {max_grade.grade}
+                </div>
+                <div style={S.heroSub}>Personal best</div>
+              </>
+            ) : (
+              <div style={S.heroNone}>No sends yet — get on the wall!</div>
+            )}
+          </div>
+
+          {/* Decorative grade scale strip */}
+          {grade_pyramid.length > 0 && (
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              {grade_pyramid.map((g, i) => (
+                <div
+                  key={i}
+                  title={g.grade}
+                  style={{
+                    width: '10px',
+                    height: `${Math.min(8 + g.count * 8, 64)}px`,
+                    background: getGradeColor(g.sorting_grade),
+                    opacity: max_grade && g.grade === max_grade.grade ? 1 : 0.5,
+                    transition: 'height 0.3s',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── CHARTS ── */}
+        <div style={S.chartGrid}>
+
+          {/* Grade pyramid */}
+          <div style={S.chartCard}>
+            <BarChart
+              data={grade_pyramid}
+              valueKey="count"
+              labelKey="grade"
+              sortingKey="sorting_grade"
+              title="Sends per grade"
+              unit=""
+            />
+          </div>
+
+          {/* Avg attempts per grade */}
+          <div style={S.chartCard}>
+            <HBarChart
+              data={avg_attempts_per_grade}
+              valueKey="avg"
+              labelKey="grade"
+              sortingKey="sorting_grade"
+              title="Avg. attempts to send"
+              unit=" tries"
+            />
+          </div>
+
+          {/* Working routes */}
+          <div style={S.chartCardFull}>
+            <div style={S.chartTitle}>
+              In progress — {working.length} route{working.length !== 1 ? 's' : ''}
+            </div>
+            {working.length === 0 ? (
+              <div style={S.emptyChart}>Nothing in progress — send everything or try harder stuff!</div>
+            ) : (
+              <div style={S.workingList}>
+                {working.map((r, i) => {
+                  const isHov = hovered === `w${i}`
+                  const color = getGradeColor(r.sorting_grade)
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        ...S.workingRow,
+                        background: isHov ? 'rgba(255,255,255,0.02)' : 'transparent',
+                      }}
+                      onMouseEnter={() => setHovered(`w${i}`)}
+                      onMouseLeave={() => setHovered(null)}
+                      onClick={() => navigate(`/routes/${r.route_id}`)}
+                    >
+                      <span style={S.workingGrade(color)}>{r.grade}</span>
+                      <span style={{
+                        ...S.workingName,
+                        color: isHov ? 'var(--hold-lt)' : 'var(--chalk)',
+                      }}>
+                        {r.route_name}
+                      </span>
+                      <span style={S.workingTopo}>{r.topo_title}</span>
+                      <span style={S.workingAttempts}>
+                        {r.attempts} attempt{r.attempts !== 1 ? 's' : ''}
+                      </span>
+                      <span style={{
+                        ...S.workingArrow,
+                        color: isHov ? 'var(--hold)' : 'var(--line)',
+                      }}>›</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  )
+}

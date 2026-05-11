@@ -355,6 +355,123 @@ const S = {
     padding: "0.15rem 0.5rem",
     flexShrink: 0,
   }),
+
+  // ── ADD ROUTE FORM ────────────────────────────────────────────────────────────────────
+   btnRow: {
+    display: "flex",
+    gap: "0.75rem",
+    marginTop: "1.25rem",
+    flexWrap: "wrap",
+  },
+
+  btnGhost: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.85rem",
+    fontWeight: 700,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    padding: "0.6rem 1.2rem",
+    background: "transparent",
+    color: "var(--chalk)",
+    border: "1px solid var(--line)",
+    cursor: "pointer",
+    transition: "border-color 0.15s, color 0.15s",
+  },
+
+  card: {
+    background: "var(--granite)",
+    borderLeft: "2px solid var(--line)",
+    padding: "1.5rem 1.75rem",
+    marginBottom: "1.5rem",
+  },
+
+  cardTitle: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.72rem",
+    fontWeight: 600,
+    letterSpacing: "0.2em",
+    textTransform: "uppercase",
+    color: "var(--hold)",
+    marginBottom: "1.25rem",
+  },
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "0.85rem",
+    marginBottom: "0.85rem",
+  },
+
+  formField: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.35rem",
+  },
+
+  formFieldFull: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.35rem",
+    gridColumn: "1 / -1",
+  },
+
+  formLabel: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.65rem",
+    fontWeight: 600,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    color: "var(--muted)",
+  },
+
+  formInput: {
+    background: "var(--rock)",
+    border: "1px solid var(--line)",
+    color: "var(--chalk)",
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.95rem",
+    padding: "0.55rem 0.75rem",
+    outline: "none",
+    transition: "border-color 0.15s",
+    width: "100%",
+    boxSizing: "border-box",
+  },
+
+  formTextarea: {
+    background: "var(--rock)",
+    border: "1px solid var(--line)",
+    color: "var(--chalk)",
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.95rem",
+    padding: "0.55rem 0.75rem",
+    outline: "none",
+    transition: "border-color 0.15s",
+    width: "100%",
+    boxSizing: "border-box",
+    resize: "vertical",
+    minHeight: "90px",
+  },
+
+  divider: {
+    height: "1px",
+    background: "var(--line)",
+    margin: "1.25rem 0",
+  },
+
+
+  btnPrimary: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.85rem",
+    fontWeight: 700,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    padding: "0.6rem 1.2rem",
+    background: "var(--hold)",
+    color: "var(--chalk)",
+    border: "none",
+    cursor: "pointer",
+    transition: "background 0.15s",
+  },
+
 }
 
 export default function TopoDetail() {
@@ -367,6 +484,14 @@ export default function TopoDetail() {
   const [expandedGrades, setExpandedGrades] = useState({})
   const [hoveredBtn, setHoveredBtn] = useState(null)
   const [hoveredRoute, setHoveredRoute] = useState(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+
+  const [addForm, setAddForm] = useState({
+    name: "",
+    grade: "",
+    length: "",
+    route_index: "",
+  })
 
   useEffect(() => {
     api.get(`/topos/${id}`)
@@ -376,6 +501,15 @@ export default function TopoDetail() {
       })
       .catch(err => console.error(err))
   }, [id])
+
+  const submitRouteAdd = () => {
+    api.post(`/topos/${id}/add_route`, addForm)
+      .then(res => {
+        setRoutes(res.data.routes)
+        setShowAddForm(false)
+        setAddForm({ name: "", grade: "", length: "", route_index: "" })
+      })
+  }
 
   if (!topo) return (
     <div style={{ ...S.root, justifyContent: "center" }}>
@@ -436,6 +570,102 @@ export default function TopoDetail() {
             )}
             <span style={S.routeCount}>{routes.length} route{routes.length !== 1 ? "s" : ""}</span>
           </div>
+
+  		  <div style={S.btnRow}>
+  		    <button
+  		  	style={{
+  		  	  ...S.btnGhost,
+  		  	  borderColor: hoveredBtn === "addRoute" ? "var(--hold)" : "var(--line)",
+  		  	  color: hoveredBtn === "addRoute" ? "var(--hold)" : "var(--chalk)",
+  		  	}}
+  		  	onMouseEnter={() => setHoveredBtn("addRoute")}
+  		  	onMouseLeave={() => setHoveredBtn(null)}
+  		  	onClick={() => setShowAddForm(v => !v)}
+  		    >
+  		  	{showAddForm ? "Cancel Add" : "Add Route"}
+  		    </button>
+  		  </div>
+			{showAddForm && (
+			  <div style={{ ...S.card, marginTop: "1.5rem" }}>
+				<div style={S.cardTitle}>Add Route</div>
+
+				<div style={S.formGrid}>
+				  <div style={S.formField}>
+					<label style={S.formLabel}>Name</label>
+					<input
+					  type="text"
+					  style={S.formInput}
+					  value={addForm.name}
+					  onChange={e =>
+						setAddForm({ ...addForm, name: e.target.value })
+					  }
+					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+					  onBlur={e => e.target.style.borderColor = "var(--line)"}
+					/>
+				  </div>
+
+				  <div style={S.formField}>
+					<label style={S.formLabel}>Grade</label>
+					<input
+					  type="text"
+					  style={S.formInput}
+					  value={addForm.grade}
+					  onChange={e =>
+						setAddForm({ ...addForm, grade: e.target.value })
+					  }
+					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+					  onBlur={e => e.target.style.borderColor = "var(--line)"}
+					/>
+				  </div>
+
+				  <div style={S.formField}>
+					<label style={S.formLabel}>Length (m)</label>
+					<input
+					  type="number"
+					  style={S.formInput}
+					  value={addForm.length}
+					  onChange={e =>
+						setAddForm({ ...addForm, length: e.target.value })
+					  }
+					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+					  onBlur={e => e.target.style.borderColor = "var(--line)"}
+					/>
+				  </div>
+
+				  <div style={S.formField}>
+					<label style={S.formLabel}>Route Index</label>
+					<input
+					  type="number"
+					  style={S.formInput}
+					  value={addForm.route_index}
+					  onChange={e =>
+						setAddForm({ ...addForm, route_index: e.target.value })
+					  }
+					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+					  onBlur={e => e.target.style.borderColor = "var(--line)"}
+					/>
+				  </div>
+				</div>
+
+				<button
+				  style={{
+					...S.btnPrimary,
+					marginTop: "1rem",
+					background:
+					  hoveredBtn === "addRoute"
+						? "var(--hold-lt)"
+						: "var(--hold)",
+				  }}
+				  onMouseEnter={() => setHoveredBtn("addRoute")}
+				  onMouseLeave={() => setHoveredBtn(null)}
+				  onClick={submitRouteAdd}
+				>
+				  Add Route
+				</button>
+			  </div>
+			)}
+
+
         </div>
 
         {/* ── TOOLBAR ── */}

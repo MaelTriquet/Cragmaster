@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 const NAV_ITEMS = [
   { label: 'Topos',  path: '/topos'  },
   { label: 'Search', path: '/search' },
+  { label: 'Stats', path: '/stats' },
   { label: 'Upload', path: '/upload' },
 ]
 

@@ -197,6 +197,40 @@ def delete_topo(topo_id):
     conn.commit(); conn.close()
     return ok(deleted=True)
 
+@app.route('/api/topos/<int:topo_id>/add_route', methods=['POST'])
+@jwt_required()
+def add_route(topo_id):
+    conn = get_db()
+    d = request.get_json() or {}
+    name = (d.get('name') or '').strip()
+    grade = (d.get('grade') or '').strip()
+    length = d.get('length')
+    route_index = d.get('route_index')
+    if not route_index:
+        return api_error('Route index cannot be empty')
+    if not length:
+        length = -1
+    try:
+        length = float(length)
+    except (ValueError, TypeError):
+        return api_error('Length must be a number')
+    try:
+        route_index = int(route_index)
+    except (ValueError, TypeError):
+        return api_error('Route index must be a number')
+    cursor = conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone()
+    if not cursor:
+        return api_error('Topo not found', 404)
+    cursor = conn.execute('SELECT id FROM routes WHERE topo_id=? AND route_index=?', (topo_id, route_index)).fetchone()
+    if cursor:
+        return api_error('Route already exists', 409)
+    conn.execute('INSERT INTO routes (topo_id, name, grade, sorting_grade, length, route_index) VALUES (?,?,?,?,?,?)', (topo_id, name, grade, grade_sort_key(grade), length, route_index))
+    conn.commit()
+    routes = conn.execute('''SELECT * FROM routes WHERE topo_id=? ORDER BY route_index''', (topo_id,)).fetchall()
+    conn.close()
+    return ok(routes=[dict(r) for r in routes])
+
+
 # ── ROUTES ────────────────────────────────────────────────────────────────────
 @app.route('/api/routes/<int:route_id>', methods=['GET'])
 @jwt_required()
@@ -211,6 +245,53 @@ def get_route(route_id):
     tags = conn.execute('SELECT t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
     conn.close()
     return ok(route=dict(route), comments=[dict(c) for c in comments], attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags])
+
+
+
+@app.route('/api/routes/<int:route_id>', methods=['PATCH'])
+@jwt_required()
+def update_route(route_id):
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    d = request.get_json() or {}
+
+    name  = (d.get('name')  or '').strip()
+    grade = (d.get('grade') or '').strip()
+    length = d.get('length')
+    route_index = d.get('route_index')
+
+    if not name:
+        return api_error('Name cannot be empty')
+
+    sorting = grade_sort_key(grade) if grade else -1
+
+    try:
+        length = float(length) if length not in (None, '', '-1') else -1
+    except (ValueError, TypeError):
+        length = -1
+
+    try:
+        route_index = int(route_index) if route_index not in (None, '', '-1') else -1
+    except (ValueError, TypeError):
+        route_index = -1
+
+    conn = get_db()
+    route = conn.execute('SELECT id FROM routes WHERE id=?', (route_id,)).fetchone()
+    if not route:
+        conn.close(); return api_error('Route not found', 404)
+
+    conn.execute(
+        'UPDATE routes SET name=?, grade=?, sorting_grade=?, length=?, route_index=? WHERE id=?',
+        (name, grade, sorting, length, route_index, route_id)
+    )
+    conn.commit()
+    updated = conn.execute(
+        'SELECT r.*, t.title as topo_title, t.location as topo_location, t.id as topo_id '
+        'FROM routes r JOIN topos t ON t.id = r.topo_id WHERE r.id=?',
+        (route_id,)
+    ).fetchone()
+    conn.close()
+    return ok(route=dict(updated))
 
 # ── ATTEMPTS ─────────────────────────────────────────────────────────────────
 
@@ -258,7 +339,7 @@ def get_comments(route_id):
 @jwt_required()
 def upsert_comment(route_id):
     uid = int(get_jwt_identity())
-    d   = request.get_json().get('body') or {}
+    d   = request.get_json() or {}
     stars           = float(d.get('stars', 0))
     perceived_grade = (d.get('perceived_grade') or '').strip()
     body            = (d.get('body') or '').strip()
@@ -350,6 +431,97 @@ def assign_tag():
     conn.commit()
     conn.close()
     return ok(tag=tag_id)
+
+# ── STATS ──────────────────────────────────────────────────────────────────────
+@app.route('/api/stats', methods=['GET'])
+@jwt_required()
+def get_stats():
+    user_id = int(get_jwt_identity())
+    conn = get_db()
+
+    # All attempts for this user, joined with route info
+    rows = conn.execute('''
+        SELECT
+            a.route_id,
+            a.sent,
+            a.amount,
+            r.grade,
+            r.sorting_grade,
+            r.name as route_name,
+            t.title as topo_title
+        FROM attempts a
+        JOIN routes r ON r.id = a.route_id
+        JOIN topos t ON t.id = r.topo_id
+        WHERE a.user_id = ?
+    ''', (user_id,)).fetchall()
+    conn.close()
+
+    rows = [dict(r) for r in rows]
+
+    sent_rows    = [r for r in rows if r['sent']]
+    working_rows = [r for r in rows if not r['sent'] and r['amount'] > 0]
+
+    # Max grade sent (by sorting_grade)
+    max_grade = None
+    if sent_rows:
+        best = max(sent_rows, key=lambda r: r['sorting_grade'])
+        max_grade = {'grade': best['grade'], 'sorting_grade': best['sorting_grade']}
+
+    # Grade pyramid — count of sent routes per grade
+    grade_counts = {}
+    for r in sent_rows:
+        g = r['grade']
+        if g not in grade_counts:
+            grade_counts[g] = {'grade': g, 'sorting_grade': r['sorting_grade'], 'count': 0}
+        grade_counts[g]['count'] += 1
+    grade_pyramid = sorted(grade_counts.values(), key=lambda x: x['sorting_grade'])
+
+    # Average attempts per grade (sent only — fair comparison)
+    grade_avg_attempts = {}
+    for r in sent_rows:
+        g = r['grade']
+        if g not in grade_avg_attempts:
+            grade_avg_attempts[g] = {'grade': g, 'sorting_grade': r['sorting_grade'], 'total': 0, 'count': 0}
+        grade_avg_attempts[g]['total'] += r['amount']
+        grade_avg_attempts[g]['count'] += 1
+    avg_attempts = [
+        {
+            'grade': v['grade'],
+            'sorting_grade': v['sorting_grade'],
+            'avg': round(v['total'] / v['count'], 2)
+        }
+        for v in sorted(grade_avg_attempts.values(), key=lambda x: x['sorting_grade'])
+    ]
+
+    # Working routes (attempted but not sent)
+    working = [
+        {
+            'route_id':   r['route_id'],
+            'route_name': r['route_name'],
+            'topo_title': r['topo_title'],
+            'grade':      r['grade'],
+            'sorting_grade': r['sorting_grade'],
+            'attempts':   r['amount'],
+        }
+        for r in sorted(working_rows, key=lambda x: x['sorting_grade'], reverse=True)
+    ]
+
+    # Summary numbers
+    total_sent     = len(sent_rows)
+    total_attempts = sum(r['amount'] for r in rows)
+    total_working  = len(working_rows)
+
+    return ok(
+        max_grade=max_grade,
+        grade_pyramid=grade_pyramid,
+        avg_attempts_per_grade=avg_attempts,
+        working=working,
+        summary={
+            'total_sent':     total_sent,
+            'total_attempts': total_attempts,
+            'total_working':  total_working,
+        }
+    )
 
 if __name__ == '__main__':
     init_db()

@@ -369,6 +369,15 @@ export default function RouteDetail() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ stars: "", perceived_grade: "!", body: "" })
 
+  const [showEditForm, setShowEditForm] = useState(false)
+
+  const [editForm, setEditForm] = useState({
+    name: "",
+    grade: "",
+    length: "",
+    route_index: "",
+  })
+
   useEffect(() => {
     api.get(`/routes/${id}`)
       .then(res => {
@@ -376,11 +385,25 @@ export default function RouteDetail() {
         setRoute(d.route)
         setComments(d.comments)
         setTags(d.tags)
+		setEditForm({
+		  name: d.route.name || "",
+		  grade: d.route.grade || "",
+		  length: d.route.length > 0 ? d.route.length : "",
+		  route_index: d.route.route_index > 0 ? d.route.route_index : "",
+		})
         if (!d.attempt || Object.keys(d.attempt).length === 0)
           setAttempt({ id: null, amount: 0, sent: false })
         else setAttempt(d.attempt)
       })
   }, [id])
+
+  const submitRouteEdit = () => {
+    api.patch(`/routes/${id}`, editForm)
+      .then(res => {
+        setRoute(res.data.route)
+        setShowEditForm(false)
+      })
+  }
 
   const addAttempt = () => {
     api.get(`/routes/${id}/add_attempt`)
@@ -461,6 +484,99 @@ export default function RouteDetail() {
               ))}
             </div>
           )}
+  		  <div style={S.btnRow}>
+  		    <button
+  		  	style={{
+  		  	  ...S.btnGhost,
+  		  	  borderColor: hoveredBtn === "editRoute" ? "var(--hold)" : "var(--line)",
+  		  	  color: hoveredBtn === "editRoute" ? "var(--hold)" : "var(--chalk)",
+  		  	}}
+  		  	onMouseEnter={() => setHoveredBtn("editRoute")}
+  		  	onMouseLeave={() => setHoveredBtn(null)}
+  		  	onClick={() => setShowEditForm(v => !v)}
+  		    >
+  		  	{showEditForm ? "Cancel Edit" : "Edit Route"}
+  		    </button>
+  		  </div>
+			{showEditForm && (
+			  <div style={{ ...S.card, marginTop: "1.5rem" }}>
+				<div style={S.cardTitle}>Edit Route</div>
+
+				<div style={S.formGrid}>
+				  <div style={S.formField}>
+					<label style={S.formLabel}>Name</label>
+					<input
+					  type="text"
+					  style={S.formInput}
+					  value={editForm.name}
+					  onChange={e =>
+						setEditForm({ ...editForm, name: e.target.value })
+					  }
+					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+					  onBlur={e => e.target.style.borderColor = "var(--line)"}
+					/>
+				  </div>
+
+				  <div style={S.formField}>
+					<label style={S.formLabel}>Grade</label>
+					<input
+					  type="text"
+					  style={S.formInput}
+					  value={editForm.grade}
+					  onChange={e =>
+						setEditForm({ ...editForm, grade: e.target.value })
+					  }
+					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+					  onBlur={e => e.target.style.borderColor = "var(--line)"}
+					/>
+				  </div>
+
+				  <div style={S.formField}>
+					<label style={S.formLabel}>Length (m)</label>
+					<input
+					  type="number"
+					  style={S.formInput}
+					  value={editForm.length}
+					  onChange={e =>
+						setEditForm({ ...editForm, length: e.target.value })
+					  }
+					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+					  onBlur={e => e.target.style.borderColor = "var(--line)"}
+					/>
+				  </div>
+
+				  <div style={S.formField}>
+					<label style={S.formLabel}>Route Index</label>
+					<input
+					  type="number"
+					  style={S.formInput}
+					  value={editForm.route_index}
+					  onChange={e =>
+						setEditForm({ ...editForm, route_index: e.target.value })
+					  }
+					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+					  onBlur={e => e.target.style.borderColor = "var(--line)"}
+					/>
+				  </div>
+				</div>
+
+				<button
+				  style={{
+					...S.btnPrimary,
+					marginTop: "1rem",
+					background:
+					  hoveredBtn === "saveRoute"
+						? "var(--hold-lt)"
+						: "var(--hold)",
+				  }}
+				  onMouseEnter={() => setHoveredBtn("saveRoute")}
+				  onMouseLeave={() => setHoveredBtn(null)}
+				  onClick={submitRouteEdit}
+				>
+				  Save Changes
+				</button>
+			  </div>
+			)}
         </div>
 
         {/* ── ATTEMPTS CARD ── */}

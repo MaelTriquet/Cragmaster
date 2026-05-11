@@ -4,3 +4,4 @@ backend/__pycache__
 /frontend/node_modules
 /frontend/.vite
 /static
+docker-compose.yml
