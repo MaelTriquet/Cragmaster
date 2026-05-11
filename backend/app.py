@@ -132,6 +132,8 @@ def query():
     if not sql: return api_error('SQL query required')
     conn = get_db()
     cursor = conn.execute(sql).fetchall()
+    if sql.split(' ')[0].lower() in ['update', 'insert', 'delete']:
+        conn.commit()
     conn.close()
     return ok(rows=[dict(r) for r in cursor])
 
