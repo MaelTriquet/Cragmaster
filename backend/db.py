@@ -11,6 +11,7 @@ def get_db():
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    print('Creating tables...')
     conn = get_db()
     conn.executescript('''
         CREATE TABLE IF NOT EXISTS users (
@@ -24,8 +25,10 @@ def init_db():
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             filename      TEXT NOT NULL,
             title         TEXT NOT NULL,
-            location      TEXT DEFAULT '',
-            ocr_text      TEXT DEFAULT '',
+            parking_lat   REAL DEFAULT NULL,
+            parking_lon   REAL DEFAULT NULL,
+            routes_lat    REAL DEFAULT NULL,
+            routes_lon    REAL DEFAULT NULL,
             uploaded_by   INTEGER REFERENCES users(id) ON DELETE SET NULL
         );
 
@@ -45,6 +48,7 @@ def init_db():
             route_id   INTEGER REFERENCES routes(id) ON DELETE CASCADE,
             sent       INTEGER DEFAULT 0,
             amount     INTEGER DEFAULT 0,
+            sent_at  DATETIME DEFAULT NULL,
             UNIQUE(user_id, route_id)
         );
 

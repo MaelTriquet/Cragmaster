@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import api from '../api/client'
+import axios from 'axios'
 
 const getGradeColor = (grade) => {
   if (grade < 0) return 'hsl(0, 0%, 50%)'
@@ -481,6 +482,8 @@ export default function TopoDetail() {
 
   const [topo, setTopo] = useState(null)
   const [routes, setRoutes] = useState([])
+  const [parkingLocation, setParkingLocation] = useState(null)
+  const [routesLocation, setRoutesLocation] = useState(null)
   const [view, setView] = useState("grades")
   const [expandedGrades, setExpandedGrades] = useState({})
   const [hoveredBtn, setHoveredBtn] = useState(null)
@@ -499,6 +502,8 @@ export default function TopoDetail() {
       .then(res => {
         setTopo(res.data.topo)
         setRoutes(res.data.routes)
+		setParkingLocation(res.data.parking_location)
+		setRoutesLocation(res.data.routes_location)
       })
       .catch(err => console.error(err))
   }, [id])
@@ -539,6 +544,88 @@ export default function TopoDetail() {
     setExpandedGrades(prev => ({ ...prev, [g]: !prev[g] }))
   }
 
+  const sendLocationParking = () => {
+    // Check if browser supports geolocation
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+
+    // Get current position
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        try {
+          // Send POST request
+          const response = await api.post(
+            `/topos/${id}/set_location_parking`,
+            {
+			  lat: latitude,
+              lon: longitude,
+            }
+          );
+
+		  setParkingLocation({ lat: latitude, lon: longitude });
+        } catch (error) {
+          console.error("Error sending location:", error);
+        }
+      },
+
+      // Error callback
+      (error) => {
+        console.error("Error getting location:", error);
+        alert("Unable to retrieve your location");
+      }
+    );
+  };
+
+  
+  const sendLocationRoutes = () => {
+    // Check if browser supports geolocation
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+
+    // Get current position
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        try {
+          // Send POST request
+          const response = await api.post(
+            `/topos/${id}/set_location_routes`,
+            {
+			  lat: latitude,
+              lon: longitude,
+            }
+          );
+
+		  setRoutesLocation({ lat: latitude, lon: longitude });
+        } catch (error) {
+          console.error("Error sending location:", error);
+        }
+      },
+
+      // Error callback
+      (error) => {
+        console.error("Error getting location:", error);
+        alert("Unable to retrieve your location");
+      }
+    );
+  };
+
+  const openGPS = (position) => {
+    const url =
+      `https://www.google.com/maps/dir/?api=1&destination=${position.lat},${position.lon}`;
+
+    window.open(url, "_blank");
+  };
+
   return (
     <div style={S.root}>
       <div style={S.noise} />
@@ -563,12 +650,6 @@ export default function TopoDetail() {
           <span style={S.eyebrow}>Topo</span>
           <h1 style={S.title}>{topo.title}</h1>
           <div style={S.metaRow}>
-            {topo.location && (
-              <>
-                <span style={S.metaText}>{topo.location}</span>
-                <span style={{ color: "var(--line)" }}>·</span>
-              </>
-            )}
             <span style={S.routeCount}>{routes.length} route{routes.length !== 1 ? "s" : ""}</span>
           </div>
 
@@ -668,6 +749,61 @@ export default function TopoDetail() {
 
 
         </div>
+
+		{ parkingLocation.lat !== null ? (<button
+		  style={{
+				  	  ...S.btnGhost,
+				  	  borderColor: hoveredBtn === "setParkingLocation" ? "var(--hold)" : "var(--line)",
+				  	  color: hoveredBtn === "setParkingLocation" ? "var(--hold)" : "var(--chalk)",
+				  }}
+		  onMouseEnter={() => setHoveredBtn("setParkingLocation")}
+		  onMouseLeave={() => setHoveredBtn(null)}
+		  onClick={() => openGPS(parkingLocation)}
+		>
+		  Go to Parking Location
+		</button>):
+		(<button
+		  style={{
+  		  	  ...S.btnGhost,
+  		  	  borderColor: hoveredBtn === "setParkingLocation" ? "var(--hold)" : "var(--line)",
+  		  	  color: hoveredBtn === "setParkingLocation" ? "var(--hold)" : "var(--chalk)",
+  		  }}
+		  onMouseEnter={() => setHoveredBtn("setParkingLocation")}
+		  onMouseLeave={() => setHoveredBtn(null)}
+		  onClick={sendLocationParking}
+		>
+		  Set Parking Location
+		</button>)}
+
+
+		{ routesLocation.lat !== null ? (<button
+		  style={{
+				  	  ...S.btnGhost,
+				  	  borderColor: hoveredBtn === "setRoutesLocation" ? "var(--hold)" : "var(--line)",
+				  	  color: hoveredBtn === "setRoutesLocation" ? "var(--hold)" : "var(--chalk)",
+					  marginBottom: "1rem",
+				  }}
+		  onMouseEnter={() => setHoveredBtn("setRoutesLocation")}
+		  onMouseLeave={() => setHoveredBtn(null)}
+		  onClick={() => openGPS(routesLocation)}
+		>
+		  Go to Routes Location
+		</button>):
+		(<button
+		  style={{
+  		  	  ...S.btnGhost,
+  		  	  borderColor: hoveredBtn === "setRoutesLocation" ? "var(--hold)" : "var(--line)",
+  		  	  color: hoveredBtn === "setRoutesLocation" ? "var(--hold)" : "var(--chalk)",
+			  marginBottom: "1rem",
+			
+  		  	}}
+		  onMouseEnter={() => setHoveredBtn("setRoutesLocation")}
+		  onMouseLeave={() => setHoveredBtn(null)}
+		  onClick={sendLocationRoutes}
+		>
+		  Set Routes Location
+		</button>)}
+
 
         {/* ── TOOLBAR ── */}
         <div style={S.toolbar}>

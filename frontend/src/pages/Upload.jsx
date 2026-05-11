@@ -241,7 +241,6 @@ export default function Upload() {
 
   const [file, setFile]         = useState(null)
   const [title, setTitle]       = useState('')
-  const [location, setLocation] = useState('')
   const [dragging, setDragging] = useState(false)
 
   // upload states: idle | uploading | ocr | done | error
@@ -271,7 +270,6 @@ export default function Upload() {
     const fd = new FormData()
     fd.append('pdf', file)
     fd.append('title', title.trim() || file.name.replace(/\.pdf$/i, ''))
-    fd.append('location', location.trim())
 
     setPhase('uploading'); setProgress(0)
 
@@ -342,18 +340,6 @@ export default function Upload() {
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="e.g. Gorges du Verdon — Secteur Escalès"
-              disabled={busy}
-              onFocus={e => e.target.style.borderColor = 'var(--hold)'}
-              onBlur={e  => e.target.style.borderColor = 'var(--line)'}
-            />
-          </div>
-          <div style={S.field}>
-            <label style={S.label}>Location <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional)</span></label>
-            <input
-              style={S.input}
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              placeholder="e.g. Verdon, France"
               disabled={busy}
               onFocus={e => e.target.style.borderColor = 'var(--hold)'}
               onBlur={e  => e.target.style.borderColor = 'var(--line)'}

@@ -149,8 +149,10 @@ def get_topo(topo_id):
     topo = conn.execute('''SELECT * FROM topos WHERE id=?''', (topo_id,)).fetchone()
     if not topo: conn.close(); return api_error('Topo not found', 404)
     routes = conn.execute('''SELECT * FROM routes WHERE topo_id=? ORDER BY route_index''', (topo_id,)).fetchall()
+    parking_location = conn.execute('SELECT parking_lat as lat, parking_lon as lon FROM topos WHERE id=?', (topo_id,)).fetchone()
+    routes_location = conn.execute('SELECT routes_lat as lat, routes_lon as lon FROM topos WHERE id=?', (topo_id,)).fetchone()
     conn.close()
-    return ok(topo=dict(topo), routes=[dict(r) for r in routes])
+    return ok(topo=dict(topo), routes=[dict(r) for r in routes], parking_location=dict(parking_location), routes_location=dict(routes_location))
 
 @app.route('/api/topos/<int:topo_id>/download')
 def serve_pdf(topo_id):
@@ -169,7 +171,6 @@ def upload_topo():
     f = request.files['pdf']
     filename = f.filename
     title    = (request.form.get('title') or '').strip() or Path(filename).stem
-    location = (request.form.get('location') or '').strip()
     raw = f.read()
     dest = UPLOAD_FOLDER / f'{filename}'
     if not dest.exists(): dest.write_bytes(raw)
@@ -177,7 +178,7 @@ def upload_topo():
     existing = conn.execute('SELECT id FROM topos WHERE filename=?', (filename,)).fetchone()
     if existing: conn.close(); return api_error('This PDF is already in the library', 409)
     ocr_text = extract_text_from_pdf(str(dest))
-    cursor = conn.execute('INSERT INTO topos (filename, title, location, ocr_text, uploaded_by) VALUES (?,?,?,?,?)', (f.filename, title, location, ocr_text, user['id']))
+    cursor = conn.execute('INSERT INTO topos (filename, title, uploaded_by) VALUES (?,?,?)', (f.filename, title, user['id']))
     topo_id = cursor.lastrowid
     parsed = parse_routes(ocr_text, topo_id)
     for r in parsed:
@@ -231,13 +232,55 @@ def add_route(topo_id):
     return ok(routes=[dict(r) for r in routes])
 
 
+@app.route('/api/topos/<int:topo_id>/set_location_parking', methods=['POST'])
+@jwt_required()
+def set_location_parking(topo_id):
+    print("request received")
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    d = request.get_json() or {}
+    lat = (d.get('lat') or '')
+    lon = (d.get('lon') or '')
+    if not lat or not lon: return api_error('Error when setting parking location')
+    conn = get_db()
+    cursor = conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone()
+    if not cursor:
+        conn.close(); return api_error('Topo not found', 404)
+    if cursor['parking_lat'] is not None: return api_error('Parking location already set', 409)
+    cursor = conn.execute('UPDATE topos SET parking_lat=?, parking_lon=? WHERE id=?', (lat, lon, topo_id))
+    conn.commit()
+    parking_location = conn.execute('SELECT parking_lat, parking_lon FROM topos WHERE id=?', (topo_id,)).fetchone()
+    conn.close()
+    return ok(parking_location=dict(parking_location))
+
+@app.route('/api/topos/<int:topo_id>/set_location_routes', methods=['POST'])
+@jwt_required()
+def set_location_routes(topo_id):
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    d = request.get_json() or {}
+    lat = (d.get('lat') or '')
+    lon = (d.get('lon') or '')
+    if not lat or not lon: return api_error('Error when setting routes location')
+    conn = get_db()
+    cursor = conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone()
+    if not cursor:
+        conn.close(); return api_error('Topo not found', 404)
+    if cursor['routes_lat'] is not None: return api_error('Routes location already set', 409)
+    cursor = conn.execute('UPDATE topos SET routes_lat=?, routes_lon=? WHERE id=?', (lat, lon, topo_id))
+    conn.commit()
+    routes_location = conn.execute('SELECT routes_lat, routes_lon FROM topos WHERE id=?', (topo_id,)).fetchone()
+    conn.close()
+    return ok(routes_location=dict(routes_location))
+
+
 # ── ROUTES ────────────────────────────────────────────────────────────────────
 @app.route('/api/routes/<int:route_id>', methods=['GET'])
 @jwt_required()
 def get_route(route_id):
     user = get_current_user()
     conn = get_db()
-    route = conn.execute('''SELECT r.*, t.title as topo_title, t.location as topo_location, t.id as topo_id FROM routes r JOIN topos t ON t.id = r.topo_id WHERE r.id=?''', (route_id,)).fetchone()
+    route = conn.execute('''SELECT r.*, t.title as topo_title, t.id as topo_id FROM routes r JOIN topos t ON t.id = r.topo_id WHERE r.id=?''', (route_id,)).fetchone()
     if not route: conn.close(); return api_error('Route not found', 404)
     comments = conn.execute('''SELECT c.*, u.username FROM comments c JOIN users u ON u.id = c.user_id WHERE c.route_id=? ORDER BY c.created_at DESC''', (route_id,)).fetchall()
     attempt = []
@@ -286,7 +329,7 @@ def update_route(route_id):
     )
     conn.commit()
     updated = conn.execute(
-        'SELECT r.*, t.title as topo_title, t.location as topo_location, t.id as topo_id '
+        'SELECT r.*, t.title as topo_title, t.id as topo_id '
         'FROM routes r JOIN topos t ON t.id = r.topo_id WHERE r.id=?',
         (route_id,)
     ).fetchone()
@@ -318,11 +361,12 @@ def sent_attempt(route_id):
     conn = get_db()
     attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
     if not attempt:
-        conn.execute('INSERT INTO attempts (user_id, route_id, amount, sent) VALUES (?,?,1,1)', (user_id, route_id))
+        conn.execute('INSERT INTO attempts (user_id, route_id, amount, sent, sent_at) VALUES (?,?,1,1,CURRENT_TIMESTAMP)', (user_id, route_id))
     else:
         if not attempt['sent']:
             conn.execute('UPDATE attempts SET amount=amount+1 WHERE user_id=? AND route_id=?', (user_id, route_id))
             conn.execute('UPDATE attempts SET sent=1 WHERE user_id=? AND route_id=?', (user_id, route_id))
+            conn.execute('UPDATE attempts SET sent_at=CURRENT_TIMESTAMP WHERE user_id=? AND route_id=?', (user_id, route_id))
     attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
     conn.commit()
     conn.close()
