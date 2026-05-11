@@ -619,13 +619,24 @@ export default function TopoDetail() {
     );
   };
 
-  const openGPS = (position) => {
-    const url =
-      `https://www.google.com/maps/dir/?api=1&destination=${position.lat},${position.lon}`;
+	const openGPS = (position) => {
+	  const { lat, lon } = position;
 
-    window.open(url, "_blank");
-  };
+	  const isAndroid = /Android/i.test(navigator.userAgent);
+	  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+	  let url;
+
+	  if (isAndroid) {
+		url = `geo:${lat},${lon}?q=${lat},${lon}`;
+	  } else if (isIOS) {
+		url = `http://maps.apple.com/?daddr=${lat},${lon}`;
+	  } else {
+		url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+	  }
+
+	  window.location.href = url;
+	};
   return (
     <div style={S.root}>
       <div style={S.noise} />
