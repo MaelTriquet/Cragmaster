@@ -122,6 +122,19 @@ def create_user():
         return api_error('Username already taken', 409)
     finally: conn.close()
 
+@app.route('/api/query', methods=['POST'])
+@jwt_required()
+def query():
+    try: require_admin()
+    except PermissionError as e: return api_error(str(e), 403)
+    d = request.get_json() or {}
+    sql = (d.get('sql') or '').strip()
+    if not sql: return api_error('SQL query required')
+    conn = get_db()
+    cursor = conn.execute(sql).fetchall()
+    conn.close()
+    return ok(rows=[dict(r) for r in cursor])
+
 @app.route('/api/users/<int:uid>', methods=['DELETE'])
 @jwt_required()
 def delete_user(uid):
@@ -243,10 +256,10 @@ def set_location_parking(topo_id):
     lon = (d.get('lon') or '')
     if not lat or not lon: return api_error('Error when setting parking location')
     conn = get_db()
-    cursor = conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone()
+    cursor = conn.execute('SELECT id, parking_lat FROM topos WHERE id=?', (topo_id,)).fetchone()
     if not cursor:
         conn.close(); return api_error('Topo not found', 404)
-    if cursor['parking_lat'] is not None: return api_error('Parking location already set', 409)
+    if cursor['parking_lat']: return api_error('Parking location already set', 409)
     cursor = conn.execute('UPDATE topos SET parking_lat=?, parking_lon=? WHERE id=?', (lat, lon, topo_id))
     conn.commit()
     parking_location = conn.execute('SELECT parking_lat, parking_lon FROM topos WHERE id=?', (topo_id,)).fetchone()
@@ -263,10 +276,10 @@ def set_location_routes(topo_id):
     lon = (d.get('lon') or '')
     if not lat or not lon: return api_error('Error when setting routes location')
     conn = get_db()
-    cursor = conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone()
+    cursor = conn.execute('SELECT id, routes_lat FROM topos WHERE id=?', (topo_id,)).fetchone()
     if not cursor:
         conn.close(); return api_error('Topo not found', 404)
-    if cursor['routes_lat'] is not None: return api_error('Routes location already set', 409)
+    if cursor['routes_lat']: return api_error('Routes location already set', 409)
     cursor = conn.execute('UPDATE topos SET routes_lat=?, routes_lon=? WHERE id=?', (lat, lon, topo_id))
     conn.commit()
     routes_location = conn.execute('SELECT routes_lat, routes_lon FROM topos WHERE id=?', (topo_id,)).fetchone()

@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import sys
 
 DB_PATH = os.environ.get('DB_PATH', '/app/db/topos.db')
 
@@ -9,9 +10,14 @@ def get_db():
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
+def query(sql):
+    conn = get_db()
+    cursor = conn.execute(sql)
+    conn.close()
+    return cursor
+
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    print('Creating tables...')
     conn = get_db()
     conn.executescript('''
         CREATE TABLE IF NOT EXISTS users (
@@ -77,3 +83,8 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
+
+if __name__ == '__main__':
+    sql_query = sys.argv[1]
+    if sql_query:
+        print(query(sql_query))
