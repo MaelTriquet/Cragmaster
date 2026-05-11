@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import api from '../api/client'
 
 const getGradeColor = (grade) => {
+  if (grade < 0) return 'hsl(0, 0%, 50%)'
   // Keyframe stops: [sorting_grade_index, hue, saturation%, lightness%]
 const stops = [
   [0,  105, 55, 48],  // 3a  — muted green

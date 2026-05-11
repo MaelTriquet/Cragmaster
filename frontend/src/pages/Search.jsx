@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import api from '../api/client'
 
 const getGradeColor = (grade) => {
+  if (grade < 0) return 'hsl(0, 0%, 50%)'
   const stops = [
     [0,    105, 55, 48],
     [11.5,  88, 60, 46],

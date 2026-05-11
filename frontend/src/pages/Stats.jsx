@@ -4,6 +4,7 @@ import api from '../api/client'
 
 // ── Grade colour (same palette as the rest of the app) ──────────────────────
 const getGradeColor = (sorting_grade) => {
+  if (sorting_grade < 0) return 'hsl(0, 0%, 50%)'
   const stops = [
     [0,    105, 55, 48],
     [11.5,  88, 60, 46],
