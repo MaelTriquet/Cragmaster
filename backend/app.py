@@ -61,12 +61,11 @@ def update_me():
     d = request.get_json() or {}
     new_username = (d.get('username') or '').strip()
     new_password = (d.get('password') or '').strip()
- 
+
     if not new_username:
         return api_error('Username cannot be empty')
- 
+
     conn = get_db()
-    # Check username not taken by someone else
     conflict = conn.execute(
         'SELECT id FROM users WHERE username=? AND id!=?',
         (new_username, user['id'])
@@ -74,7 +73,7 @@ def update_me():
     if conflict:
         conn.close()
         return api_error('Username already taken', 409)
- 
+
     if new_password:
         conn.execute(
             'UPDATE users SET username=?, password_hash=? WHERE id=?',
@@ -85,7 +84,7 @@ def update_me():
             'UPDATE users SET username=? WHERE id=?',
             (new_username, user['id'])
         )
- 
+
     conn.commit()
     updated = conn.execute('SELECT id, username, is_admin FROM users WHERE id=?', (user['id'],)).fetchone()
     conn.close()
@@ -208,7 +207,6 @@ def delete_topo(topo_id):
     try: require_admin()
     except PermissionError as e: return api_error(str(e), 403)
     conn = get_db()
-    cursor = conn.execute('SELECT id FROM routes WHERE topo_id=?', (topo_id,)).fetchall()
     conn.execute('DELETE FROM topos WHERE id=?', (topo_id,))
     conn.commit(); conn.close()
     return ok(deleted=True)
@@ -246,11 +244,9 @@ def add_route(topo_id):
     conn.close()
     return ok(routes=[dict(r) for r in routes])
 
-
 @app.route('/api/topos/<int:topo_id>/set_location_parking', methods=['POST'])
 @jwt_required()
 def set_location_parking(topo_id):
-    print("request received")
     user = get_current_user()
     if not user: return api_error('Authentication required', 401)
     d = request.get_json() or {}
@@ -262,7 +258,7 @@ def set_location_parking(topo_id):
     if not cursor:
         conn.close(); return api_error('Topo not found', 404)
     if cursor['parking_lat']: return api_error('Parking location already set', 409)
-    cursor = conn.execute('UPDATE topos SET parking_lat=?, parking_lon=? WHERE id=?', (lat, lon, topo_id))
+    conn.execute('UPDATE topos SET parking_lat=?, parking_lon=? WHERE id=?', (lat, lon, topo_id))
     conn.commit()
     parking_location = conn.execute('SELECT parking_lat, parking_lon FROM topos WHERE id=?', (topo_id,)).fetchone()
     conn.close()
@@ -282,12 +278,11 @@ def set_location_routes(topo_id):
     if not cursor:
         conn.close(); return api_error('Topo not found', 404)
     if cursor['routes_lat']: return api_error('Routes location already set', 409)
-    cursor = conn.execute('UPDATE topos SET routes_lat=?, routes_lon=? WHERE id=?', (lat, lon, topo_id))
+    conn.execute('UPDATE topos SET routes_lat=?, routes_lon=? WHERE id=?', (lat, lon, topo_id))
     conn.commit()
     routes_location = conn.execute('SELECT routes_lat, routes_lon FROM topos WHERE id=?', (topo_id,)).fetchone()
     conn.close()
     return ok(routes_location=dict(routes_location))
-
 
 # ── ROUTES ────────────────────────────────────────────────────────────────────
 @app.route('/api/routes/<int:route_id>', methods=['GET'])
@@ -300,11 +295,9 @@ def get_route(route_id):
     comments = conn.execute('''SELECT c.*, u.username FROM comments c JOIN users u ON u.id = c.user_id WHERE c.route_id=? ORDER BY c.created_at DESC''', (route_id,)).fetchall()
     attempt = []
     if user: attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone()
-    tags = conn.execute('SELECT t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
+    tags = conn.execute('SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
     conn.close()
     return ok(route=dict(route), comments=[dict(c) for c in comments], attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags])
-
-
 
 @app.route('/api/routes/<int:route_id>', methods=['PATCH'])
 @jwt_required()
@@ -352,7 +345,6 @@ def update_route(route_id):
     return ok(route=dict(updated))
 
 # ── ATTEMPTS ─────────────────────────────────────────────────────────────────
-
 @app.route('/api/routes/<int:route_id>/add_attempt', methods=['GET'])
 @jwt_required()
 def add_attempt(route_id):
@@ -428,68 +420,125 @@ def delete_comment(comment_id):
 # ── SEARCH ────────────────────────────────────────────────────────────────────
 @app.route('/api/search', methods=['GET'])
 def search():
-    q = (request.args.get('q') or '').strip()
-    if not q: return ok(topos=[], routes=[])
+    q       = (request.args.get('q') or '').strip()
+    tag_ids = request.args.getlist('tag_ids')   # list of tag id strings, may be empty
 
     conn = get_db()
-    route_rows = conn.execute('SELECT * FROM routes').fetchall()
-    topo_rows  = conn.execute('SELECT * FROM topos').fetchall()
+
+    # Build route query — optionally filter by tags
+    if tag_ids:
+        placeholders = ','.join('?' * len(tag_ids))
+        route_rows = conn.execute(
+            f'''SELECT DISTINCT r.* FROM routes r
+                JOIN tag_routes tr ON tr.route_id = r.id
+                WHERE tr.tag_id IN ({placeholders})''',
+            tag_ids
+        ).fetchall()
+    else:
+        route_rows = conn.execute('SELECT * FROM routes').fetchall()
+
+    topo_rows = conn.execute('SELECT * FROM topos').fetchall()
     conn.close()
 
-    # Build lookup dicts by name/title
     route_by_name = {r['name']: dict(r) for r in route_rows}
     topo_by_title = {t['title']: dict(t) for t in topo_rows}
 
-    # Fuzzy search returns names/titles in ranked order
-    matched_route_names = fuzzy_search(q, list(route_by_name.keys()))[:20]
-    matched_topo_titles = fuzzy_search(q, list(topo_by_title.keys()))[:20]
-
-    # Reconstruct results preserving fuzzy rank order
-    routes = [route_by_name[name] for name in matched_route_names if name in route_by_name]
-    topos  = [topo_by_title[title] for title in matched_topo_titles if title in topo_by_title]
+    if q:
+        matched_route_names  = fuzzy_search(q, list(route_by_name.keys()))[:20]
+        matched_topo_titles  = fuzzy_search(q, list(topo_by_title.keys()))[:20]
+        routes = [route_by_name[n] for n in matched_route_names if n in route_by_name]
+        topos  = [topo_by_title[t] for t in matched_topo_titles  if t in topo_by_title]
+    else:
+        # tag-only filter: return all matched routes, no topo filtering
+        routes = list(route_by_name.values())[:40]
+        topos  = []
 
     return ok(routes=routes, topos=topos)
 
-# ── TAG ────────────────────────────────────────────────────────────────────
-
-# TODO: implement tag logic (filtering search results)
+# ── TAGS ──────────────────────────────────────────────────────────────────────
 
 @app.route('/api/tags', methods=['GET'])
 def list_tags():
+    """Return all tags, each with the count of routes using them."""
     conn = get_db()
-    tags = conn.execute('SELECT * FROM tags').fetchall()
+    tags = conn.execute('''
+        SELECT t.id, t.name, COUNT(tr.route_id) as route_count
+        FROM tags t
+        LEFT JOIN tag_routes tr ON tr.tag_id = t.id
+        GROUP BY t.id
+        ORDER BY t.name
+    ''').fetchall()
     conn.close()
-    return ok(tags=dict(tags))
+    return ok(tags=[dict(t) for t in tags])
 
-@app.route('/api/tags/create', methods=['POST'])
+@app.route('/api/tags', methods=['POST'])
 @jwt_required()
 def create_tag():
+    """Create a new tag. Returns existing tag if name already exists."""
     user = get_current_user()
     if not user: return api_error('Authentication required', 401)
     d = request.get_json() or {}
-    name = (d.get('name') or '').strip()
-    if not name: return api_error('Name required')
+    name = (d.get('name') or '').strip().lower()
+    if not name: return api_error('Tag name required')
     conn = get_db()
+    existing = conn.execute('SELECT * FROM tags WHERE name=?', (name,)).fetchone()
+    if existing:
+        conn.close()
+        return ok(tag=dict(existing)), 200
     conn.execute('INSERT INTO tags (name) VALUES (?)', (name,))
     conn.commit()
     tag = conn.execute('SELECT * FROM tags WHERE name=?', (name,)).fetchone()
     conn.close()
-    return ok(tag=dict(tag))
+    return ok(tag=dict(tag)), 201
 
-@app.route('/api/tags/assign', methods=['POST'])
+@app.route('/api/routes/<int:route_id>/tags', methods=['POST'])
 @jwt_required()
-def assign_tag():
+def assign_tag(route_id):
+    """Assign an existing tag to a route."""
     user = get_current_user()
     if not user: return api_error('Authentication required', 401)
     d = request.get_json() or {}
-    tag_id = (d.get('tag_id') or '').strip()
-    route_id = (d.get('route_id') or '').strip()
-    if not tag_id or not route_id: return api_error('Error when assigning tag')
+    tag_id = d.get('tag_id')
+    if not tag_id: return api_error('tag_id required')
     conn = get_db()
-    conn.execute('INSERT INTO tag_routes (route_id, tag_id) VALUES (?,?)', (route_id, tag_id))
+    # Verify route exists
+    if not conn.execute('SELECT id FROM routes WHERE id=?', (route_id,)).fetchone():
+        conn.close(); return api_error('Route not found', 404)
+    # Verify tag exists
+    tag = conn.execute('SELECT * FROM tags WHERE id=?', (tag_id,)).fetchone()
+    if not tag:
+        conn.close(); return api_error('Tag not found', 404)
+    # Upsert (ignore if already assigned)
+    conn.execute(
+        'INSERT OR IGNORE INTO tag_routes (route_id, tag_id) VALUES (?,?)',
+        (route_id, tag_id)
+    )
     conn.commit()
+    tags = conn.execute(
+        'SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
+        (route_id,)
+    ).fetchall()
     conn.close()
-    return ok(tag=tag_id)
+    return ok(tags=[dict(t) for t in tags])
+
+@app.route('/api/routes/<int:route_id>/tags/<int:tag_id>', methods=['DELETE'])
+@jwt_required()
+def unassign_tag(route_id, tag_id):
+    """Remove a tag from a route."""
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    conn = get_db()
+    conn.execute(
+        'DELETE FROM tag_routes WHERE route_id=? AND tag_id=?',
+        (route_id, tag_id)
+    )
+    conn.commit()
+    tags = conn.execute(
+        'SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
+        (route_id,)
+    ).fetchall()
+    conn.close()
+    return ok(tags=[dict(t) for t in tags])
 
 # ── STATS ──────────────────────────────────────────────────────────────────────
 @app.route('/api/stats', methods=['GET'])
@@ -498,7 +547,6 @@ def get_stats():
     user_id = int(get_jwt_identity())
     conn = get_db()
 
-    # All attempts for this user, joined with route info
     rows = conn.execute('''
         SELECT
             a.route_id,
@@ -520,13 +568,11 @@ def get_stats():
     sent_rows    = [r for r in rows if r['sent']]
     working_rows = [r for r in rows if not r['sent'] and r['amount'] > 0]
 
-    # Max grade sent (by sorting_grade)
     max_grade = None
     if sent_rows:
         best = max(sent_rows, key=lambda r: r['sorting_grade'])
         max_grade = {'grade': best['grade'], 'sorting_grade': best['sorting_grade']}
 
-    # Grade pyramid — count of sent routes per grade
     grade_counts = {}
     for r in sent_rows:
         g = r['grade']
@@ -535,7 +581,6 @@ def get_stats():
         grade_counts[g]['count'] += 1
     grade_pyramid = sorted(grade_counts.values(), key=lambda x: x['sorting_grade'])
 
-    # Average attempts per grade (sent only — fair comparison)
     grade_avg_attempts = {}
     for r in sent_rows:
         g = r['grade']
@@ -552,7 +597,6 @@ def get_stats():
         for v in sorted(grade_avg_attempts.values(), key=lambda x: x['sorting_grade'])
     ]
 
-    # Working routes (attempted but not sent)
     working = [
         {
             'route_id':   r['route_id'],
@@ -565,20 +609,15 @@ def get_stats():
         for r in sorted(working_rows, key=lambda x: x['sorting_grade'], reverse=True)
     ]
 
-    # Summary numbers
-    total_sent     = len(sent_rows)
-    total_attempts = sum(r['amount'] for r in rows)
-    total_working  = len(working_rows)
-
     return ok(
         max_grade=max_grade,
         grade_pyramid=grade_pyramid,
         avg_attempts_per_grade=avg_attempts,
         working=working,
         summary={
-            'total_sent':     total_sent,
-            'total_attempts': total_attempts,
-            'total_working':  total_working,
+            'total_sent':     len(sent_rows),
+            'total_attempts': sum(r['amount'] for r in rows),
+            'total_working':  len(working_rows),
         }
     )
 

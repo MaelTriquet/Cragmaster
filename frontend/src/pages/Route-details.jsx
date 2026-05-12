@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import api from '../api/client'
 
@@ -86,7 +86,6 @@ const S = {
     color: "var(--muted)",
   },
 
-  // ── BACK LINK ──
   backBtn: {
     display: "inline-flex",
     alignItems: "center",
@@ -106,23 +105,143 @@ const S = {
   },
 
   // ── TAGS ──────────────────────────────────────────────
+  tagsSection: {
+    marginTop: "1rem",
+  },
+
   tagsRow: {
     display: "flex",
     gap: "0.5rem",
     flexWrap: "wrap",
-    marginTop: "1rem",
+    alignItems: "center",
+    marginBottom: "0.6rem",
   },
 
   tag: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.35rem",
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.72rem",
+    fontWeight: 600,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    padding: "0.2rem 0.5rem 0.2rem 0.6rem",
+    border: "1px solid var(--line)",
+    color: "var(--chalk)",
+    background: "rgba(255,255,255,0.04)",
+    transition: "border-color 0.15s",
+  },
+
+  tagRemoveBtn: {
+    background: "none",
+    border: "none",
+    color: "var(--muted)",
+    cursor: "pointer",
+    fontSize: "0.75rem",
+    padding: "0",
+    lineHeight: 1,
+    display: "flex",
+    alignItems: "center",
+    transition: "color 0.15s",
+  },
+
+  addTagBtn: {
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "0.72rem",
     fontWeight: 600,
     letterSpacing: "0.12em",
     textTransform: "uppercase",
     padding: "0.2rem 0.6rem",
-    border: "1px solid var(--line)",
+    border: "1px dashed var(--line)",
     color: "var(--muted)",
+    background: "none",
+    cursor: "pointer",
+    transition: "border-color 0.15s, color 0.15s",
   },
+
+  // ── TAG PANEL ──
+  tagPanel: {
+    background: "var(--granite)",
+    border: "1px solid var(--line)",
+    padding: "1rem 1.25rem",
+    marginTop: "0.6rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.85rem",
+  },
+
+  tagPanelTitle: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.65rem",
+    fontWeight: 700,
+    letterSpacing: "0.2em",
+    textTransform: "uppercase",
+    color: "var(--hold)",
+  },
+
+  tagInputRow: {
+    display: "flex",
+    gap: "0.5rem",
+  },
+
+  tagInput: {
+    flex: 1,
+    background: "var(--rock)",
+    border: "1px solid var(--line)",
+    color: "var(--chalk)",
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.9rem",
+    padding: "0.45rem 0.7rem",
+    outline: "none",
+    transition: "border-color 0.15s",
+    minWidth: 0,
+  },
+
+  tagSubmitBtn: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.78rem",
+    fontWeight: 700,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    padding: "0.45rem 0.9rem",
+    background: "var(--hold)",
+    color: "var(--chalk)",
+    border: "none",
+    cursor: "pointer",
+    transition: "background 0.15s",
+    flexShrink: 0,
+  },
+
+  existingTagsLabel: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.62rem",
+    fontWeight: 600,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    color: "var(--muted)",
+    marginBottom: "0.4rem",
+  },
+
+  existingTagsList: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.4rem",
+  },
+
+  existingTagBtn: (assigned) => ({
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.68rem",
+    fontWeight: 600,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "0.2rem 0.55rem",
+    border: `1px solid ${assigned ? "var(--hold)" : "var(--line)"}`,
+    color: assigned ? "var(--hold)" : "var(--muted)",
+    background: assigned ? "rgba(200,80,42,0.1)" : "transparent",
+    cursor: assigned ? "default" : "pointer",
+    transition: "border-color 0.15s, color 0.15s, background 0.15s",
+  }),
 
   // ── CARDS ──────────────────────────────────────────────
   card: {
@@ -187,7 +306,6 @@ const S = {
     flexWrap: "wrap",
   },
 
-  // Primary action button
   btnPrimary: {
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "0.85rem",
@@ -202,7 +320,6 @@ const S = {
     transition: "background 0.15s",
   },
 
-  // Ghost button
   btnGhost: {
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "0.85rem",
@@ -281,7 +398,6 @@ const S = {
     margin: "1.25rem 0",
   },
 
-  // ── COMMENT ITEM ──────────────────────────────────────
   commentItem: {
     padding: "1rem 0",
     borderBottom: "1px solid var(--line)",
@@ -356,6 +472,151 @@ function StarDisplay({ value }) {
   )
 }
 
+// ── Tag management panel ───────────────────────────────────────────────────────
+function TagManager({ routeId, tags, onTagsChange }) {
+  const [allTags, setAllTags] = useState([])
+  const [newTagName, setNewTagName] = useState("")
+  const [open, setOpen] = useState(false)
+  const [hovered, setHovered] = useState(null)
+  const inputRef = useRef()
+
+  // Load all existing tags when panel opens
+  useEffect(() => {
+    if (open) {
+      api.get("/tags").then(res => setAllTags(res.data.tags || []))
+    }
+  }, [open])
+
+  const assignedIds = new Set(tags.map(t => t.id))
+
+  const handleCreateAndAssign = async () => {
+    const name = newTagName.trim().toLowerCase()
+    if (!name) return
+    // Step 1: create tag (returns existing if duplicate)
+    const createRes = await api.post("/tags", { name })
+    const tag = createRes.data.tag
+    // Step 2: assign to route
+    const assignRes = await api.post(`/routes/${routeId}/tags`, { tag_id: tag.id })
+    onTagsChange(assignRes.data.tags)
+    setNewTagName("")
+    // Refresh all-tags list so the new one appears
+    const tagsRes = await api.get("/tags")
+    setAllTags(tagsRes.data.tags || [])
+  }
+
+  const handleAssignExisting = async (tagId) => {
+    if (assignedIds.has(tagId)) return
+    const res = await api.post(`/routes/${routeId}/tags`, { tag_id: tagId })
+    onTagsChange(res.data.tags)
+  }
+
+  const handleRemove = async (tagId) => {
+    const res = await api.delete(`/routes/${routeId}/tags/${tagId}`)
+    onTagsChange(res.data.tags)
+  }
+
+  return (
+    <div style={S.tagsSection}>
+      <div style={S.tagsRow}>
+        {tags.map(t => (
+          <span key={t.id} style={S.tag}>
+            {t.name}
+            <button
+              style={{
+                ...S.tagRemoveBtn,
+                color: hovered === `rm-${t.id}` ? "var(--hold-lt)" : "var(--muted)",
+              }}
+              title="Remove tag"
+              onMouseEnter={() => setHovered(`rm-${t.id}`)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => handleRemove(t.id)}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        <button
+          style={{
+            ...S.addTagBtn,
+            borderColor: open ? "var(--hold)" : "var(--line)",
+            color: open ? "var(--hold)" : "var(--muted)",
+          }}
+          onClick={() => {
+            setOpen(v => !v)
+            setTimeout(() => inputRef.current?.focus(), 50)
+          }}
+        >
+          {open ? "Done" : "+ Tag"}
+        </button>
+      </div>
+
+      {open && (
+        <div style={S.tagPanel}>
+          {/* Create new tag */}
+          <div>
+            <div style={S.tagPanelTitle}>Create & assign new tag</div>
+            <div style={S.tagInputRow}>
+              <input
+                ref={inputRef}
+                style={S.tagInput}
+                type="text"
+                placeholder="e.g. overhang, slab, crimpy…"
+                value={newTagName}
+                onChange={e => setNewTagName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleCreateAndAssign() }}
+                onFocus={e => e.target.style.borderColor = "var(--hold)"}
+                onBlur={e => e.target.style.borderColor = "var(--line)"}
+              />
+              <button
+                style={{
+                  ...S.tagSubmitBtn,
+                  background: hovered === "create" ? "var(--hold-lt)" : "var(--hold)",
+                }}
+                onMouseEnter={() => setHovered("create")}
+                onMouseLeave={() => setHovered(null)}
+                onClick={handleCreateAndAssign}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Assign existing tags */}
+          {allTags.length > 0 && (
+            <div>
+              <div style={S.existingTagsLabel}>Assign existing tag</div>
+              <div style={S.existingTagsList}>
+                {allTags.map(t => {
+                  const assigned = assignedIds.has(t.id)
+                  return (
+                    <button
+                      key={t.id}
+                      style={{
+                        ...S.existingTagBtn(assigned),
+                        ...(hovered === `ex-${t.id}` && !assigned
+                          ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
+                          : {}),
+                      }}
+                      disabled={assigned}
+                      onMouseEnter={() => !assigned && setHovered(`ex-${t.id}`)}
+                      onMouseLeave={() => setHovered(null)}
+                      onClick={() => handleAssignExisting(t.id)}
+                      title={assigned ? "Already assigned" : `Assign "${t.name}"`}
+                    >
+                      {t.name}
+                      {assigned && " ✓"}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function RouteDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -370,13 +631,7 @@ export default function RouteDetail() {
   const [form, setForm] = useState({ stars: "", perceived_grade: "!", body: "" })
 
   const [showEditForm, setShowEditForm] = useState(false)
-
-  const [editForm, setEditForm] = useState({
-    name: "",
-    grade: "",
-    length: "",
-    route_index: "",
-  })
+  const [editForm, setEditForm] = useState({ name: "", grade: "", length: "", route_index: "" })
 
   useEffect(() => {
     api.get(`/routes/${id}`)
@@ -384,13 +639,13 @@ export default function RouteDetail() {
         const d = res.data
         setRoute(d.route)
         setComments(d.comments)
-        setTags(d.tags)
-		setEditForm({
-		  name: d.route.name || "",
-		  grade: d.route.grade || "",
-		  length: d.route.length > 0 ? d.route.length : "",
-		  route_index: d.route.route_index > 0 ? d.route.route_index : "",
-		})
+        setTags(d.tags || [])
+        setEditForm({
+          name: d.route.name || "",
+          grade: d.route.grade || "",
+          length: d.route.length > 0 ? d.route.length : "",
+          route_index: d.route.route_index > 0 ? d.route.route_index : "",
+        })
         if (!d.attempt || Object.keys(d.attempt).length === 0)
           setAttempt({ id: null, amount: 0, sent: false })
         else setAttempt(d.attempt)
@@ -477,112 +732,97 @@ export default function RouteDetail() {
             )}
           </div>
 
-          {tags.length > 0 && (
-            <div style={S.tagsRow}>
-              {tags.map((t, i) => (
-                <span key={i} style={S.tag}>{t.name}</span>
-              ))}
+          {/* ── TAGS ── */}
+          <TagManager
+            routeId={id}
+            tags={tags}
+            onTagsChange={setTags}
+          />
+
+          {/* ── EDIT ROUTE BUTTON ── */}
+          <div style={S.btnRow}>
+            <button
+              style={{
+                ...S.btnGhost,
+                borderColor: hoveredBtn === "editRoute" ? "var(--hold)" : "var(--line)",
+                color: hoveredBtn === "editRoute" ? "var(--hold)" : "var(--chalk)",
+              }}
+              onMouseEnter={() => setHoveredBtn("editRoute")}
+              onMouseLeave={() => setHoveredBtn(null)}
+              onClick={() => setShowEditForm(v => !v)}
+            >
+              {showEditForm ? "Cancel Edit" : "Edit Route"}
+            </button>
+          </div>
+
+          {showEditForm && (
+            <div style={{ ...S.card, marginTop: "1.5rem" }}>
+              <div style={S.cardTitle}>Edit Route</div>
+              <div style={S.formGrid}>
+                <div style={S.formField}>
+                  <label style={S.formLabel}>Name</label>
+                  <input
+                    type="text"
+                    style={S.formInput}
+                    value={editForm.name}
+                    onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                    onFocus={e => e.target.style.borderColor = "var(--hold)"}
+                    onBlur={e => e.target.style.borderColor = "var(--line)"}
+                  />
+                </div>
+                <div style={S.formField}>
+                  <label style={S.formLabel}>Grade</label>
+                  <input
+                    type="text"
+                    style={S.formInput}
+                    value={editForm.grade}
+                    onChange={e => setEditForm({ ...editForm, grade: e.target.value })}
+                    onFocus={e => e.target.style.borderColor = "var(--hold)"}
+                    onBlur={e => e.target.style.borderColor = "var(--line)"}
+                  />
+                </div>
+                <div style={S.formField}>
+                  <label style={S.formLabel}>Length (m)</label>
+                  <input
+                    type="number"
+                    style={S.formInput}
+                    value={editForm.length}
+                    onChange={e => setEditForm({ ...editForm, length: e.target.value })}
+                    onFocus={e => e.target.style.borderColor = "var(--hold)"}
+                    onBlur={e => e.target.style.borderColor = "var(--line)"}
+                  />
+                </div>
+                <div style={S.formField}>
+                  <label style={S.formLabel}>Route Index</label>
+                  <input
+                    type="number"
+                    style={S.formInput}
+                    value={editForm.route_index}
+                    onChange={e => setEditForm({ ...editForm, route_index: e.target.value })}
+                    onFocus={e => e.target.style.borderColor = "var(--hold)"}
+                    onBlur={e => e.target.style.borderColor = "var(--line)"}
+                  />
+                </div>
+              </div>
+              <button
+                style={{
+                  ...S.btnPrimary,
+                  marginTop: "1rem",
+                  background: hoveredBtn === "saveRoute" ? "var(--hold-lt)" : "var(--hold)",
+                }}
+                onMouseEnter={() => setHoveredBtn("saveRoute")}
+                onMouseLeave={() => setHoveredBtn(null)}
+                onClick={submitRouteEdit}
+              >
+                Save Changes
+              </button>
             </div>
           )}
-  		  <div style={S.btnRow}>
-  		    <button
-  		  	style={{
-  		  	  ...S.btnGhost,
-  		  	  borderColor: hoveredBtn === "editRoute" ? "var(--hold)" : "var(--line)",
-  		  	  color: hoveredBtn === "editRoute" ? "var(--hold)" : "var(--chalk)",
-  		  	}}
-  		  	onMouseEnter={() => setHoveredBtn("editRoute")}
-  		  	onMouseLeave={() => setHoveredBtn(null)}
-  		  	onClick={() => setShowEditForm(v => !v)}
-  		    >
-  		  	{showEditForm ? "Cancel Edit" : "Edit Route"}
-  		    </button>
-  		  </div>
-			{showEditForm && (
-			  <div style={{ ...S.card, marginTop: "1.5rem" }}>
-				<div style={S.cardTitle}>Edit Route</div>
-
-				<div style={S.formGrid}>
-				  <div style={S.formField}>
-					<label style={S.formLabel}>Name</label>
-					<input
-					  type="text"
-					  style={S.formInput}
-					  value={editForm.name}
-					  onChange={e =>
-						setEditForm({ ...editForm, name: e.target.value })
-					  }
-					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
-					  onBlur={e => e.target.style.borderColor = "var(--line)"}
-					/>
-				  </div>
-
-				  <div style={S.formField}>
-					<label style={S.formLabel}>Grade</label>
-					<input
-					  type="text"
-					  style={S.formInput}
-					  value={editForm.grade}
-					  onChange={e =>
-						setEditForm({ ...editForm, grade: e.target.value })
-					  }
-					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
-					  onBlur={e => e.target.style.borderColor = "var(--line)"}
-					/>
-				  </div>
-
-				  <div style={S.formField}>
-					<label style={S.formLabel}>Length (m)</label>
-					<input
-					  type="number"
-					  style={S.formInput}
-					  value={editForm.length}
-					  onChange={e =>
-						setEditForm({ ...editForm, length: e.target.value })
-					  }
-					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
-					  onBlur={e => e.target.style.borderColor = "var(--line)"}
-					/>
-				  </div>
-
-				  <div style={S.formField}>
-					<label style={S.formLabel}>Route Index</label>
-					<input
-					  type="number"
-					  style={S.formInput}
-					  value={editForm.route_index}
-					  onChange={e =>
-						setEditForm({ ...editForm, route_index: e.target.value })
-					  }
-					  onFocus={e => e.target.style.borderColor = "var(--hold)"}
-					  onBlur={e => e.target.style.borderColor = "var(--line)"}
-					/>
-				  </div>
-				</div>
-
-				<button
-				  style={{
-					...S.btnPrimary,
-					marginTop: "1rem",
-					background:
-					  hoveredBtn === "saveRoute"
-						? "var(--hold-lt)"
-						: "var(--hold)",
-				  }}
-				  onMouseEnter={() => setHoveredBtn("saveRoute")}
-				  onMouseLeave={() => setHoveredBtn(null)}
-				  onClick={submitRouteEdit}
-				>
-				  Save Changes
-				</button>
-			  </div>
-			)}
         </div>
 
         {/* ── ATTEMPTS CARD ── */}
         <div style={S.card}>
           <div style={S.cardTitle}>Attempts</div>
-
           <div style={S.attemptsRow}>
             <div>
               <div style={S.attemptStat}>{attemptCount}</div>
@@ -590,14 +830,11 @@ export default function RouteDetail() {
                 {attemptCount === 1 ? "Attempt" : "Attempts"}
               </div>
             </div>
-
             <div style={{ width: "1px", height: "36px", background: "var(--line)", margin: "0 0.25rem" }} />
-
             <span style={S.sentBadge(isSent)}>
               {isSent ? "✓ Sent" : attemptCount > 0 ? "Working" : "Not attempted"}
             </span>
           </div>
-
           <div style={S.btnRow}>
             <button
               style={{
@@ -611,7 +848,6 @@ export default function RouteDetail() {
             >
               + Attempt
             </button>
-
             <button
               style={{
                 ...S.btnPrimary,
@@ -637,16 +873,8 @@ export default function RouteDetail() {
                 ...S.btnGhost,
                 fontSize: "0.75rem",
                 padding: "0.4rem 0.9rem",
-                borderColor: showForm
-                  ? "var(--hold)"
-                  : hoveredBtn === "toggleForm"
-                  ? "var(--hold)"
-                  : "var(--line)",
-                color: showForm
-                  ? "var(--hold)"
-                  : hoveredBtn === "toggleForm"
-                  ? "var(--hold)"
-                  : "var(--chalk)",
+                borderColor: showForm || hoveredBtn === "toggleForm" ? "var(--hold)" : "var(--line)",
+                color: showForm || hoveredBtn === "toggleForm" ? "var(--hold)" : "var(--chalk)",
               }}
               onMouseEnter={() => setHoveredBtn("toggleForm")}
               onMouseLeave={() => setHoveredBtn(null)}
@@ -656,17 +884,13 @@ export default function RouteDetail() {
             </button>
           </div>
 
-          {/* Comment form */}
           {showForm && (
             <>
               <div style={S.formGrid}>
                 <div style={S.formField}>
                   <label style={S.formLabel}>Stars (0 – 5)</label>
                   <input
-                    type="number"
-                    min="0"
-                    max="5"
-                    step="0.5"
+                    type="number" min="0" max="5" step="0.5"
                     style={S.formInput}
                     placeholder="e.g. 4"
                     value={form.stars}
@@ -675,7 +899,6 @@ export default function RouteDetail() {
                     onBlur={e => e.target.style.borderColor = "var(--line)"}
                   />
                 </div>
-
                 <div style={S.formField}>
                   <label style={S.formLabel}>Perceived Grade</label>
                   <input
@@ -688,7 +911,6 @@ export default function RouteDetail() {
                     onBlur={e => e.target.style.borderColor = "var(--line)"}
                   />
                 </div>
-
                 <div style={S.formFieldFull}>
                   <label style={S.formLabel}>Comment</label>
                   <textarea
@@ -701,7 +923,6 @@ export default function RouteDetail() {
                   />
                 </div>
               </div>
-
               <button
                 style={{
                   ...S.btnPrimary,
@@ -713,12 +934,10 @@ export default function RouteDetail() {
               >
                 Submit Comment
               </button>
-
               <div style={S.divider} />
             </>
           )}
 
-          {/* Comment list */}
           {comments.length === 0 ? (
             <p style={S.emptyComments}>No comments yet. Be the first!</p>
           ) : (

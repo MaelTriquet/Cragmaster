@@ -16,28 +16,22 @@ const getGradeColor = (grade) => {
     [29.5, 330, 75, 38],
     [35,   285, 70, 32],
   ]
-
   if (grade <= stops[0][0]) return `hsl(${stops[0][1]}, ${stops[0][2]}%, ${stops[0][3]}%)`
   if (grade >= stops[stops.length - 1][0]) {
     const s = stops[stops.length - 1]
     return `hsl(${s[1]}, ${s[2]}%, ${s[3]}%)`
   }
-
   let lo, hi
   for (let i = 0; i < stops.length - 1; i++) {
     if (grade >= stops[i][0] && grade <= stops[i + 1][0]) {
       lo = stops[i]; hi = stops[i + 1]; break
     }
   }
-
   const t = (grade - lo[0]) / (hi[0] - lo[0])
   let dh = hi[1] - lo[1]
   if (dh > 180) dh -= 360
   if (dh < -180) dh += 360
-  const h = lo[1] + dh * t
-  const s = lo[2] + (hi[2] - lo[2]) * t
-  const l = lo[3] + (hi[3] - lo[3]) * t
-  return `hsl(${h.toFixed(1)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`
+  return `hsl(${(lo[1]+dh*t).toFixed(1)}, ${(lo[2]+(hi[2]-lo[2])*t).toFixed(1)}%, ${(lo[3]+(hi[3]-lo[3])*t).toFixed(1)}%)`
 }
 
 const S = {
@@ -80,7 +74,6 @@ const S = {
     zIndex: 1,
   },
 
-  // ── HEADER ──
   header: {
     marginBottom: "2rem",
   },
@@ -116,7 +109,7 @@ const S = {
   // ── SEARCH BAR ──
   searchWrap: {
     position: "relative",
-    margin: "2rem 0 2.5rem",
+    margin: "2rem 0 0.75rem",
   },
 
   searchIcon: {
@@ -162,6 +155,66 @@ const S = {
     transition: "color 0.15s",
   },
 
+  // ── TAG FILTER BAR ──
+  tagFilterBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    flexWrap: "wrap",
+    padding: "0.6rem 0",
+    marginBottom: "1.5rem",
+    borderBottom: "1px solid var(--line)",
+    minHeight: "40px",
+  },
+
+  tagFilterLabel: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.65rem",
+    fontWeight: 700,
+    letterSpacing: "0.18em",
+    textTransform: "uppercase",
+    color: "var(--muted)",
+    flexShrink: 0,
+    marginRight: "0.25rem",
+  },
+
+  tagFilterChip: (active) => ({
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.68rem",
+    fontWeight: 600,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "0.2rem 0.6rem",
+    border: `1px solid ${active ? "var(--hold)" : "var(--line)"}`,
+    color: active ? "var(--chalk)" : "var(--muted)",
+    background: active ? "rgba(200,80,42,0.18)" : "transparent",
+    cursor: "pointer",
+    transition: "border-color 0.15s, color 0.15s, background 0.15s",
+  }),
+
+  clearTagsBtn: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.65rem",
+    fontWeight: 700,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    padding: "0.2rem 0.55rem",
+    border: "1px solid var(--line)",
+    color: "var(--hold-lt)",
+    background: "none",
+    cursor: "pointer",
+    marginLeft: "auto",
+    transition: "border-color 0.15s",
+  },
+
+  noTagsHint: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.65rem",
+    letterSpacing: "0.1em",
+    color: "var(--line)",
+    textTransform: "uppercase",
+  },
+
   // ── RESULTS LAYOUT ──
   results: {
     display: "grid",
@@ -170,7 +223,6 @@ const S = {
     alignItems: "start",
   },
 
-  // ── COLUMN ──
   column: {
     display: "flex",
     flexDirection: "column",
@@ -202,7 +254,6 @@ const S = {
     color: "var(--muted)",
   },
 
-  // ── TOPO ROW ──
   topoRow: {
     display: "flex",
     alignItems: "center",
@@ -232,7 +283,6 @@ const S = {
     marginTop: "0.15rem",
   },
 
-  // ── ROUTE ROW ──
   routeRow: {
     display: "flex",
     alignItems: "center",
@@ -261,16 +311,6 @@ const S = {
     lineHeight: 1.2,
   },
 
-  routeTopo: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.68rem",
-    fontWeight: 600,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-    color: "var(--muted)",
-    marginTop: "0.1rem",
-  },
-
   rowArrow: {
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "1rem",
@@ -284,7 +324,6 @@ const S = {
     transform: "translateX(3px)",
   },
 
-  // ── STATES ──
   emptyState: {
     gridColumn: "1 / -1",
     display: "flex",
@@ -329,31 +368,63 @@ const S = {
 }
 
 export default function Search() {
-  const [query, setQuery] = useState("")
-  const [results, setResults] = useState(null)   // null = not yet searched
-  const [loading, setLoading] = useState(false)
-  const [hovered, setHovered] = useState(null)
+  const [query, setQuery]           = useState("")
+  const [results, setResults]       = useState(null)
+  const [loading, setLoading]       = useState(false)
+  const [hovered, setHovered]       = useState(null)
+  const [allTags, setAllTags]       = useState([])
+  const [activeTags, setActiveTags] = useState(new Set()) // Set of tag id numbers
+
   const inputRef = useRef()
   const navigate = useNavigate()
 
-  // Auto-focus on mount
-  useEffect(() => { inputRef.current?.focus() }, [])
-
-  // Search whenever query changes and has ≥3 chars
+  // Auto-focus on mount + load all tags
   useEffect(() => {
+    inputRef.current?.focus()
+    api.get("/tags")
+      .then(res => setAllTags(res.data.tags || []))
+      .catch(() => {})
+  }, [])
+
+  // Re-search whenever query or active tags change
+  useEffect(() => {
+    const hasQuery = query.length > 0
+    const hasTags  = activeTags.size > 0
+
+    if (!hasQuery && !hasTags) {
+      setResults(null)
+      return
+    }
+
     const timeout = setTimeout(() => {
       setLoading(true)
-      api.get(`/search?q=${encodeURIComponent(query)}`)
+      const params = new URLSearchParams()
+      if (query) params.set("q", query)
+      activeTags.forEach(id => params.append("tag_ids", id))
+
+      api.get(`/search?${params.toString()}`)
         .then(res => setResults(res.data))
         .catch(err => console.error(err))
         .finally(() => setLoading(false))
-    }, 180) // small debounce to avoid firing on every keystroke
+    }, 180)
 
     return () => clearTimeout(timeout)
-  }, [query])
+  }, [query, activeTags])
 
+  const toggleTag = (id) => {
+    setActiveTags(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const hasQuery   = query.length > 0
+  const hasTags    = activeTags.size > 0
   const hasResults = results && (results.routes?.length > 0 || results.topos?.length > 0)
   const noResults  = results && !hasResults
+  const showPrompt = !hasQuery && !hasTags
 
   return (
     <div style={S.root}>
@@ -381,11 +452,11 @@ export default function Search() {
             onChange={e => setQuery(e.target.value)}
             onFocus={e => {
               e.target.style.borderColor = "var(--hold)"
-              e.target.style.boxShadow = "0 0 0 1px var(--hold)"
+              e.target.style.boxShadow   = "0 0 0 1px var(--hold)"
             }}
             onBlur={e => {
               e.target.style.borderColor = "var(--line)"
-              e.target.style.boxShadow = "none"
+              e.target.style.boxShadow   = "none"
             }}
           />
           {query && (
@@ -396,45 +467,81 @@ export default function Search() {
               }}
               onMouseEnter={() => setHovered("clear")}
               onMouseLeave={() => setHovered(null)}
-              onClick={() => { setQuery(""); setResults(null); inputRef.current?.focus() }}
+              onClick={() => { setQuery(""); inputRef.current?.focus() }}
             >
               ✕
             </button>
           )}
         </div>
 
+        {/* ── TAG FILTER BAR ── */}
+        <div style={S.tagFilterBar}>
+          <span style={S.tagFilterLabel}>Tags</span>
+          {allTags.length === 0 ? (
+            <span style={S.noTagsHint}>No tags yet</span>
+          ) : (
+            <>
+              {allTags.map(t => (
+                <button
+                  key={t.id}
+                  style={{
+                    ...S.tagFilterChip(activeTags.has(t.id)),
+                    ...(hovered === `tag-${t.id}` && !activeTags.has(t.id)
+                      ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
+                      : {}),
+                  }}
+                  onMouseEnter={() => setHovered(`tag-${t.id}`)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => toggleTag(t.id)}
+                >
+                  {t.name}
+                  {t.route_count > 0 && (
+                    <span style={{ marginLeft: "0.3rem", opacity: 0.5 }}>
+                      {t.route_count}
+                    </span>
+                  )}
+                </button>
+              ))}
+              {hasTags && (
+                <button
+                  style={S.clearTagsBtn}
+                  onClick={() => setActiveTags(new Set())}
+                >
+                  Clear filters
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
         {/* ── RESULTS ── */}
         <div style={S.results}>
 
-          {/* Prompt — nothing typed yet */}
-          {!query && (
+          {showPrompt && (
             <div style={S.promptState}>
-              <p style={S.promptLine}>Searches routes and topos</p>
+              <p style={S.promptLine}>Search routes and topos, or filter by tag above</p>
             </div>
           )}
 
-          {/* No results */}
           {noResults && (
             <div style={S.emptyState}>
-              <span style={S.emptyTitle}>No results for "{query}"</span>
-              <span style={S.emptyHint}>Try a different spelling or shorter term</span>
+              <span style={S.emptyTitle}>
+                No results{query ? ` for "${query}"` : ""}{hasTags ? " with selected tags" : ""}
+              </span>
+              <span style={S.emptyHint}>Try a different search or fewer tag filters</span>
             </div>
           )}
 
-          {/* Results */}
           {hasResults && (
             <>
-              {/* TOPOS COLUMN */}
-              <div style={S.column}>
-                <div style={S.columnHeader}>
-                  <span style={S.columnTitle}>Topos</span>
-                  <span style={S.columnCount}>{results.topos.length} result{results.topos.length !== 1 ? "s" : ""}</span>
-                </div>
-
-                {results.topos.length === 0 ? (
-                  <span style={{ ...S.emptyHint, padding: "0.75rem 0" }}>No topos found</span>
-                ) : (
-                  results.topos.map(topo => (
+              {/* TOPOS COLUMN — only shown when text query is present */}
+              {results.topos.length > 0 && (
+                <div style={S.column}>
+                  <div style={S.columnHeader}>
+                    <span style={S.columnTitle}>Topos</span>
+                    <span style={S.columnCount}>{results.topos.length} result{results.topos.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  {results.topos.map(topo => (
                     <div
                       key={topo.id}
                       style={{
@@ -461,21 +568,34 @@ export default function Search() {
                         ...(hovered === `topo-${topo.id}` ? S.rowArrowHover : {}),
                       }}>›</span>
                     </div>
-                  ))
-                )}
-              </div>
-
-              {/* ROUTES COLUMN */}
-              <div style={S.column}>
-                <div style={S.columnHeader}>
-                  <span style={S.columnTitle}>Routes</span>
-                  <span style={S.columnCount}>{results.routes.length} result{results.routes.length !== 1 ? "s" : ""}</span>
+                  ))}
                 </div>
+              )}
 
-                {results.routes.length === 0 ? (
-                  <span style={{ ...S.emptyHint, padding: "0.75rem 0" }}>No routes found</span>
-                ) : (
-                  results.routes.map(route => (
+              {/* ROUTES COLUMN — full width when no topos */}
+              {results.routes.length > 0 && (
+                <div style={{
+                  ...S.column,
+                  gridColumn: results.topos.length === 0 ? "1 / -1" : "auto",
+                }}>
+                  <div style={S.columnHeader}>
+                    <span style={S.columnTitle}>Routes</span>
+                    <span style={S.columnCount}>{results.routes.length} result{results.routes.length !== 1 ? "s" : ""}</span>
+                    {hasTags && (
+                      <span style={{
+                        fontFamily: "Barlow Condensed, sans-serif",
+                        fontSize: "0.6rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "var(--hold)",
+                        marginLeft: "auto",
+                      }}>
+                        {activeTags.size} tag{activeTags.size !== 1 ? "s" : ""} active
+                      </span>
+                    )}
+                  </div>
+                  {results.routes.map(route => (
                     <div
                       key={route.id}
                       style={{
@@ -507,9 +627,9 @@ export default function Search() {
                         ...(hovered === `route-${route.id}` ? S.rowArrowHover : {}),
                       }}>›</span>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 

@@ -239,7 +239,8 @@ export default function Upload() {
   const navigate  = useNavigate()
   const inputRef  = useRef()
 
-  const [file, setFile]         = useState(null)
+  const [files, setFiles]         = useState([])
+  const [busy, setBusy]           = useState(false)
   const [title, setTitle]       = useState('')
   const [dragging, setDragging] = useState(false)
 
@@ -249,46 +250,64 @@ export default function Upload() {
   const [result, setResult]     = useState(null)   // { topo_id, routes_parsed }
   const [error, setError]       = useState('')
 
-  const busy = phase === 'uploading' || phase === 'ocr'
+const pickFiles = (selectedFiles) => {
+  const pdfs = selectedFiles.filter(
+    file => file.type === "application/pdf"
+  );
 
-  const pickFile = f => {
-    if (!f || f.type !== 'application/pdf') { setError('Please select a PDF file.'); return }
-    setError('')
-    setFile(f)
-    if (!title) setTitle(f.name.replace(/\.pdf$/i, ''))
-  }
+  setFiles(pdfs);
+};
 
   const onDrop = e => {
     e.preventDefault(); setDragging(false)
-    pickFile(e.dataTransfer.files[0])
+    pickFiles(Array.from(e.dataTransfer.files))
   }
 
   const submit = async () => {
-    if (!file) { setError('Please select a PDF first.'); return }
-    setError(''); setResult(null)
+  if (files.length === 0 || busy) return;
 
-    const fd = new FormData()
-    fd.append('pdf', file)
-    fd.append('title', title.trim() || file.name.replace(/\.pdf$/i, ''))
+  setBusy(true);
+  setError(null);
 
-    setPhase('uploading'); setProgress(0)
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
-    try {
-      const res = await api.post('/topos/upload', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: e => {
-          const pct = Math.round((e.loaded / e.total) * 100)
-          setProgress(pct)
-          if (pct === 100) setPhase('ocr')
-        },
-      })
-      setResult({ routes_parsed: res.data.routes_parsed })
-      setPhase('done')
-    } catch (err) {
-      setError(err.response?.data?.error || 'Upload failed.')
-      setPhase('error')
+      // Remove ".pdf" extension
+      const title = file.name.replace(/\.pdf$/i, "");
+
+      const formData = new FormData();
+
+      formData.append("pdf", file);
+      formData.append("title", title);
+
+      setPhase("uploading");
+      setProgress(0);
+
+	try {
+	  await api.post(
+			"/topos/upload",
+			formData,
+		  );
+	  } catch (err) {
+		console.error(err);
+
+		setError(
+		  err.response?.data?.error ||
+		  err.message ||
+		  "Upload failed"
+		);
+
+		setPhase("skip");
+	  }
+
+      setPhase("ocr");
     }
-  }
+
+    setPhase("done");
+
+
+  setBusy(false);
+};
 
   return (
     <div style={S.root}>
@@ -301,7 +320,7 @@ export default function Upload() {
       <div style={S.card}>
         {/* Drop zone */}
         <div
-          style={S.dropzone(dragging || !!file)}
+          style={S.dropzone(dragging || files.length > 0)}
           onClick={() => !busy && inputRef.current.click()}
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
@@ -310,19 +329,26 @@ export default function Upload() {
           <input
             ref={inputRef}
             type="file"
+			multiple
             accept="application/pdf"
             style={{ display: 'none' }}
-            onChange={e => pickFile(e.target.files[0])}
+            onChange={e => pickFiles(Array.from(e.target.files))}
           />
-          <span style={S.dropIcon}>{file ? '📄' : '⛰'}</span>
-          {file ? (
+          <span style={S.dropIcon}>{files ? '📄' : '⛰'}</span>
+          {files ? (
             <>
-              <p style={S.dropText}>File selected</p>
-              <p style={S.fileName}>{file.name}</p>
-              <p style={{ ...S.dropSub, marginTop: '0.25rem' }}>
-                {(file.size / 1024 / 1024).toFixed(1)} MB — click to change
-              </p>
-            </>
+  <p style={S.dropText}>
+    {files.length} file{files.length > 1 ? "s" : ""} selected
+  </p>
+
+  <div style={{ marginTop: "0.5rem" }}>
+    {files.map((f, i) => (
+      <p key={i} style={S.fileName}>
+        {f.name}
+      </p>
+    ))}
+  </div>
+</>
           ) : (
             <>
               <p style={S.dropText}>Drop PDF here or click to browse</p>
