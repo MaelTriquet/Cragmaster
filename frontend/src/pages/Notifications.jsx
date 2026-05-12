@@ -198,7 +198,7 @@ export default function Notifications() {
   const { t } = useTranslation()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('unresolved')
 
   const fetchItems = async () => {
     setLoading(true)
@@ -224,13 +224,18 @@ export default function Notifications() {
     fetchItems()
   }
 
-  const filtered = items.filter(item => {
-    if (filter === 'unresolved') return !item.resolved
-    if (filter === 'resolved') return item.resolved
-    if (filter === 'oops') return item.type === 'oops'
-    if (filter === 'rec') return item.type === 'recommendation'
-    return true
-  })
+  const filtered = items
+    .filter(item => {
+      if (filter === 'unresolved') return !item.resolved
+      if (filter === 'resolved') return item.resolved
+      if (filter === 'oops') return item.type === 'oops'
+      if (filter === 'rec') return item.type === 'recommendation'
+      return true
+    })
+    .sort((a, b) => {
+      if (a.resolved !== b.resolved) return a.resolved - b.resolved
+      return a.created_at < b.created_at ? 1 : -1
+    })
 
   const unresolvedCount = items.filter(i => !i.resolved).length
 
@@ -249,7 +254,7 @@ export default function Notifications() {
       </div>
 
       <div style={S.filterRow}>
-        {['all', 'unresolved', 'resolved', 'oops', 'rec'].map(f => (
+        {['unresolved', 'resolved', 'oops', 'rec'].map(f => (
           <button
             key={f}
             style={S.filterBtn(filter === f)}
