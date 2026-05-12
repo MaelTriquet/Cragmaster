@@ -475,6 +475,80 @@ const S = {
     transition: "background 0.15s",
   },
 
+  // ── MODAL ──
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.7)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 200,
+    padding: "1rem",
+  },
+
+  modal: {
+    background: "var(--granite)",
+    borderLeft: "4px solid var(--hold)",
+    padding: "2rem 2rem 1.75rem",
+    maxWidth: "480px",
+    width: "100%",
+    boxShadow: "0 8px 48px rgba(0,0,0,0.6)",
+  },
+
+  modalTitle: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "1.2rem",
+    fontWeight: 800,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "var(--chalk)",
+    margin: "0 0 0.75rem",
+  },
+
+  modalBody: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.9rem",
+    fontWeight: 300,
+    color: "var(--muted)",
+    lineHeight: 1.6,
+    margin: "0 0 0.5rem",
+  },
+
+  modalHint: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.78rem",
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    color: "var(--hold)",
+    lineHeight: 1.5,
+    margin: "0 0 1.5rem",
+    padding: "0.6rem 0.85rem",
+    border: "1px solid var(--line)",
+    background: "rgba(200,80,42,0.06)",
+  },
+
+  modalActions: {
+    display: "flex",
+    gap: "0.75rem",
+    flexWrap: "wrap",
+  },
+
+  modalCancel: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    color: "var(--muted)",
+    cursor: "pointer",
+    background: "none",
+    border: "1px solid var(--line)",
+    padding: "0.55rem 1rem",
+    flex: 1,
+    minWidth: "120px",
+    transition: "border-color 0.15s, color 0.15s",
+  },
 }
 
 export default function TopoDetail() {
@@ -498,6 +572,8 @@ export default function TopoDetail() {
     length: "",
     route_index: "",
   })
+
+  const [confirmModal, setConfirmModal] = useState(null)
 
   useEffect(() => {
     api.get(`/topos/${id}`)
@@ -546,36 +622,29 @@ export default function TopoDetail() {
     setExpandedGrades(prev => ({ ...prev, [g]: !prev[g] }))
   }
 
-  const sendLocationParking = () => {
-    // Check if browser supports geolocation
+  const doGeoLocation = (type) => {
     if (!navigator.geolocation) {
       alert(t('topoDetail.geoNotSupported'));
       return;
     }
 
-    // Get current position
+    const endpoint = type === 'parking'
+      ? `/topos/${id}/set_location_parking`
+      : `/topos/${id}/set_location_routes`
+    const setter = type === 'parking' ? setParkingLocation : setRoutesLocation
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const latitude = position.coords.latitude;
         const longitude = position.coords.longitude;
 
         try {
-          // Send POST request
-          const response = await api.post(
-            `/topos/${id}/set_location_parking`,
-            {
-			  lat: latitude,
-              lon: longitude,
-            }
-          );
-
-		  setParkingLocation({ lat: latitude, lon: longitude });
+          await api.post(endpoint, { lat: latitude, lon: longitude });
+          setter({ lat: latitude, lon: longitude });
         } catch (error) {
           console.error("Error sending location:", error);
         }
       },
-
-      // Error callback
       (error) => {
         console.error("Error getting location:", error);
         alert(t('topoDetail.geoFailed'));
@@ -583,43 +652,19 @@ export default function TopoDetail() {
     );
   };
 
-  
-  const sendLocationRoutes = () => {
-    // Check if browser supports geolocation
-    if (!navigator.geolocation) {
-      alert(t('topoDetail.geoNotSupported'));
-      return;
-    }
+  const handleSetParking = () => setConfirmModal('parking')
+  const handleSetRoutes = () => setConfirmModal('routes')
 
-    // Get current position
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
+  const confirmAndSend = () => {
+    if (!confirmModal) return
+    doGeoLocation(confirmModal)
+    setConfirmModal(null)
+  }
 
-        try {
-          // Send POST request
-          const response = await api.post(
-            `/topos/${id}/set_location_routes`,
-            {
-			  lat: latitude,
-              lon: longitude,
-            }
-          );
-
-		  setRoutesLocation({ lat: latitude, lon: longitude });
-        } catch (error) {
-          console.error("Error sending location:", error);
-        }
-      },
-
-      // Error callback
-      (error) => {
-        console.error("Error getting location:", error);
-        alert(t('topoDetail.geoFailed'));
-      }
-    );
-  };
+  const handleSetOnMap = () => {
+    setConfirmModal(null)
+    navigate('/map')
+  }
 
 	const openGPS = (position) => {
 	  const { lat, lon } = position;
@@ -762,7 +807,7 @@ export default function TopoDetail() {
 
         </div>
 
-		{ parkingLocation.lat !== null ? (<button
+		{ parkingLocation?.lat != null ? (<button
 		  style={{
 				  	  ...S.btnGhost,
 				  	  borderColor: hoveredBtn === "setParkingLocation" ? "var(--hold)" : "var(--line)",
@@ -782,13 +827,13 @@ export default function TopoDetail() {
   		  }}
 		  onMouseEnter={() => setHoveredBtn("setParkingLocation")}
 		  onMouseLeave={() => setHoveredBtn(null)}
-		  onClick={sendLocationParking}
+		  onClick={handleSetParking}
 		>
 		  {t('topoDetail.setParking')}
 		</button>)}
 
 
-		{ routesLocation.lat !== null ? (<button
+		{ routesLocation?.lat != null ? (<button
 		  style={{
 				  	  ...S.btnGhost,
 				  	  borderColor: hoveredBtn === "setRoutesLocation" ? "var(--hold)" : "var(--line)",
@@ -811,7 +856,7 @@ export default function TopoDetail() {
   		  	}}
 		  onMouseEnter={() => setHoveredBtn("setRoutesLocation")}
 		  onMouseLeave={() => setHoveredBtn(null)}
-		  onClick={sendLocationRoutes}
+		  onClick={handleSetRoutes}
 		>
 		  {t('topoDetail.setRoutes')}
 		</button>)}
@@ -953,6 +998,64 @@ export default function TopoDetail() {
                   </span>
                 </div>
               ))}
+          </div>
+        )}
+
+        {/* ── CONFIRMATION MODAL ── */}
+        {confirmModal && (
+          <div style={S.overlay} onClick={() => setConfirmModal(null)}>
+            <div style={S.modal} onClick={e => e.stopPropagation()}>
+              <div style={S.modalTitle}>{t('topoDetail.confirmLocation')}</div>
+              <p style={S.modalBody}>
+                {confirmModal === 'parking'
+                  ? t('topoDetail.confirmParkingBody')
+                  : t('topoDetail.confirmRoutesBody')}
+              </p>
+              <p style={S.modalHint}>{t('topoDetail.confirmMapHint')}</p>
+              <div style={S.modalActions}>
+                <button
+                  style={{
+                    ...S.btnPrimary,
+                    flex: 1,
+                    minWidth: '120px',
+                    background: hoveredBtn === 'confirmHere' ? 'var(--hold-lt)' : 'var(--hold)',
+                  }}
+                  onMouseEnter={() => setHoveredBtn('confirmHere')}
+                  onMouseLeave={() => setHoveredBtn(null)}
+                  onClick={confirmAndSend}
+                >
+                  {t('topoDetail.confirmHere')}
+                </button>
+                <button
+                  style={{
+                    ...S.btnGhost,
+                    flex: 1,
+                    minWidth: '120px',
+                    borderColor: hoveredBtn === 'setOnMap' ? 'var(--hold)' : 'var(--line)',
+                    color: hoveredBtn === 'setOnMap' ? 'var(--hold)' : 'var(--chalk)',
+                  }}
+                  onMouseEnter={() => setHoveredBtn('setOnMap')}
+                  onMouseLeave={() => setHoveredBtn(null)}
+                  onClick={handleSetOnMap}
+                >
+                  {t('topoDetail.confirmSetOnMap')}
+                </button>
+                <button
+                  style={S.modalCancel}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--chalk)'
+                    e.currentTarget.style.color = 'var(--chalk)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--line)'
+                    e.currentTarget.style.color = 'var(--muted)'
+                  }}
+                  onClick={() => setConfirmModal(null)}
+                >
+                  {t('topoDetail.cancel')}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

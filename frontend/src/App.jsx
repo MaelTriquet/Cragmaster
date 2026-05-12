@@ -13,6 +13,7 @@ import Profile from './pages/Profile'
 import Stats from './pages/Stats'
 import Query from './pages/Query'
 import Map from './pages/Map'
+import About from './pages/About'
 
 function ComingSoon({ name }) {
   const { t } = useTranslation()
@@ -44,6 +45,7 @@ export default function App() {
 		  <Route path="/stats/:userId" element={<PrivateRoute><Stats /></PrivateRoute>} />
 		  <Route path="/query"        element={<PrivateRoute><Query /></PrivateRoute>} />
 			<Route path="/map"          element={<PrivateRoute><Map /></PrivateRoute>} />
+          <Route path="/about"       element={<About />} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

@@ -11,6 +11,7 @@ const NAV_ITEM_KEYS = [
   { key: 'nav.stats', path: '/stats' },
   { key: 'nav.upload', path: '/upload' },
   { key: 'nav.map', path: '/map' },
+  { key: 'nav.about', path: '/about' },
 ]
 
 const S = {
