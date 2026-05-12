@@ -11,6 +11,7 @@ import Navbar from './components/Navbar'
 import Profile from './pages/Profile'
 import Stats from './pages/Stats'
 import Query from './pages/Query'
+import Map from './pages/Map'
 
 function ComingSoon({ name }) {
   return (
@@ -39,6 +40,7 @@ export default function App() {
 		  <Route path="/profile"      element={<PrivateRoute><Profile /></PrivateRoute>} />
 		  <Route path="/stats"        element={<PrivateRoute><Stats /></PrivateRoute>} />
 		  <Route path="/query"        element={<PrivateRoute><Query /></PrivateRoute>} />
+			<Route path="/map"          element={<PrivateRoute><Map /></PrivateRoute>} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { label: 'Search', path: '/search' },
   { label: 'Stats', path: '/stats' },
   { label: 'Upload', path: '/upload' },
+  { label: 'Map', path: '/map' },
 ]
 
 const S = {

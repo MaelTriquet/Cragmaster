@@ -50,9 +50,9 @@ const S = {
     padding: '2rem 2.5rem',
     boxShadow: '0 0 60px rgba(0,0,0,0.5)',
   },
-  dropzone: base => ({
-    border: `2px dashed ${base ? 'var(--hold)' : 'var(--line)'}`,
-    background: base ? 'rgba(200,80,42,0.07)' : 'var(--rock)',
+  dropzone: (active) => ({
+    border: `2px dashed ${active ? 'var(--hold)' : 'var(--line)'}`,
+    background: active ? 'rgba(200,80,42,0.07)' : 'var(--rock)',
     padding: '2.5rem 1.5rem',
     textAlign: 'center',
     cursor: 'pointer',
@@ -81,44 +81,18 @@ const S = {
     color: 'var(--muted)',
     marginTop: '0.35rem',
   },
+  fileList: {
+    marginTop: '0.75rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.3rem',
+  },
   fileName: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '1rem',
+    fontSize: '0.9rem',
     fontWeight: 700,
     color: 'var(--hold-lt)',
     letterSpacing: '0.05em',
-    marginTop: '0.5rem',
-  },
-  fields: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem',
-    marginBottom: '1.75rem',
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.4rem',
-  },
-  label: {
-    fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.72rem',
-    fontWeight: 600,
-    letterSpacing: '0.15em',
-    color: 'var(--muted)',
-    textTransform: 'uppercase',
-  },
-  input: {
-    background: 'var(--rock)',
-    border: '1px solid var(--line)',
-    color: 'var(--chalk)',
-    fontFamily: 'Barlow, sans-serif',
-    fontSize: '1rem',
-    fontWeight: 400,
-    padding: '0.65rem 0.85rem',
-    outline: 'none',
-    transition: 'border-color 0.15s',
-    width: '100%',
   },
   btn: {
     width: '100%',
@@ -138,48 +112,73 @@ const S = {
     opacity: 0.4,
     cursor: 'not-allowed',
   },
-  // Progress / status
-  progressWrap: {
+  // Per-file progress list
+  progressList: {
     marginTop: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.85rem',
+  },
+  progressItem: {
     border: '1px solid var(--line)',
-    padding: '1.25rem',
+    padding: '0.9rem 1rem',
   },
-  progressLabel: {
+  progressHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '0.5rem',
+  },
+  progressName: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    letterSpacing: '0.15em',
-    color: 'var(--muted)',
-    textTransform: 'uppercase',
-    marginBottom: '0.6rem',
+    fontSize: '0.78rem',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    color: 'var(--chalk)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '80%',
   },
+  progressStatus: (status) => ({
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.68rem',
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color:
+      status === 'done'  ? '#7fc99a' :
+      status === 'error' ? 'var(--hold-lt)' :
+      status === 'ocr'   ? 'var(--chalk)' :
+      'var(--muted)',
+    flexShrink: 0,
+  }),
   progressBarOuter: {
     background: 'var(--line)',
     height: '3px',
     width: '100%',
-    overflow: 'hidden',
   },
-  progressBarInner: pct => ({
+  progressBarInner: (pct, status) => ({
     height: '100%',
     width: `${pct}%`,
-    background: 'var(--hold)',
+    background: status === 'error' ? 'var(--hold)' : status === 'done' ? '#5a9e6f' : 'var(--hold)',
     transition: 'width 0.3s ease',
   }),
-  statusText: {
+  progressMsg: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.85rem',
+    fontSize: '0.72rem',
     letterSpacing: '0.05em',
-    color: 'var(--chalk)',
-    marginTop: '0.75rem',
+    color: 'var(--muted)',
+    marginTop: '0.4rem',
   },
-  // Success panel
-  success: {
+  // Done summary
+  summary: {
     marginTop: '1.5rem',
     borderLeft: '4px solid #5a9e6f',
     background: 'rgba(90,158,111,0.08)',
     padding: '1rem 1.25rem',
   },
-  successTitle: {
+  summaryTitle: {
     fontFamily: 'Barlow Condensed, sans-serif',
     fontSize: '1rem',
     fontWeight: 700,
@@ -188,13 +187,13 @@ const S = {
     textTransform: 'uppercase',
     margin: '0 0 0.3rem',
   },
-  successBody: {
+  summaryBody: {
     fontFamily: 'Barlow, sans-serif',
     fontSize: '0.9rem',
     color: 'var(--chalk)',
     margin: 0,
   },
-  successLink: {
+  summaryLink: {
     display: 'inline-block',
     marginTop: '0.75rem',
     fontFamily: 'Barlow Condensed, sans-serif',
@@ -203,124 +202,129 @@ const S = {
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
     color: 'var(--hold-lt)',
-    textDecoration: 'none',
     cursor: 'pointer',
     background: 'none',
     border: 'none',
     padding: 0,
   },
-  error: {
-    marginTop: '1rem',
-    borderLeft: '2px solid var(--hold)',
-    padding: '0.5rem 0.75rem',
-    fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.85rem',
-    letterSpacing: '0.05em',
-    color: 'var(--hold-lt)',
-  },
 }
 
-// Animated dots for the "OCR running" state
 function Dots() {
-  return <span style={{ display: 'inline-block', width: '1.5rem', textAlign: 'left' }}>
-    <style>{`
-      @keyframes dot { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-      .d1{animation:dot 1.4s infinite .0s}
-      .d2{animation:dot 1.4s infinite .2s}
-      .d3{animation:dot 1.4s infinite .4s}
-    `}</style>
-    <span className="d1">.</span>
-    <span className="d2">.</span>
-    <span className="d3">.</span>
-  </span>
+  return (
+    <span style={{ display: 'inline-block', width: '1.5rem', textAlign: 'left' }}>
+      <style>{`
+        @keyframes dot { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+        .d1{animation:dot 1.4s infinite .0s}
+        .d2{animation:dot 1.4s infinite .2s}
+        .d3{animation:dot 1.4s infinite .4s}
+      `}</style>
+      <span className="d1">.</span>
+      <span className="d2">.</span>
+      <span className="d3">.</span>
+    </span>
+  )
+}
+
+// status: 'pending' | 'uploading' | 'ocr' | 'done' | 'error'
+function statusLabel(status) {
+  switch (status) {
+    case 'uploading': return 'Uploading…'
+    case 'ocr':       return <>OCR<Dots /></>
+    case 'done':      return '✓ Done'
+    case 'error':     return '✕ Failed'
+    default:          return 'Pending'
+  }
 }
 
 export default function Upload() {
-  const navigate  = useNavigate()
-  const inputRef  = useRef()
+  const navigate = useNavigate()
+  const inputRef = useRef()
 
-  const [files, setFiles]         = useState([])
-  const [busy, setBusy]           = useState(false)
-  const [title, setTitle]       = useState('')
+  const [files,    setFiles]    = useState([])
   const [dragging, setDragging] = useState(false)
+  const [busy,     setBusy]     = useState(false)
+  const [allDone,  setAllDone]  = useState(false)
 
-  // upload states: idle | uploading | ocr | done | error
-  const [phase, setPhase]       = useState('idle')
-  const [progress, setProgress] = useState(0)
-  const [result, setResult]     = useState(null)   // { topo_id, routes_parsed }
-  const [error, setError]       = useState('')
+  // fileStates: array of { name, status, progress, message, routes_parsed }
+  const [fileStates, setFileStates] = useState([])
 
-const pickFiles = (selectedFiles) => {
-  const pdfs = selectedFiles.filter(
-    file => file.type === "application/pdf"
-  );
+  const pickFiles = (selected) => {
+    const pdfs = selected.filter(f => f.type === 'application/pdf')
+    setFiles(pdfs)
+    setFileStates(pdfs.map(f => ({ name: f.name, status: 'pending', progress: 0, message: '', routes_parsed: null })))
+    setAllDone(false)
+  }
 
-  setFiles(pdfs);
-};
+  const updateFile = (index, patch) => {
+    setFileStates(prev => prev.map((s, i) => i === index ? { ...s, ...patch } : s))
+  }
 
-  const onDrop = e => {
-    e.preventDefault(); setDragging(false)
+  const onDrop = (e) => {
+    e.preventDefault()
+    setDragging(false)
     pickFiles(Array.from(e.dataTransfer.files))
   }
 
   const submit = async () => {
-  if (files.length === 0 || busy) return;
-
-  setBusy(true);
-  setError(null);
+    if (files.length === 0 || busy) return
+    setBusy(true)
+    setAllDone(false)
 
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+      const file = files[i]
+      const title = file.name.replace(/\.pdf$/i, '')
 
-      // Remove ".pdf" extension
-      const title = file.name.replace(/\.pdf$/i, "");
+      updateFile(i, { status: 'uploading', progress: 0, message: '' })
 
-      const formData = new FormData();
+      const formData = new FormData()
+      formData.append('pdf', file)
+      formData.append('title', title)
 
-      formData.append("pdf", file);
-      formData.append("title", title);
+      try {
+        updateFile(i, { status: 'ocr', progress: 100 })
 
-      setPhase("uploading");
-      setProgress(0);
+        const res = await api.post('/topos/upload', formData, {
+          onUploadProgress: (e) => {
+            const pct = e.total ? Math.round((e.loaded / e.total) * 90) : 50
+            updateFile(i, { status: 'uploading', progress: pct })
+          },
+        })
 
-	try {
-	  await api.post(
-			"/topos/upload",
-			formData,
-		  );
-	  } catch (err) {
-		console.error(err);
-
-		setError(
-		  err.response?.data?.error ||
-		  err.message ||
-		  "Upload failed"
-		);
-
-		setPhase("skip");
-	  }
-
-      setPhase("ocr");
+        updateFile(i, {
+          status: 'done',
+          progress: 100,
+          routes_parsed: res.data.routes_parsed ?? 0,
+          message: `${res.data.routes_parsed ?? 0} routes parsed`,
+        })
+      } catch (err) {
+        updateFile(i, {
+          status: 'error',
+          progress: 100,
+          message: err.response?.data?.error || err.message || 'Upload failed',
+        })
+      }
     }
 
-    setPhase("done");
+    setBusy(false)
+    setAllDone(true)
+  }
 
-
-  setBusy(false);
-};
+  const hasFiles = files.length > 0
+  const doneCount  = fileStates.filter(s => s.status === 'done').length
+  const errorCount = fileStates.filter(s => s.status === 'error').length
 
   return (
     <div style={S.root}>
       <div style={S.header}>
         <span style={S.eyebrow}>Library</span>
-        <h1 style={S.title}>Upload Topo</h1>
+        <h1 style={S.title}>Upload Topos</h1>
         <div style={S.rule} />
       </div>
 
       <div style={S.card}>
         {/* Drop zone */}
         <div
-          style={S.dropzone(dragging || files.length > 0)}
+          style={S.dropzone(dragging || hasFiles)}
           onClick={() => !busy && inputRef.current.click()}
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
@@ -329,96 +333,89 @@ const pickFiles = (selectedFiles) => {
           <input
             ref={inputRef}
             type="file"
-			multiple
+            multiple
             accept="application/pdf"
             style={{ display: 'none' }}
             onChange={e => pickFiles(Array.from(e.target.files))}
           />
-          <span style={S.dropIcon}>{files ? '📄' : '⛰'}</span>
-          {files ? (
+          <span style={S.dropIcon}>{hasFiles ? '📄' : '⛰'}</span>
+          {hasFiles ? (
             <>
-  <p style={S.dropText}>
-    {files.length} file{files.length > 1 ? "s" : ""} selected
-  </p>
-
-  <div style={{ marginTop: "0.5rem" }}>
-    {files.map((f, i) => (
-      <p key={i} style={S.fileName}>
-        {f.name}
-      </p>
-    ))}
-  </div>
-</>
+              <p style={S.dropText}>
+                {files.length} file{files.length > 1 ? 's' : ''} selected
+                {!busy && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> — click to change</span>}
+              </p>
+              <div style={S.fileList}>
+                {files.map((f, i) => (
+                  <p key={i} style={S.fileName}>{f.name}</p>
+                ))}
+              </div>
+            </>
           ) : (
             <>
-              <p style={S.dropText}>Drop PDF here or click to browse</p>
-              <p style={S.dropSub}>Climbing topo in PDF format</p>
+              <p style={S.dropText}>Drop PDFs here or click to browse</p>
+              <p style={S.dropSub}>Select one or more climbing topo PDFs</p>
             </>
           )}
         </div>
 
-        {/* Fields */}
-        <div style={S.fields}>
-          <div style={S.field}>
-            <label style={S.label}>Title</label>
-            <input
-              style={S.input}
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Gorges du Verdon — Secteur Escalès"
-              disabled={busy}
-              onFocus={e => e.target.style.borderColor = 'var(--hold)'}
-              onBlur={e  => e.target.style.borderColor = 'var(--line)'}
-            />
-          </div>
-        </div>
-
         {/* Submit */}
         <button
-          style={{ ...S.btn, ...(busy ? S.btnDisabled : {}) }}
-          disabled={busy}
+          style={{ ...S.btn, ...(busy || !hasFiles ? S.btnDisabled : {}) }}
+          disabled={busy || !hasFiles}
           onClick={submit}
-          onMouseEnter={e => { if (!busy) e.target.style.background = 'var(--hold-lt)' }}
-          onMouseLeave={e => { if (!busy) e.target.style.background = 'var(--hold)' }}
+          onMouseEnter={e => { if (!busy && hasFiles) e.target.style.background = 'var(--hold-lt)' }}
+          onMouseLeave={e => { if (!busy && hasFiles) e.target.style.background = 'var(--hold)' }}
         >
-          {busy ? 'Processing…' : 'Upload & Parse'}
+          {busy
+            ? `Processing ${fileStates.filter(s => s.status === 'done' || s.status === 'error').length} / ${files.length}…`
+            : `Upload & Parse${files.length > 1 ? ` (${files.length} files)` : ''}`}
         </button>
 
-        {/* Progress */}
-        {(phase === 'uploading' || phase === 'ocr') && (
-          <div style={S.progressWrap}>
-            <p style={S.progressLabel}>
-              {phase === 'uploading' ? 'Uploading' : 'Running OCR & parsing routes'}
-            </p>
-            <div style={S.progressBarOuter}>
-              <div style={S.progressBarInner(phase === 'ocr' ? 100 : progress)} />
-            </div>
-            <p style={S.statusText}>
-              {phase === 'uploading'
-                ? `${progress}% transferred`
-                : <>Extracting text and detecting routes<Dots /></>
-              }
-            </p>
+        {/* Per-file progress */}
+        {fileStates.some(s => s.status !== 'pending') && (
+          <div style={S.progressList}>
+            {fileStates.map((fs, i) => (
+              <div key={i} style={S.progressItem}>
+                <div style={S.progressHeader}>
+                  <span style={S.progressName}>{fs.name}</span>
+                  <span style={S.progressStatus(fs.status)}>
+                    {statusLabel(fs.status)}
+                  </span>
+                </div>
+                <div style={S.progressBarOuter}>
+                  <div style={S.progressBarInner(fs.progress, fs.status)} />
+                </div>
+                {fs.message && (
+                  <p style={{
+                    ...S.progressMsg,
+                    color: fs.status === 'error' ? 'var(--hold-lt)' : 'var(--muted)',
+                  }}>
+                    {fs.message}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Success */}
-        {phase === 'done' && result && (
-          <div style={S.success}>
-            <p style={S.successTitle}>✓ Topo uploaded</p>
-            <p style={S.successBody}>
-              {result.routes_parsed > 0
-                ? `${result.routes_parsed} route${result.routes_parsed !== 1 ? 's' : ''} parsed from the PDF.`
-                : 'No routes were automatically detected — you can add them manually.'}
+        {/* Final summary */}
+        {allDone && (
+          <div style={S.summary}>
+            <p style={S.summaryTitle}>
+              {errorCount === 0
+                ? `✓ All ${doneCount} topo${doneCount !== 1 ? 's' : ''} uploaded`
+                : `${doneCount} uploaded, ${errorCount} failed`}
             </p>
-            <button style={S.successLink} onClick={() => navigate('/topos')}>
+            <p style={S.summaryBody}>
+              {doneCount > 0 &&
+                `${fileStates.filter(s => s.status === 'done').reduce((sum, s) => sum + (s.routes_parsed ?? 0), 0)} routes parsed in total.`}
+            </p>
+            <button style={S.summaryLink} onClick={() => navigate('/topos')}>
               Go to topo list →
             </button>
           </div>
         )}
-
-        {/* Error */}
-        {error && <p style={S.error}>{error}</p>}
       </div>
     </div>
   )
