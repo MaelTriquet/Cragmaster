@@ -1,12 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 
-// ── Leaflet is loaded via CDN in index.html ───────────────────────────────────
-// Add these two lines to your public/index.html <head>:
-//   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-//   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────────────────────
 const S = {
   root: {
     minHeight: '100vh',
@@ -108,7 +106,6 @@ const S = {
     minHeight: '500px',
   },
 
-  // count badge top-right of map
   countBadge: {
     position: 'absolute',
     top: '12px',
@@ -171,9 +168,125 @@ const S = {
     color: 'var(--muted)',
     opacity: 0.6,
   },
+
+  // ── Context menu ──────────────────────────────────────────────────────────
+  ctxMenu: (x, y) => ({
+    position: 'fixed',
+    left: x,
+    top: y,
+    zIndex: 2000,
+    background: '#1a1a18',
+    border: '1px solid #3a3a34',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+    minWidth: '240px',
+    maxWidth: '300px',
+    userSelect: 'none',
+  }),
+
+  ctxHeader: {
+    padding: '0.45rem 0.85rem',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.6rem',
+    fontWeight: 700,
+    letterSpacing: '0.22em',
+    textTransform: 'uppercase',
+    color: 'var(--hold)',
+    borderBottom: '1px solid #3a3a34',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  ctxCoords: {
+    fontFamily: 'monospace',
+    fontSize: '0.6rem',
+    color: 'var(--muted)',
+    fontWeight: 400,
+    letterSpacing: 0,
+    textTransform: 'none',
+  },
+
+  ctxSection: {
+    padding: '0.3rem 0',
+    borderBottom: '1px solid #2a2a28',
+  },
+
+  ctxSectionLabel: {
+    padding: '0.3rem 0.85rem 0.15rem',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.58rem',
+    fontWeight: 700,
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+  },
+
+  ctxItem: hovered => ({
+    padding: '0.45rem 0.85rem 0.45rem 1.2rem',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: hovered ? '#f0ede6' : '#b0aca4',
+    background: hovered ? 'rgba(200,80,42,0.18)' : 'transparent',
+    cursor: 'pointer',
+    transition: 'background 0.1s, color 0.1s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.6rem',
+    borderLeft: hovered ? '2px solid var(--hold)' : '2px solid transparent',
+  }),
+
+  ctxEmpty: {
+    padding: '0.4rem 0.85rem 0.4rem 1.2rem',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    letterSpacing: '0.06em',
+    color: '#4a4a44',
+    fontStyle: 'italic',
+  },
+
+  ctxDismiss: {
+    padding: '0.4rem 0.85rem',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.68rem',
+    fontWeight: 600,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: '#4a4a44',
+    cursor: 'pointer',
+    textAlign: 'right',
+  },
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  toast: visible => ({
+    position: 'fixed',
+    bottom: '2rem',
+    left: '50%',
+    transform: `translateX(-50%) translateY(${visible ? 0 : '12px'})`,
+    opacity: visible ? 1 : 0,
+    transition: 'opacity 0.25s, transform 0.25s',
+    zIndex: 3000,
+    background: '#2e2e2a',
+    border: '1px solid var(--line)',
+    borderLeft: '3px solid var(--hold)',
+    padding: '0.65rem 1.2rem',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--chalk)',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+    pointerEvents: 'none',
+    whiteSpace: 'nowrap',
+  }),
 }
 
-// ── Custom SVG marker factory ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 function makeIcon(color, label) {
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
@@ -186,8 +299,7 @@ function makeIcon(color, label) {
             fill="white" letter-spacing="0">
         ${label}
       </text>
-    </svg>
-  `
+    </svg>`
   return {
     iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     iconSize: [32, 40],
@@ -196,64 +308,93 @@ function makeIcon(color, label) {
   }
 }
 
-// ── Popup HTML ────────────────────────────────────────────────────────────────
 function popupHtml(topo, type) {
   const typeLabel = type === 'parking' ? '🅿 Parking' : '🧗 Routes'
   return `
-    <div style="
-      font-family: 'Barlow Condensed', sans-serif;
-      background: #2e2e2a;
-      color: #f0ede6;
-      padding: 0;
-      min-width: 180px;
-    ">
-      <div style="
-        background: #c8502a;
-        padding: 0.4rem 0.75rem;
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        color: #f0ede6;
-      ">${typeLabel}</div>
-      <div style="padding: 0.6rem 0.75rem;">
-        <div style="
-          font-size: 1rem;
-          font-weight: 800;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-          margin-bottom: 0.3rem;
-          line-height: 1.1;
-        ">${topo.title}</div>
-        <a
-          href="/topos/${topo.id}"
-          style="
-            display: inline-block;
-            margin-top: 0.4rem;
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: #e06540;
-            text-decoration: none;
-          "
-        >View Topo →</a>
+    <div style="font-family:'Barlow Condensed',sans-serif;background:#2e2e2a;color:#f0ede6;padding:0;min-width:180px;">
+      <div style="background:#c8502a;padding:0.4rem 0.75rem;font-size:0.62rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#f0ede6;">${typeLabel}</div>
+      <div style="padding:0.6rem 0.75rem;">
+        <div style="font-size:1rem;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:0.3rem;line-height:1.1;">${topo.title}</div>
+        <a href="/topos/${topo.id}" style="display:inline-block;margin-top:0.4rem;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e06540;text-decoration:none;">View Topo →</a>
       </div>
-    </div>
-  `
+    </div>`
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
 export default function MapPage() {
-  const mapRef    = useRef(null)   // DOM node
-  const leafletRef = useRef(null)  // L.Map instance
-  const navigate  = useNavigate()
+  const mapRef     = useRef(null)
+  const leafletRef = useRef(null)
+  // Live ref so the Leaflet event handler always sees the latest topo data
+  const toposRef   = useRef([])
 
-  const [loading, setLoading]   = useState(true)
+  const [loading, setLoading]         = useState(true)
   const [markerCount, setMarkerCount] = useState(0)
 
+  // Context menu
+  const [ctxMenu, setCtxMenu]     = useState(null)
+  const [ctxHovered, setCtxHovered] = useState(null)
+
+  // Toast
+  const [toast, setToast]   = useState({ visible: false, msg: '' })
+  const toastTimer           = useRef(null)
+
+  const showToast = useCallback(msg => {
+    clearTimeout(toastTimer.current)
+    setToast({ visible: true, msg })
+    toastTimer.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 2800)
+  }, [])
+
+  // Close context menu on outside click or Escape
   useEffect(() => {
-    // Inject Leaflet CSS + JS if not already present
+    if (!ctxMenu) return
+    const close = () => setCtxMenu(null)
+    const onKey = e => { if (e.key === 'Escape') close() }
+    window.addEventListener('mousedown', close)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', close)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [ctxMenu])
+
+  // Called when the user picks a topo from the context menu
+  const handleSetLocation = useCallback(async (topo, type, latlng) => {
+    setCtxMenu(null)
+    const endpoint = type === 'parking'
+      ? `/topos/${topo.id}/set_location_parking`
+      : `/topos/${topo.id}/set_location_routes`
+
+    try {
+      await api.post(endpoint, { lat: latlng.lat, lon: latlng.lng })
+
+      // Keep toposRef in sync so subsequent right-clicks reflect the new state
+      toposRef.current = toposRef.current.map(t => {
+        if (t.id !== topo.id) return t
+        return type === 'parking'
+          ? { ...t, parking_lat: latlng.lat, parking_lon: latlng.lng }
+          : { ...t, routes_lat: latlng.lat, routes_lon: latlng.lng }
+      })
+
+      // Drop the new marker on the live map immediately
+      const L = window.L
+      if (L && leafletRef.current) {
+        const icon = L.icon(makeIcon(type === 'parking' ? '#4a8fa8' : '#c8502a', type === 'parking' ? 'P' : 'R'))
+        L.marker([latlng.lat, latlng.lng], { icon })
+          .bindPopup(popupHtml(topo, type), { maxWidth: 260 })
+          .addTo(leafletRef.current)
+        setMarkerCount(n => n + 1)
+      }
+
+      showToast(`✓ ${type === 'parking' ? 'Parking' : 'Routes'} set for ${topo.title}`)
+    } catch (err) {
+      showToast(`✗ ${err.response?.data?.error || 'Failed to set location'}`)
+    }
+  }, [showToast])
+
+  // ── Map initialisation (runs once) ─────────────────────────────────────────
+  useEffect(() => {
     if (!document.getElementById('leaflet-css')) {
       const link = document.createElement('link')
       link.id = 'leaflet-css'
@@ -262,194 +403,127 @@ export default function MapPage() {
       document.head.appendChild(link)
     }
 
-    const loadLeaflet = () => {
-      return new Promise(resolve => {
-        if (window.L) { resolve(); return }
-        const script = document.createElement('script')
-        script.id = 'leaflet-js'
-        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-        script.onload = resolve
-        document.head.appendChild(script)
-      })
-    }
+    const loadLeaflet = () => new Promise(resolve => {
+      if (window.L) { resolve(); return }
+      const script = document.createElement('script')
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+      script.onload = resolve
+      document.head.appendChild(script)
+    })
 
     const init = async () => {
       await loadLeaflet()
-
       const L = window.L
       if (!mapRef.current || leafletRef.current) return
 
-      // ── Init map centred on France ──
-      const map = L.map(mapRef.current, {
-        center: [46.5, 2.5],
-        zoom: 6,
-        zoomControl: true,
-      })
-
+      const map = L.map(mapRef.current, { center: [46.5, 2.5], zoom: 6 })
       leafletRef.current = map
 
-      // ── Tile layers ──────────────────────────────────────────────────────────
-      // OpenTopoMap: relief shading + contours + cliffs + trails + roads
+      // Tile layers
       const topoLayer = L.tileLayer(
         'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-        {
-          attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
-          maxZoom: 17,
-          subdomains: 'abc',
-        }
+        { attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Style: &copy; OpenTopoMap', maxZoom: 17, subdomains: 'abc' }
       )
-
-      // OSM standard: detailed streets, paths, place names — good when zoomed in
       const osmLayer = L.tileLayer(
         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxZoom: 19,
-        }
+        { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }
       )
-
-      // IGN aerial (no API key needed for public WMS endpoint)
       const satelliteLayer = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        {
-          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, GeoEye, Earthstar Geographics',
-          maxZoom: 19,
-        }
+        { attribution: 'Tiles &copy; Esri', maxZoom: 19 }
       )
-
-      // Default: topo
       topoLayer.addTo(map)
+      L.control.layers(
+        { '🗺 Topo (relief + trails)': topoLayer, '🛣 Street (OSM)': osmLayer, '🛰 Satellite': satelliteLayer },
+        null,
+        { position: 'topleft', collapsed: false }
+      ).addTo(map)
 
-      // ── Layer control (top-left, below zoom) ──
-      const baseLayers = {
-        '🗺 Topo (relief + trails)': topoLayer,
-        '🛣 Street (OSM)': osmLayer,
-        '🛰 Satellite': satelliteLayer,
+      // Inject CSS once
+      if (!document.getElementById('cragmaster-map-style')) {
+        const style = document.createElement('style')
+        style.id = 'cragmaster-map-style'
+        style.textContent = `
+          .leaflet-popup-content-wrapper{background:#2e2e2a!important;border:1px solid #3a3a34!important;border-radius:0!important;padding:0!important;box-shadow:0 4px 24px rgba(0,0,0,.6)!important;overflow:hidden}
+          .leaflet-popup-content{margin:0!important;width:auto!important}
+          .leaflet-popup-tip{background:#2e2e2a!important}
+          .leaflet-popup-close-button{color:#6b6b60!important;font-size:18px!important;top:4px!important;right:6px!important}
+          .leaflet-popup-close-button:hover{color:#f0ede6!important}
+          .leaflet-control-zoom a{background:#2e2e2a!important;color:#f0ede6!important;border-color:#3a3a34!important}
+          .leaflet-control-zoom a:hover{background:#c8502a!important}
+          .leaflet-attribution-flag{display:none!important}
+          .leaflet-control-attribution{background:rgba(26,26,24,.75)!important;color:#6b6b60!important;font-size:10px!important}
+          .leaflet-control-attribution a{color:#6b6b60!important}
+          .leaflet-control-layers{background:rgba(26,26,24,.93)!important;border:1px solid #3a3a34!important;border-radius:0!important;box-shadow:0 2px 16px rgba(0,0,0,.5)!important;backdrop-filter:blur(8px)}
+          .leaflet-control-layers-expanded{padding:8px 12px!important;min-width:180px}
+          .leaflet-control-layers label{font-family:'Barlow Condensed',sans-serif!important;font-size:.78rem!important;font-weight:600!important;letter-spacing:.1em!important;text-transform:uppercase!important;color:#f0ede6!important;display:flex!important;align-items:center!important;gap:6px!important;padding:3px 0!important;cursor:pointer!important}
+          .leaflet-control-layers label:hover{color:#e06540!important}
+          .leaflet-control-layers-selector{accent-color:#c8502a!important}
+          .leaflet-container{cursor:crosshair}
+        `
+        document.head.appendChild(style)
       }
-      L.control.layers(baseLayers, null, { position: 'topleft', collapsed: false }).addTo(map)
 
-      // ── Custom popup styles ──
-      const style = document.createElement('style')
-      style.textContent = `
-        .leaflet-popup-content-wrapper {
-          background: #2e2e2a !important;
-          border: 1px solid #3a3a34 !important;
-          border-radius: 0 !important;
-          padding: 0 !important;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.6) !important;
-          overflow: hidden;
-        }
-        .leaflet-popup-content {
-          margin: 0 !important;
-          width: auto !important;
-        }
-        .leaflet-popup-tip {
-          background: #2e2e2a !important;
-        }
-        .leaflet-popup-close-button {
-          color: #6b6b60 !important;
-          font-size: 18px !important;
-          top: 4px !important;
-          right: 6px !important;
-        }
-        .leaflet-popup-close-button:hover {
-          color: #f0ede6 !important;
-        }
-        .leaflet-control-zoom a {
-          background: #2e2e2a !important;
-          color: #f0ede6 !important;
-          border-color: #3a3a34 !important;
-        }
-        .leaflet-control-zoom a:hover {
-          background: #c8502a !important;
-        }
-        .leaflet-attribution-flag { display: none !important; }
-        .leaflet-control-attribution {
-          background: rgba(26,26,24,0.75) !important;
-          color: #6b6b60 !important;
-          font-size: 10px !important;
-        }
-        .leaflet-control-attribution a { color: #6b6b60 !important; }
-
-        /* ── Layer switcher ── */
-        .leaflet-control-layers {
-          background: rgba(26,26,24,0.93) !important;
-          border: 1px solid #3a3a34 !important;
-          border-radius: 0 !important;
-          box-shadow: 0 2px 16px rgba(0,0,0,0.5) !important;
-          backdrop-filter: blur(8px);
-        }
-        .leaflet-control-layers-expanded {
-          padding: 8px 12px !important;
-          min-width: 180px;
-        }
-        .leaflet-control-layers label {
-          font-family: 'Barlow Condensed', sans-serif !important;
-          font-size: 0.78rem !important;
-          font-weight: 600 !important;
-          letter-spacing: 0.1em !important;
-          text-transform: uppercase !important;
-          color: #f0ede6 !important;
-          display: flex !important;
-          align-items: center !important;
-          gap: 6px !important;
-          padding: 3px 0 !important;
-          cursor: pointer !important;
-        }
-        .leaflet-control-layers label:hover { color: #e06540 !important; }
-        .leaflet-control-layers-selector { accent-color: #c8502a !important; }
-        .leaflet-control-layers-toggle {
-          background-color: #2e2e2a !important;
-          border: 1px solid #3a3a34 !important;
-        }
-      `
-      document.head.appendChild(style)
-
-      // ── Fetch topos and plot ──
+      // Fetch topos and render existing markers
       try {
         const res = await api.get('/topos')
         const topos = res.data || []
+        toposRef.current = topos
 
         const parkingIcon = L.icon(makeIcon('#4a8fa8', 'P'))
         const routesIcon  = L.icon(makeIcon('#c8502a', 'R'))
-
         let count = 0
         const bounds = []
 
         topos.forEach(topo => {
-          // Parking marker
           if (topo.parking_lat != null && topo.parking_lon != null) {
-            const latlng = [topo.parking_lat, topo.parking_lon]
-            bounds.push(latlng)
-            L.marker(latlng, { icon: parkingIcon })
-              .bindPopup(popupHtml(topo, 'parking'), { maxWidth: 260 })
-              .addTo(map)
+            const ll = [topo.parking_lat, topo.parking_lon]
+            bounds.push(ll)
+            L.marker(ll, { icon: parkingIcon }).bindPopup(popupHtml(topo, 'parking'), { maxWidth: 260 }).addTo(map)
             count++
           }
-          // Routes marker
           if (topo.routes_lat != null && topo.routes_lon != null) {
-            const latlng = [topo.routes_lat, topo.routes_lon]
-            bounds.push(latlng)
-            L.marker(latlng, { icon: routesIcon })
-              .bindPopup(popupHtml(topo, 'routes'), { maxWidth: 260 })
-              .addTo(map)
+            const ll = [topo.routes_lat, topo.routes_lon]
+            bounds.push(ll)
+            L.marker(ll, { icon: routesIcon }).bindPopup(popupHtml(topo, 'routes'), { maxWidth: 260 }).addTo(map)
             count++
           }
         })
 
         setMarkerCount(count)
-
-        // Fit map to markers if any exist
-        if (bounds.length > 0) {
-          if (bounds.length === 1) {
-            map.setView(bounds[0], 12)
-          } else {
-            map.fitBounds(bounds, { padding: [48, 48], maxZoom: 13 })
-          }
-        }
+        if (bounds.length === 1) map.setView(bounds[0], 12)
+        else if (bounds.length > 1) map.fitBounds(bounds, { padding: [48, 48], maxZoom: 13 })
       } catch (err) {
         console.error('Failed to load topos:', err)
       }
+
+      // ── Right-click → open context menu ────────────────────────────────
+      map.on('contextmenu', e => {
+        e.originalEvent.preventDefault()
+
+        const topos = toposRef.current
+        const needParking = topos.filter(t => t.parking_lat == null || t.parking_lon == null)
+        const needRoutes  = topos.filter(t => t.routes_lat  == null || t.routes_lon  == null)
+		console.log(needParking, needRoutes)
+
+        // Nothing to offer? Do nothing.
+        if (needParking.length === 0 && needRoutes.length === 0) return
+
+        // Estimate menu height to avoid clipping at viewport edges
+        const menuW = 260
+        const menuH = 60 + needParking.length * 38 + needRoutes.length * 38 + 80
+        const vw = window.innerWidth
+        const vh = window.innerHeight
+		const x = e.originalEvent.clientX + 4
+		const y = e.originalEvent.clientY + 4
+
+        // We need to bubble the latlng + pixel position up to React state.
+        // We do this via a custom event on the map container so it crosses
+        // the Leaflet/React boundary cleanly.
+        mapRef.current.dispatchEvent(new CustomEvent('cm:contextmenu', {
+          detail: { x, y, latlng: e.latlng, needParking, needRoutes }
+        }))
+      })
 
       setLoading(false)
     }
@@ -462,7 +536,21 @@ export default function MapPage() {
         leafletRef.current = null
       }
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listen for the custom event from Leaflet and update React state
+  useEffect(() => {
+    const el = mapRef.current
+    if (!el) return
+    const handler = e => {
+      const { x, y, latlng, needParking, needRoutes } = e.detail
+      setCtxMenu({ x, y, latlng, toposNeedingParking: needParking, toposNeedingRoutes: needRoutes })
+    }
+    el.addEventListener('cm:contextmenu', handler)
+    return () => el.removeEventListener('cm:contextmenu', handler)
+  }, [loading]) // re-attach once the map div is in DOM (loading → false)
+
+  const fmtCoord = n => n.toFixed(5)
 
   return (
     <div style={S.root}>
@@ -484,40 +572,207 @@ export default function MapPage() {
             <div style={S.legendDot('#c8502a')} />
             Routes
           </div>
-          <div style={{ ...S.legendItem, opacity: 0.5, fontSize: '0.65rem' }}>
-            Use the layer switcher on the map to toggle Topo / Street / Satellite
+          <div style={{ ...S.legendItem, opacity: 0.45, fontSize: '0.65rem' }}>
+            Right-click to set a location · Layer switcher top-left
           </div>
         </div>
       </div>
 
       {/* ── MAP ── */}
       <div style={S.mapWrapper}>
-        {/* Loading overlay */}
         {loading && (
           <div style={S.loadingOverlay}>
             <span style={S.loadingText}>Loading map…</span>
           </div>
         )}
 
-        {/* Marker count badge */}
         {!loading && (
           <div style={S.countBadge}>
             {markerCount} location{markerCount !== 1 ? 's' : ''} plotted
           </div>
         )}
 
-        {/* Empty state (shown after load if 0 markers) */}
         {!loading && markerCount === 0 && (
           <div style={S.emptyState}>
             <span style={S.emptyTitle}>No locations set yet</span>
-            <span style={S.emptyHint}>
-              Open a topo and set its parking or routes location to see it here
-            </span>
+            <span style={S.emptyHint}>Right-click anywhere on the map to set a topo's location</span>
           </div>
         )}
 
         <div ref={mapRef} style={S.mapEl} />
       </div>
+
+      {/* ── CONTEXT MENU ── */}
+ {ctxMenu && (
+  <div
+    style={{
+      ...S.ctxMenu(ctxMenu.x, ctxMenu.y),
+      display: 'flex',
+      flexDirection: 'column',
+      width: '700px',
+      maxWidth: '90vw',
+      maxHeight: '70vh',
+    }}
+    onMouseDown={e => e.stopPropagation()}
+  >
+    {/* Header */}
+    <div style={S.ctxHeader}>
+      <span>Set Location</span>
+
+      <span style={S.ctxCoords}>
+        {fmtCoord(ctxMenu.latlng.lat)},
+        {' '}
+        {fmtCoord(ctxMenu.latlng.lng)}
+      </span>
+    </div>
+
+    {/* Two-column layout */}
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '0',
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
+
+      {/* ── Parking column ───────────────────── */}
+      <div
+        style={{
+          borderRight: '1px solid #2a2a28',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+      >
+        <div style={S.ctxSectionLabel}>
+          🅿 Set Parking
+        </div>
+
+        <div
+          style={{
+            overflowY: 'auto',
+            flex: 1,
+            paddingBottom: '0.5rem',
+          }}
+        >
+          {ctxMenu.toposNeedingParking.length === 0 ? (
+            <div style={S.ctxEmpty}>
+              All topos have parking set
+            </div>
+          ) : (
+            ctxMenu.toposNeedingParking.map(topo => {
+              const key = `parking-${topo.id}`
+
+              return (
+                <div
+                  key={key}
+                  style={S.ctxItem(ctxHovered === key)}
+                  onMouseEnter={() => setCtxHovered(key)}
+                  onMouseLeave={() => setCtxHovered(null)}
+                  onMouseDown={e => {
+                    e.stopPropagation()
+
+                    handleSetLocation(
+                      topo,
+                      'parking',
+                      ctxMenu.latlng
+                    )
+                  }}
+                >
+                  <span
+                    style={{
+                      opacity: 0.5,
+                      fontSize: '0.7rem'
+                    }}
+                  >
+                    →
+                  </span>
+
+                  {topo.title}
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ── Routes column ───────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+      >
+        <div style={S.ctxSectionLabel}>
+          🧗 Set Routes
+        </div>
+
+        <div
+          style={{
+            overflowY: 'auto',
+            flex: 1,
+            paddingBottom: '0.5rem',
+          }}
+        >
+          {ctxMenu.toposNeedingRoutes.length === 0 ? (
+            <div style={S.ctxEmpty}>
+              All topos have routes location set
+            </div>
+          ) : (
+            ctxMenu.toposNeedingRoutes.map(topo => {
+              const key = `routes-${topo.id}`
+
+              return (
+                <div
+                  key={key}
+                  style={S.ctxItem(ctxHovered === key)}
+                  onMouseEnter={() => setCtxHovered(key)}
+                  onMouseLeave={() => setCtxHovered(null)}
+                  onMouseDown={e => {
+                    e.stopPropagation()
+
+                    handleSetLocation(
+                      topo,
+                      'routes',
+                      ctxMenu.latlng
+                    )
+                  }}
+                >
+                  <span
+                    style={{
+                      opacity: 0.5,
+                      fontSize: '0.7rem'
+                    }}
+                  >
+                    →
+                  </span>
+
+                  {topo.title}
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* Footer */}
+    <div
+      style={S.ctxDismiss}
+      onMouseDown={e => {
+        e.stopPropagation()
+        setCtxMenu(null)
+      }}
+    >
+      Dismiss ✕
+    </div>
+  </div>
+)}
+{/* ── TOAST notification ── */}
+      <div style={S.toast(toast.visible)}>{toast.msg}</div>
     </div>
   )
 }
