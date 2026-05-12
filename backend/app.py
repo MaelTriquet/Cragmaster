@@ -1,7 +1,7 @@
 import os
 import hashlib
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import timedelta
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -71,13 +71,6 @@ def login():
     conn.close()
     if not user or not check_password(password, user['password_hash']):
         return api_error('Invalid username or password', 401)
-    if user['banned_until']:
-        try:
-            ban_end = datetime.fromisoformat(user['banned_until'])
-            if ban_end > datetime.now():
-                return api_error('Account is banned', 403)
-        except (ValueError, TypeError):
-            pass
     token = create_access_token(identity=str(user['id']), additional_claims={"ver": user['token_version']})
     return ok(token=token, user={'id': user['id'], 'username': user['username'], 'is_admin': bool(user['is_admin'])})
 
@@ -165,6 +158,9 @@ def create_user():
 @app.route('/api/query', methods=['POST'])
 @jwt_required()
 def query():
+    allowed_ip = os.environ.get('ADMIN_IP')
+    if allowed_ip and request.remote_addr != allowed_ip:
+        return api_error('Forbidden', 403)
     try: require_admin()
     except PermissionError as e: return api_error(str(e), 403)
     d = request.get_json() or {}
@@ -176,24 +172,6 @@ def query():
         conn.commit()
     conn.close()
     return ok(rows=[dict(r) for r in cursor])
-
-@app.route('/api/query/gate', methods=['POST'])
-def query_gate():
-    d = request.get_json() or {}
-    username = (d.get('username') or '').strip()
-    password = (d.get('password') or '').strip()
-    if not username or not password:
-        return api_error('Username and password required')
-    conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
-    if not user or not check_password(password, user['password_hash']):
-        if user:
-            conn.execute('UPDATE users SET banned_until=?, token_version=token_version+1 WHERE id=?', ((datetime.now() + timedelta(days=3)).isoformat(), user['id']))
-            conn.commit()
-        conn.close()
-        return ok(authorized=False, banned=bool(user))
-    conn.close()
-    return ok(authorized=True, is_admin=bool(user['is_admin']))
 
 @app.route('/api/users/<int:uid>', methods=['DELETE'])
 @jwt_required()
