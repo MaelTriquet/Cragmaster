@@ -285,7 +285,7 @@ def add_route(topo_id):
     cursor = conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone()
     if not cursor:
         return api_error('Topo not found', 404)
-    cursor = conn.execute('SELECT id FROM routes WHERE topo_id=? AND route_index=? AND name=?', (topo_id, route_index, name)).fetchone()
+    cursor = conn.execute('SELECT id FROM routes WHERE topo_id=? AND route_index=?', (topo_id, route_index)).fetchone()
     if cursor:
         return api_error('Route already exists', 409)
     conn.execute('INSERT INTO routes (topo_id, name, grade, sorting_grade, length, route_index) VALUES (?,?,?,?,?,?)', (topo_id, name, grade, grade_sort_key(grade), length, route_index))
