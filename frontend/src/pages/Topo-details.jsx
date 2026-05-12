@@ -841,7 +841,15 @@ export default function TopoDetail() {
             }}
             onMouseEnter={() => setHoveredBtn("dl")}
             onMouseLeave={() => setHoveredBtn(null)}
-            onClick={() => window.open(`/api/topos/${id}/download`, "_blank")}
+            onClick={async () => {
+              try {
+                const res = await api.get(`/topos/${id}/download`, { responseType: 'blob' })
+                const url = window.URL.createObjectURL(new Blob([res.data]))
+                window.open(url, '_blank')
+              } catch (err) {
+                console.error('Download failed:', err)
+              }
+            }}
           >
             ↓ PDF
           </button>

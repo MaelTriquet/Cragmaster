@@ -5,3 +5,5 @@ backend/__pycache__
 /frontend/.vite
 /static
 docker-compose.yml
+AGENTS.md
+.env

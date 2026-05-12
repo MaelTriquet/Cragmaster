@@ -24,7 +24,8 @@ def init_db():
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             username      TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            is_admin      INTEGER DEFAULT 0
+            is_admin      INTEGER DEFAULT 0,
+            token_version INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS topos (
@@ -81,6 +82,13 @@ def init_db():
             UNIQUE(route_id, tag_id)
         );
     ''')
+
+    # Migration: add token_version to existing users tables
+    try:
+        conn.execute('ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0')
+    except Exception:
+        pass  # column already exists
+
     conn.commit()
     conn.close()
 

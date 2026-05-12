@@ -5,19 +5,45 @@ from datetime import timedelta, date
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from db import get_db, init_db
 from auth import hash_password, check_password, get_current_user, require_user, require_admin
-from ocr import extract_text_from_pdf, extract_routes, parse_routes, grade_sort_key
+from ocr import extract_text_from_pdf, extract_routes, parse_routes, grade_sort_key, GRADE_PATTERN
+import re
 import seed
 from fzf import fuzzy_search
 
+jwt_secret = os.environ.get('JWT_SECRET')
+if not jwt_secret:
+    raise RuntimeError("JWT_SECRET environment variable is required")
+
+allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+
 app = Flask(__name__, static_folder='static', static_url_path='/static')
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
-app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET', 'topo-secret-change-in-prod')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
+CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
+app.config['JWT_SECRET_KEY'] = jwt_secret
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+app.config["JWT_BLOCKLIST_ENABLED"] = True
+app.config["JWT_BLOCKLIST_TOKEN_CHECKS"] = ["access"]
 jwt = JWTManager(app)
+
+limiter = Limiter(app=app, key_func=get_remote_address)
+
 UPLOAD_FOLDER = Path('/app/uploads')
 UPLOAD_FOLDER.mkdir(exist_ok=True)
+
+# ── TOKEN REVOCATION ──────────────────────────────────────────────────────────
+@jwt.token_in_blocklist_loader
+def check_token_revoked(jwt_header, jwt_payload):
+    user_id = jwt_payload.get('sub')
+    token_ver = jwt_payload.get('ver', 0)
+    if not user_id:
+        return True
+    conn = get_db()
+    user = conn.execute('SELECT token_version FROM users WHERE id=?', (int(user_id),)).fetchone()
+    conn.close()
+    return not user or token_ver < user['token_version']
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 def api_error(msg, code=400):
@@ -35,6 +61,7 @@ def spa(path):
 
 # ── AUTH ──────────────────────────────────────────────────────────────────────
 @app.route('/api/auth/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     d = request.get_json() or {}
     username = (d.get('username') or '').strip()
@@ -44,7 +71,7 @@ def login():
     conn.close()
     if not user or not check_password(password, user['password_hash']):
         return api_error('Invalid username or password', 401)
-    token = create_access_token(identity=str(user['id']))
+    token = create_access_token(identity=str(user['id']), additional_claims={"ver": user['token_version']})
     return ok(token=token, user={'id': user['id'], 'username': user['username'], 'is_admin': bool(user['is_admin'])})
 
 @app.route('/api/auth/me', methods=['GET'])
@@ -59,8 +86,14 @@ def me():
 def update_me():
     user = require_user()
     d = request.get_json() or {}
+    current_password = (d.get('current_password') or '').strip()
     new_username = (d.get('username') or '').strip()
     new_password = (d.get('password') or '').strip()
+
+    if not current_password:
+        return api_error('Current password is required')
+    if not check_password(current_password, user['password_hash']):
+        return api_error('Current password is incorrect', 403)
 
     if not new_username:
         return api_error('Username cannot be empty')
@@ -76,7 +109,7 @@ def update_me():
 
     if new_password:
         conn.execute(
-            'UPDATE users SET username=?, password_hash=? WHERE id=?',
+            'UPDATE users SET username=?, password_hash=?, token_version=token_version+1 WHERE id=?',
             (new_username, hash_password(new_password), user['id'])
         )
     else:
@@ -86,9 +119,10 @@ def update_me():
         )
 
     conn.commit()
-    updated = conn.execute('SELECT id, username, is_admin FROM users WHERE id=?', (user['id'],)).fetchone()
+    updated = conn.execute('SELECT id, username, is_admin, token_version FROM users WHERE id=?', (user['id'],)).fetchone()
     conn.close()
-    return ok(user=dict(updated))
+    new_token = create_access_token(identity=str(updated['id']), additional_claims={"ver": updated['token_version']})
+    return ok(user={'id': updated['id'], 'username': updated['username'], 'is_admin': bool(updated['is_admin'])}, token=new_token)
 
 # ── ADMIN: USER MANAGEMENT ────────────────────────────────────────────────────
 @app.route('/api/users', methods=['GET'])
@@ -151,6 +185,7 @@ def delete_user(uid):
 
 # ── TOPOS ─────────────────────────────────────────────────────────────────────
 @app.route('/api/topos', methods=['get'])
+@jwt_required()
 def list_topos():
     conn = get_db()
     rows = conn.execute('''SELECT * FROM topos ORDER BY title''').fetchall()
@@ -158,6 +193,7 @@ def list_topos():
     return ok([dict(r) for r in rows])
 
 @app.route('/api/topos/<int:topo_id>', methods=['GET'])
+@jwt_required()
 def get_topo(topo_id):
     conn = get_db()
     topo = conn.execute('''SELECT * FROM topos WHERE id=?''', (topo_id,)).fetchone()
@@ -169,6 +205,7 @@ def get_topo(topo_id):
     return ok(topo=dict(topo), routes=[dict(r) for r in routes], parking_location=dict(parking_location), routes_location=dict(routes_location))
 
 @app.route('/api/topos/<int:topo_id>/download')
+@jwt_required()
 def serve_pdf(topo_id):
     conn = get_db()
     row = conn.execute('SELECT filename FROM topos WHERE id=?', (topo_id,)).fetchone()
@@ -183,16 +220,29 @@ def upload_topo():
     if not user: return api_error('Authentication required', 401)
     if 'pdf' not in request.files: return api_error('No PDF file provided')
     f = request.files['pdf']
-    filename = f.filename
-    title    = (request.form.get('title') or '').strip() or Path(filename).stem
+
+    # Strip path separators to prevent traversal
+    safe_filename = Path(f.filename).name
+    if not safe_filename.lower().endswith('.pdf'):
+        return api_error('File must have a .pdf extension', 400)
+
     raw = f.read()
-    dest = UPLOAD_FOLDER / f'{filename}'
-    if not dest.exists(): dest.write_bytes(raw)
+    if not raw.startswith(b'%PDF'):
+        return api_error('File is not a valid PDF', 400)
+
+    # Check for duplicate before writing to disk
     conn = get_db()
-    existing = conn.execute('SELECT id FROM topos WHERE filename=?', (filename,)).fetchone()
-    if existing: conn.close(); return api_error('This PDF is already in the library', 409)
+    existing = conn.execute('SELECT id FROM topos WHERE filename=?', (safe_filename,)).fetchone()
+    if existing:
+        conn.close()
+        return api_error('This PDF is already in the library', 409)
+
+    title = (request.form.get('title') or '').strip() or Path(safe_filename).stem
+    dest = UPLOAD_FOLDER / safe_filename
+    dest.write_bytes(raw)
+
     ocr_text = extract_text_from_pdf(str(dest))
-    cursor = conn.execute('INSERT INTO topos (filename, title, uploaded_by) VALUES (?,?,?)', (f.filename, title, user['id']))
+    cursor = conn.execute('INSERT INTO topos (filename, title, uploaded_by) VALUES (?,?,?)', (safe_filename, title, user['id']))
     topo_id = cursor.lastrowid
     parsed = parse_routes(ocr_text, topo_id)
     for r in parsed:
@@ -232,6 +282,8 @@ def add_route(topo_id):
         route_index = int(route_index)
     except (ValueError, TypeError):
         return api_error('Route index must be a number')
+    if grade and not re.match(GRADE_PATTERN, grade, re.IGNORECASE):
+        return api_error('Invalid grade format')
     cursor = conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone()
     if not cursor:
         return api_error('Topo not found', 404)
@@ -314,6 +366,9 @@ def update_route(route_id):
     if not name:
         return api_error('Name cannot be empty')
 
+    if grade and not re.match(GRADE_PATTERN, grade, re.IGNORECASE):
+        return api_error('Invalid grade format')
+
     sorting = grade_sort_key(grade) if grade else -1
 
     try:
@@ -381,6 +436,7 @@ def sent_attempt(route_id):
 
 # ── COMMENTS ─────────────────────────────────────────────────────────────────
 @app.route('/api/routes/<int:route_id>/comments', methods=['GET'])
+@jwt_required()
 def get_comments(route_id):
     conn = get_db()
     rows = conn.execute('''SELECT c.*, u.username FROM comments c JOIN users u ON u.id=c.user_id WHERE c.route_id=? ORDER BY c.created_at DESC''', (route_id,)).fetchall()
@@ -391,7 +447,7 @@ def get_comments(route_id):
 def upsert_comment(route_id):
     uid = int(get_jwt_identity())
     d   = request.get_json() or {}
-    stars           = float(d.get('stars', 0))
+    stars           = max(0.0, min(5.0, float(d.get('stars', 0))))
     perceived_grade = (d.get('perceived_grade') or '').strip()
     body            = (d.get('body') or '').strip()
     conn = get_db()
@@ -419,6 +475,7 @@ def delete_comment(comment_id):
 
 # ── SEARCH ────────────────────────────────────────────────────────────────────
 @app.route('/api/search', methods=['GET'])
+@jwt_required()
 def search():
     q       = (request.args.get('q') or '').strip()
     tag_ids = request.args.getlist('tag_ids')   # list of tag id strings, may be empty
@@ -458,6 +515,7 @@ def search():
 # ── TAGS ──────────────────────────────────────────────────────────────────────
 
 @app.route('/api/tags', methods=['GET'])
+@jwt_required()
 def list_tags():
     """Return all tags, each with the count of routes using them."""
     conn = get_db()

@@ -253,7 +253,7 @@ export default function Profile() {
   const navigate = useNavigate()
 
   // ── Edit profile state ──
-  const [profileForm, setProfileForm] = useState({ username: user?.username ?? '', password: '', confirm: '' })
+  const [profileForm, setProfileForm] = useState({ username: user?.username ?? '', current_password: '', password: '', confirm: '' })
   const [profileStatus, setProfileStatus] = useState(null) // { type: 'success'|'error', msg }
   const [profileLoading, setProfileLoading] = useState(false)
   const [hoveredBtn, setHoveredBtn] = useState(null)
@@ -265,9 +265,12 @@ export default function Profile() {
   const [createdUser, setCreatedUser] = useState(null)
 
   const handleProfileSave = async () => {
-    const { username, password, confirm } = profileForm
+    const { username, current_password, password, confirm } = profileForm
     if (!username.trim()) {
       setProfileStatus({ type: 'error', msg: 'Username cannot be empty' }); return
+    }
+    if (!current_password) {
+      setProfileStatus({ type: 'error', msg: 'Current password is required' }); return
     }
     if (password && password !== confirm) {
       setProfileStatus({ type: 'error', msg: 'Passwords do not match' }); return
@@ -275,14 +278,18 @@ export default function Profile() {
     setProfileLoading(true)
     setProfileStatus(null)
     try {
-      const payload = { username: username.trim() }
+      const payload = { username: username.trim(), current_password }
       if (password) payload.password = password
-      await api.patch('/auth/me', payload)
+      const res = await api.patch('/auth/me', payload)
       setProfileStatus({ type: 'success', msg: 'Profile updated' })
-      setProfileForm(f => ({ ...f, password: '', confirm: '' }))
-      // If username changed, re-fetch user context
-      if (username.trim() !== user.username) {
-        await login(username.trim(), password || undefined)
+      setProfileForm(f => ({ ...f, current_password: '', password: '', confirm: '' }))
+      // Store new token from server (issued after credential change)
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token)
+      }
+      // Re-fetch user context
+      if (res.data.user) {
+        await login(username.trim(), password || current_password)
       }
     } catch (err) {
       setProfileStatus({ type: 'error', msg: err.response?.data?.error || 'Update failed' })
@@ -336,6 +343,19 @@ export default function Profile() {
                 type="text"
                 value={profileForm.username}
                 onChange={e => setProfileForm(f => ({ ...f, username: e.target.value }))}
+                onFocus={focusStyle}
+                onBlur={blurStyle}
+              />
+            </div>
+
+            <div style={S.field}>
+              <label style={S.label}>Current Password</label>
+              <input
+                style={S.input}
+                type="password"
+                placeholder="Required to save changes"
+                value={profileForm.current_password}
+                onChange={e => setProfileForm(f => ({ ...f, current_password: e.target.value }))}
                 onFocus={focusStyle}
                 onBlur={blurStyle}
               />
