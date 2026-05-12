@@ -733,11 +733,12 @@ export default function RouteDetail() {
           </div>
 
           {/* ── TAGS ── */}
-          <TagManager
-            routeId={id}
-            tags={tags}
-            onTagsChange={setTags}
-          />
+{/* NOTE: disabled for now, might be useful later */}
+          {/* <TagManager */}
+          {/*   routeId={id} */}
+          {/*   tags={tags} */}
+          {/*   onTagsChange={setTags} */}
+          {/* /> */}
 
           {/* ── EDIT ROUTE BUTTON ── */}
           <div style={S.btnRow}>

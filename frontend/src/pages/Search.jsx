@@ -475,44 +475,45 @@ export default function Search() {
         </div>
 
         {/* ── TAG FILTER BAR ── */}
-        <div style={S.tagFilterBar}>
-          <span style={S.tagFilterLabel}>Tags</span>
-          {allTags.length === 0 ? (
-            <span style={S.noTagsHint}>No tags yet</span>
-          ) : (
-            <>
-              {allTags.map(t => (
-                <button
-                  key={t.id}
-                  style={{
-                    ...S.tagFilterChip(activeTags.has(t.id)),
-                    ...(hovered === `tag-${t.id}` && !activeTags.has(t.id)
-                      ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
-                      : {}),
-                  }}
-                  onMouseEnter={() => setHovered(`tag-${t.id}`)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => toggleTag(t.id)}
-                >
-                  {t.name}
-                  {t.route_count > 0 && (
-                    <span style={{ marginLeft: "0.3rem", opacity: 0.5 }}>
-                      {t.route_count}
-                    </span>
-                  )}
-                </button>
-              ))}
-              {hasTags && (
-                <button
-                  style={S.clearTagsBtn}
-                  onClick={() => setActiveTags(new Set())}
-                >
-                  Clear filters
-                </button>
-              )}
-            </>
-          )}
-        </div>
+{/* NOTE: disabled for now, might be useful later */}
+        {/* <div style={S.tagFilterBar}> */}
+        {/*   <span style={S.tagFilterLabel}>Tags</span> */}
+        {/*   {allTags.length === 0 ? ( */}
+        {/*     <span style={S.noTagsHint}>No tags yet</span> */}
+        {/*   ) : ( */}
+        {/*     <> */}
+        {/*       {allTags.map(t => ( */}
+        {/*         <button */}
+        {/*           key={t.id} */}
+        {/*           style={{ */}
+        {/*             ...S.tagFilterChip(activeTags.has(t.id)), */}
+        {/*             ...(hovered === `tag-${t.id}` && !activeTags.has(t.id) */}
+        {/*               ? { borderColor: "var(--chalk)", color: "var(--chalk)" } */}
+        {/*               : {}), */}
+        {/*           }} */}
+        {/*           onMouseEnter={() => setHovered(`tag-${t.id}`)} */}
+        {/*           onMouseLeave={() => setHovered(null)} */}
+        {/*           onClick={() => toggleTag(t.id)} */}
+        {/*         > */}
+        {/*           {t.name} */}
+        {/*           {t.route_count > 0 && ( */}
+        {/*             <span style={{ marginLeft: "0.3rem", opacity: 0.5 }}> */}
+        {/*               {t.route_count} */}
+        {/*             </span> */}
+        {/*           )} */}
+        {/*         </button> */}
+        {/*       ))} */}
+        {/*       {hasTags && ( */}
+        {/*         <button */}
+        {/*           style={S.clearTagsBtn} */}
+        {/*           onClick={() => setActiveTags(new Set())} */}
+        {/*         > */}
+        {/*           Clear filters */}
+        {/*         </button> */}
+        {/*       )} */}
+        {/*     </> */}
+        {/*   )} */}
+        {/* </div> */}
 
         {/* ── RESULTS ── */}
         <div style={S.results}>
