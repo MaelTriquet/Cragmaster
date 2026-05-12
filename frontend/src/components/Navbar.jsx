@@ -1,12 +1,15 @@
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 
-const NAV_ITEMS = [
-  { label: 'Topos',  path: '/topos'  },
-  { label: 'Search', path: '/search' },
-  { label: 'Stats', path: '/stats' },
-  { label: 'Upload', path: '/upload' },
-  { label: 'Map', path: '/map' },
+const LANGUAGES = { en: 'EN', fr: 'FR' }
+
+const NAV_ITEM_KEYS = [
+  { key: 'nav.topos', path: '/topos' },
+  { key: 'nav.search', path: '/search' },
+  { key: 'nav.stats', path: '/stats' },
+  { key: 'nav.upload', path: '/upload' },
+  { key: 'nav.map', path: '/map' },
 ]
 
 const S = {
@@ -107,12 +110,33 @@ const S = {
     cursor: 'pointer',
     transition: 'border-color 0.15s, color 0.15s',
   },
+
+  langBtn: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    color: 'var(--muted)',
+    background: 'none',
+    border: '1px solid var(--line)',
+    padding: '0.3rem 0.6rem',
+    cursor: 'pointer',
+    transition: 'border-color 0.15s, color 0.15s',
+  },
 }
 
 export default function Navbar() {
   const navigate  = useNavigate()
   const location  = useLocation()
+  const { t, i18n } = useTranslation()
   const { user, logout } = useAuth()
+  const currentLang = i18n.language?.startsWith('fr') ? 'fr' : 'en'
+
+  const toggleLang = () => {
+    const next = currentLang === 'en' ? 'fr' : 'en'
+    localStorage.setItem('lang', next)
+    i18n.changeLanguage(next)
+  }
 
   const handleLogout = () => {
     logout()
@@ -136,7 +160,7 @@ export default function Navbar() {
 
       {/* Nav links */}
       <div style={S.links}>
-        {NAV_ITEMS.map(item => {
+        {NAV_ITEM_KEYS.map(item => {
           const active = location.pathname.startsWith(item.path)
           return (
             <button
@@ -150,37 +174,54 @@ export default function Navbar() {
               }}
               onClick={() => navigate(item.path)}
             >
-              {item.label}
+              {t(item.key)}
             </button>
           )
         })}
       </div>
 
-      {/* Right side — user + logout */}
-      {user && (
-        <div style={S.right}>
-          <button
-			  style={{ ...S.username, cursor: 'pointer', background: 'none', border: 'none' }}
-			  onClick={() => navigate('/profile')}
-			>
-			  {user.username}
-		  </button>
-          <button
-            style={S.logoutBtn}
-            onMouseEnter={e => {
-              e.currentTarget.style.borderColor = 'var(--hold)'
-              e.currentTarget.style.color = 'var(--hold)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'var(--line)'
-              e.currentTarget.style.color = 'var(--muted)'
-            }}
-            onClick={handleLogout}
-          >
-            Sign out
-          </button>
-        </div>
-      )}
+      {/* Right side — language toggle + user + logout */}
+      <div style={S.right}>
+        <button
+          style={S.langBtn}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = 'var(--hold)'
+            e.currentTarget.style.color = 'var(--hold)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'var(--line)'
+            e.currentTarget.style.color = 'var(--muted)'
+          }}
+          onClick={toggleLang}
+        >
+          {LANGUAGES[currentLang === 'en' ? 'en' : 'fr']}
+        </button>
+
+        {user && (
+          <>
+            <button
+              style={{ ...S.username, cursor: 'pointer', background: 'none', border: 'none' }}
+              onClick={() => navigate('/profile')}
+            >
+              {user.username}
+            </button>
+            <button
+              style={S.logoutBtn}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--hold)'
+                e.currentTarget.style.color = 'var(--hold)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--line)'
+                e.currentTarget.style.color = 'var(--muted)'
+              }}
+              onClick={handleLogout}
+            >
+              {t('nav.signOut')}
+            </button>
+          </>
+        )}
+      </div>
     </nav>
   )
 }

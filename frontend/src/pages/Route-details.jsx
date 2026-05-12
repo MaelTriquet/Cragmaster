@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react"
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from "react-router-dom"
 import api from '../api/client'
 
@@ -69,6 +70,18 @@ const S = {
     color: "var(--chalk)",
     background: "var(--hold)",
     padding: "0.2rem 0.65rem",
+    marginRight: "0.75rem",
+  },
+
+  avgGradeBadge: {
+    display: "inline-block",
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.82rem",
+    fontWeight: 600,
+    letterSpacing: "0.1em",
+    color: "var(--muted)",
+    border: "1px solid var(--line)",
+    padding: "0.15rem 0.5rem",
     marginRight: "0.75rem",
   },
 
@@ -463,11 +476,12 @@ const S = {
 }
 
 function StarDisplay({ value }) {
+  const { t } = useTranslation()
   const n = Math.round(parseFloat(value) || 0)
   return (
     <span style={S.commentStars}>
       {"★".repeat(Math.max(0, Math.min(5, n)))}{"☆".repeat(Math.max(0, 5 - Math.min(5, n)))}
-      {" "}{value}/5
+      {" "}{t('routeDetail.outOfFive', { value })}
     </span>
   )
 }
@@ -618,6 +632,7 @@ function TagManager({ routeId, tags, onTagsChange }) {
 }
 
 export default function RouteDetail() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -625,6 +640,7 @@ export default function RouteDetail() {
   const [comments, setComments] = useState([])
   const [tags, setTags] = useState([])
   const [attempt, setAttempt] = useState(null)
+  const [avgPerceivedGrade, setAvgPerceivedGrade] = useState(null)
 
   const [hoveredBtn, setHoveredBtn] = useState(null)
   const [showForm, setShowForm] = useState(false)
@@ -640,6 +656,7 @@ export default function RouteDetail() {
         setRoute(d.route)
         setComments(d.comments)
         setTags(d.tags || [])
+        setAvgPerceivedGrade(d.avg_perceived_grade || null)
         setEditForm({
           name: d.route.name || "",
           grade: d.route.grade || "",
@@ -684,7 +701,7 @@ export default function RouteDetail() {
   if (!route) return (
     <div style={{ ...S.root, justifyContent: "center" }}>
       <span style={{ fontFamily: "Barlow Condensed", fontSize: "1.2rem", letterSpacing: "0.1em", color: "var(--muted)" }}>
-        LOADING…
+        {t('routeDetail.loading')}
       </span>
     </div>
   )
@@ -713,10 +730,13 @@ export default function RouteDetail() {
 
         {/* ── HEADER ── */}
         <div style={S.header}>
-          <span style={S.eyebrow}>Route</span>
+          <span style={S.eyebrow}>{t('routeDetail.eyebrow')}</span>
           <h1 style={S.title}>{route.name}</h1>
           <div style={S.metaLine}>
             <span style={S.gradeBadge}>{route.grade}</span>
+            {avgPerceivedGrade && (
+              <span style={S.avgGradeBadge} title={t('routeDetail.avgPerceived')}>{avgPerceivedGrade} {t('routeDetail.perceived')}</span>
+            )}
             <span style={S.metaText}>{route.topo_title}</span>
             {route.topo_location && (
               <>
@@ -752,16 +772,16 @@ export default function RouteDetail() {
               onMouseLeave={() => setHoveredBtn(null)}
               onClick={() => setShowEditForm(v => !v)}
             >
-              {showEditForm ? "Cancel Edit" : "Edit Route"}
+              {t(showEditForm ? 'routeDetail.cancelEdit' : 'routeDetail.editRoute')}
             </button>
           </div>
 
           {showEditForm && (
             <div style={{ ...S.card, marginTop: "1.5rem" }}>
-              <div style={S.cardTitle}>Edit Route</div>
+              <div style={S.cardTitle}>{t('routeDetail.editRoute')}</div>
               <div style={S.formGrid}>
                 <div style={S.formField}>
-                  <label style={S.formLabel}>Name</label>
+                  <label style={S.formLabel}>{t('routeDetail.name')}</label>
                   <input
                     type="text"
                     style={S.formInput}
@@ -772,7 +792,7 @@ export default function RouteDetail() {
                   />
                 </div>
                 <div style={S.formField}>
-                  <label style={S.formLabel}>Grade</label>
+                  <label style={S.formLabel}>{t('routeDetail.grade')}</label>
                   <input
                     type="text"
                     style={S.formInput}
@@ -783,7 +803,7 @@ export default function RouteDetail() {
                   />
                 </div>
                 <div style={S.formField}>
-                  <label style={S.formLabel}>Length (m)</label>
+                  <label style={S.formLabel}>{t('routeDetail.length')}</label>
                   <input
                     type="number"
                     style={S.formInput}
@@ -794,7 +814,7 @@ export default function RouteDetail() {
                   />
                 </div>
                 <div style={S.formField}>
-                  <label style={S.formLabel}>Route Index</label>
+                  <label style={S.formLabel}>{t('routeDetail.routeIndex')}</label>
                   <input
                     type="number"
                     style={S.formInput}
@@ -815,7 +835,7 @@ export default function RouteDetail() {
                 onMouseLeave={() => setHoveredBtn(null)}
                 onClick={submitRouteEdit}
               >
-                Save Changes
+                {t('routeDetail.saveChanges')}
               </button>
             </div>
           )}
@@ -823,17 +843,17 @@ export default function RouteDetail() {
 
         {/* ── ATTEMPTS CARD ── */}
         <div style={S.card}>
-          <div style={S.cardTitle}>Attempts</div>
+          <div style={S.cardTitle}>{t('routeDetail.attempts')}</div>
           <div style={S.attemptsRow}>
             <div>
               <div style={S.attemptStat}>{attemptCount}</div>
               <div style={S.attemptLabel}>
-                {attemptCount === 1 ? "Attempt" : "Attempts"}
+                {t('routeDetail.attempt', { count: attemptCount })}
               </div>
             </div>
             <div style={{ width: "1px", height: "36px", background: "var(--line)", margin: "0 0.25rem" }} />
             <span style={S.sentBadge(isSent)}>
-              {isSent ? "✓ Sent" : attemptCount > 0 ? "Working" : "Not attempted"}
+              {isSent ? t('routeDetail.sent') : attemptCount > 0 ? t('routeDetail.working') : t('routeDetail.notAttempted')}
             </span>
           </div>
           <div style={S.btnRow}>
@@ -847,7 +867,7 @@ export default function RouteDetail() {
               onMouseLeave={() => setHoveredBtn(null)}
               onClick={addAttempt}
             >
-              + Attempt
+              {t('routeDetail.addAttempt')}
             </button>
             <button
               style={{
@@ -858,7 +878,7 @@ export default function RouteDetail() {
               onMouseLeave={() => setHoveredBtn(null)}
               onClick={sendAttempt}
             >
-              ✓ Mark Sent
+              {t('routeDetail.markSent')}
             </button>
           </div>
         </div>
@@ -867,7 +887,7 @@ export default function RouteDetail() {
         <div style={S.card}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
             <div style={{ ...S.cardTitle, marginBottom: 0 }}>
-              Comments {comments.length > 0 && `(${comments.length})`}
+              {t('routeDetail.commentsCount', { count: comments.length })}
             </div>
             <button
               style={{
@@ -881,7 +901,7 @@ export default function RouteDetail() {
               onMouseLeave={() => setHoveredBtn(null)}
               onClick={() => setShowForm(p => !p)}
             >
-              {showForm ? "Cancel" : "+ Add Comment"}
+              {t(showForm ? 'routeDetail.cancel' : 'routeDetail.addComment')}
             </button>
           </div>
 
@@ -889,11 +909,11 @@ export default function RouteDetail() {
             <>
               <div style={S.formGrid}>
                 <div style={S.formField}>
-                  <label style={S.formLabel}>Stars (0 – 5)</label>
+                  <label style={S.formLabel}>{t('routeDetail.stars')}</label>
                   <input
                     type="number" min="0" max="5" step="0.5"
                     style={S.formInput}
-                    placeholder="e.g. 4"
+                    placeholder={t('routeDetail.starsPlaceholder')}
                     value={form.stars}
                     onChange={e => setForm({ ...form, stars: e.target.value })}
                     onFocus={e => e.target.style.borderColor = "var(--hold)"}
@@ -901,7 +921,7 @@ export default function RouteDetail() {
                   />
                 </div>
                 <div style={S.formField}>
-                  <label style={S.formLabel}>Perceived Grade</label>
+                  <label style={S.formLabel}>{t('routeDetail.perceivedGrade')}</label>
                   <input
                     type="text"
                     style={S.formInput}
@@ -913,10 +933,10 @@ export default function RouteDetail() {
                   />
                 </div>
                 <div style={S.formFieldFull}>
-                  <label style={S.formLabel}>Comment</label>
+                  <label style={S.formLabel}>{t('routeDetail.comment')}</label>
                   <textarea
                     style={S.formTextarea}
-                    placeholder="How did it feel? Any beta?"
+                    placeholder={t('routeDetail.commentPlaceholder')}
                     value={form.body}
                     onChange={e => setForm({ ...form, body: e.target.value })}
                     onFocus={e => e.target.style.borderColor = "var(--hold)"}
@@ -933,14 +953,14 @@ export default function RouteDetail() {
                 onMouseLeave={() => setHoveredBtn(null)}
                 onClick={submitComment}
               >
-                Submit Comment
+                {t('routeDetail.submitComment')}
               </button>
               <div style={S.divider} />
             </>
           )}
 
           {comments.length === 0 ? (
-            <p style={S.emptyComments}>No comments yet. Be the first!</p>
+            <p style={S.emptyComments}>{t('routeDetail.noComments')}</p>
           ) : (
             comments.map(c => (
               <div key={c.id} style={S.commentItem}>

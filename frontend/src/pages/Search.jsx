@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 
 const getGradeColor = (grade) => {
@@ -376,6 +377,7 @@ export default function Search() {
   const [activeTags, setActiveTags] = useState(new Set()) // Set of tag id numbers
 
   const inputRef = useRef()
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   // Auto-focus on mount + load all tags
@@ -435,8 +437,8 @@ export default function Search() {
 
         {/* ── HEADER ── */}
         <div style={S.header}>
-          <span style={S.eyebrow}>Library</span>
-          <h1 style={S.title}>Search</h1>
+          <span style={S.eyebrow}>{t('search.eyebrow')}</span>
+          <h1 style={S.title}>{t('search.title')}</h1>
           <div style={S.titleUnderline} />
         </div>
 
@@ -447,7 +449,7 @@ export default function Search() {
             ref={inputRef}
             style={S.searchInput}
             type="text"
-            placeholder="Route name, topo…"
+            placeholder={t('search.placeholder')}
             value={query}
             onChange={e => setQuery(e.target.value)}
             onFocus={e => {
@@ -520,16 +522,18 @@ export default function Search() {
 
           {showPrompt && (
             <div style={S.promptState}>
-              <p style={S.promptLine}>Search routes and topos, or filter by tag above</p>
+              <p style={S.promptLine}>{t('search.prompt')}</p>
             </div>
           )}
 
           {noResults && (
             <div style={S.emptyState}>
               <span style={S.emptyTitle}>
-                No results{query ? ` for "${query}"` : ""}{hasTags ? " with selected tags" : ""}
+                {t('search.noResults')}
+                {query && t('search.noResultsQuery', { query })}
+                {hasTags && t('search.noResultsTags')}
               </span>
-              <span style={S.emptyHint}>Try a different search or fewer tag filters</span>
+              <span style={S.emptyHint}>{t('search.tryDifferent')}</span>
             </div>
           )}
 
@@ -539,8 +543,8 @@ export default function Search() {
               {results.topos.length > 0 && (
                 <div style={S.column}>
                   <div style={S.columnHeader}>
-                    <span style={S.columnTitle}>Topos</span>
-                    <span style={S.columnCount}>{results.topos.length} result{results.topos.length !== 1 ? "s" : ""}</span>
+                    <span style={S.columnTitle}>{t('search.topos')}</span>
+                    <span style={S.columnCount}>{t('search.result', { count: results.topos.length })}</span>
                   </div>
                   {results.topos.map(topo => (
                     <div
@@ -580,8 +584,8 @@ export default function Search() {
                   gridColumn: results.topos.length === 0 ? "1 / -1" : "auto",
                 }}>
                   <div style={S.columnHeader}>
-                    <span style={S.columnTitle}>Routes</span>
-                    <span style={S.columnCount}>{results.routes.length} result{results.routes.length !== 1 ? "s" : ""}</span>
+                    <span style={S.columnTitle}>{t('search.routes')}</span>
+                    <span style={S.columnCount}>{t('search.result', { count: results.routes.length })}</span>
                     {hasTags && (
                       <span style={{
                         fontFamily: "Barlow Condensed, sans-serif",
@@ -592,7 +596,7 @@ export default function Search() {
                         color: "var(--hold)",
                         marginLeft: "auto",
                       }}>
-                        {activeTags.size} tag{activeTags.size !== 1 ? "s" : ""} active
+                        {activeTags.size} {t('search.tagsActive', { count: activeTags.size })}
                       </span>
                     )}
                   </div>

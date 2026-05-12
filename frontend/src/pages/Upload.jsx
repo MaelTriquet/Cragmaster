@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 
@@ -225,20 +226,20 @@ function Dots() {
   )
 }
 
-// status: 'pending' | 'uploading' | 'ocr' | 'done' | 'error'
-function statusLabel(status) {
-  switch (status) {
-    case 'uploading': return 'Uploading…'
-    case 'ocr':       return <>OCR<Dots /></>
-    case 'done':      return '✓ Done'
-    case 'error':     return '✕ Failed'
-    default:          return 'Pending'
-  }
-}
-
 export default function Upload() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const inputRef = useRef()
+
+  const statusLabel = (status) => {
+    switch (status) {
+      case 'uploading': return t('upload.uploading')
+      case 'ocr':       return <>OCR<Dots /></>
+      case 'done':      return t('upload.done')
+      case 'error':     return t('upload.failed')
+      default:          return t('upload.pending')
+    }
+  }
 
   const [files,    setFiles]    = useState([])
   const [dragging, setDragging] = useState(false)
@@ -294,13 +295,13 @@ export default function Upload() {
           status: 'done',
           progress: 100,
           routes_parsed: res.data.routes_parsed ?? 0,
-          message: `${res.data.routes_parsed ?? 0} routes parsed`,
+          message: t('upload.routesParsed', { count: res.data.routes_parsed ?? 0 }),
         })
       } catch (err) {
         updateFile(i, {
           status: 'error',
           progress: 100,
-          message: err.response?.data?.error || err.message || 'Upload failed',
+          message: err.response?.data?.error || err.message || t('upload.uploadFailed'),
         })
       }
     }
@@ -316,8 +317,8 @@ export default function Upload() {
   return (
     <div style={S.root}>
       <div style={S.header}>
-        <span style={S.eyebrow}>Library</span>
-        <h1 style={S.title}>Upload Topos</h1>
+        <span style={S.eyebrow}>{t('upload.eyebrow')}</span>
+        <h1 style={S.title}>{t('upload.title')}</h1>
         <div style={S.rule} />
       </div>
 
@@ -342,8 +343,8 @@ export default function Upload() {
           {hasFiles ? (
             <>
               <p style={S.dropText}>
-                {files.length} file{files.length > 1 ? 's' : ''} selected
-                {!busy && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> — click to change</span>}
+                {t('upload.fileSelected', { count: files.length })}
+                {!busy && <span style={{ color: 'var(--muted)', fontWeight: 400 }}>{t('upload.clickToChange')}</span>}
               </p>
               <div style={S.fileList}>
                 {files.map((f, i) => (
@@ -353,8 +354,8 @@ export default function Upload() {
             </>
           ) : (
             <>
-              <p style={S.dropText}>Drop PDFs here or click to browse</p>
-              <p style={S.dropSub}>Select one or more climbing topo PDFs</p>
+              <p style={S.dropText}>{t('upload.dropPrompt')}</p>
+              <p style={S.dropSub}>{t('upload.dropSub')}</p>
             </>
           )}
         </div>
@@ -368,8 +369,8 @@ export default function Upload() {
           onMouseLeave={e => { if (!busy && hasFiles) e.target.style.background = 'var(--hold)' }}
         >
           {busy
-            ? `Processing ${fileStates.filter(s => s.status === 'done' || s.status === 'error').length} / ${files.length}…`
-            : `Upload & Parse${files.length > 1 ? ` (${files.length} files)` : ''}`}
+            ? t('upload.processing', { done: fileStates.filter(s => s.status === 'done' || s.status === 'error').length, total: files.length })
+            : files.length > 1 ? t('upload.uploadParseFiles', { count: files.length }) : t('upload.uploadParse')}
         </button>
 
         {/* Per-file progress */}
@@ -404,15 +405,15 @@ export default function Upload() {
           <div style={S.summary}>
             <p style={S.summaryTitle}>
               {errorCount === 0
-                ? `✓ All ${doneCount} topo${doneCount !== 1 ? 's' : ''} uploaded`
-                : `${doneCount} uploaded, ${errorCount} failed`}
+                ? t('upload.allUploaded', { count: doneCount })
+                : t('upload.someUploaded', { done: doneCount, failed: errorCount })}
             </p>
             <p style={S.summaryBody}>
               {doneCount > 0 &&
-                `${fileStates.filter(s => s.status === 'done').reduce((sum, s) => sum + (s.routes_parsed ?? 0), 0)} routes parsed in total.`}
+                t('upload.totalRoutes', { count: fileStates.filter(s => s.status === 'done').reduce((sum, s) => sum + (s.routes_parsed ?? 0), 0) })}
             </p>
             <button style={S.summaryLink} onClick={() => navigate('/topos')}>
-              Go to topo list →
+              {t('upload.goToList')}
             </button>
           </div>
         )}

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useTranslation } from 'react-i18next'
 
 export default function Login() {
+  const { t } = useTranslation()
   const { login } = useAuth()
   const navigate  = useNavigate()
 
@@ -19,7 +21,7 @@ export default function Login() {
       await login(username, password)
       navigate('/topos')
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed')
+      setError(err.response?.data?.error || t('login.loginFailed'))
     } finally {
       setLoading(false)
     }
@@ -36,14 +38,14 @@ export default function Login() {
       <div style={styles.card}>
         {/* Logo / title block */}
         <div style={styles.titleBlock}>
-          <span style={styles.eyebrow}>CLIMBING TOPO MANAGER</span>
-          <h1 style={styles.title}>CRAG<br />MASTER</h1>
+          <span style={styles.eyebrow}>{t('login.eyebrow')}</span>
+          <h1 style={styles.title}>{t('login.title')}</h1>
           <div style={styles.titleUnderline} />
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.field}>
-            <label style={styles.label}>USERNAME</label>
+            <label style={styles.label}>{t('login.username')}</label>
             <input
               type="text"
               value={username}
@@ -57,7 +59,7 @@ export default function Login() {
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label}>PASSWORD</label>
+            <label style={styles.label}>{t('login.password')}</label>
             <input
               type="password"
               value={password}
@@ -79,12 +81,12 @@ export default function Login() {
             onMouseEnter={e => { if (!loading) e.target.style.background = 'var(--hold-lt)' }}
             onMouseLeave={e => { if (!loading) e.target.style.background = 'var(--hold)' }}
           >
-            {loading ? 'SIGNING IN…' : 'SIGN IN'}
+            {loading ? t('login.signingIn') : t('login.signIn')}
           </button>
         </form>
 
         <p style={styles.footer}>
-          Send it.
+          {t('login.footer')}
         </p>
       </div>
     </div>

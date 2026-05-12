@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 
 const S = {
@@ -180,6 +181,7 @@ export default function Topos() {
   const [topos, setTopos] = useState([])
   const [loading, setLoading] = useState(true)
   const [hovered, setHovered] = useState(null)
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -204,15 +206,15 @@ export default function Topos() {
 
         {/* ── HEADER ── */}
         <div style={S.header}>
-          <span style={S.eyebrow}>Library</span>
-          <h1 style={S.title}>Topos</h1>
+          <span style={S.eyebrow}>{t('topos.eyebrow')}</span>
+          <h1 style={S.title}>{t('topos.title')}</h1>
           <div style={S.titleUnderline} />
         </div>
 
         {/* ── TOOLBAR ── */}
         <div style={S.toolbar}>
           <span style={S.countPill}>
-            {loading ? "—" : `${topos.length} topo${topos.length !== 1 ? "s" : ""}`}
+            {loading ? "—" : t('topos.count', { count: topos.length })}
           </span>
           <button
             style={{
@@ -223,16 +225,16 @@ export default function Topos() {
             onMouseLeave={() => setHovered(null)}
             onClick={() => navigate("/upload")}
           >
-            + Upload
+            {t('topos.upload')}
           </button>
         </div>
 
         {/* ── LIST ── */}
         <div style={S.list}>
           {loading ? (
-            <p style={S.stateText}>Loading…</p>
+            <p style={S.stateText}>{t('topos.loading')}</p>
           ) : topos.length === 0 ? (
-            <p style={S.stateText}>No topos yet — upload one to get started.</p>
+            <p style={S.stateText}>{t('topos.empty')}</p>
           ) : (
             topos.map((topo, i) => (
               <div

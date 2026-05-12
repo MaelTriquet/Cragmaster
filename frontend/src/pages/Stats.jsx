@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 
 // ── Grade colour (same palette as the rest of the app) ──────────────────────
@@ -37,9 +38,10 @@ const getGradeColor = (sorting_grade) => {
 
 // ── Tiny bar-chart component ─────────────────────────────────────────────────
 function BarChart({ data, valueKey, labelKey, sortingKey, title, unit = '' }) {
+  const { t } = useTranslation()
   const [hovered, setHovered] = useState(null)
   if (!data || data.length === 0) return (
-    <div style={S.emptyChart}>No data yet</div>
+    <div style={S.emptyChart}>{t('stats.noData')}</div>
   )
   const max = Math.max(...data.map(d => d[valueKey]), 1)
   return (
@@ -89,9 +91,10 @@ function BarChart({ data, valueKey, labelKey, sortingKey, title, unit = '' }) {
 
 // ── Horizontal bar chart (for avg attempts) ──────────────────────────────────
 function HBarChart({ data, valueKey, labelKey, sortingKey, title, unit = '' }) {
+  const { t } = useTranslation()
   const [hovered, setHovered] = useState(null)
   if (!data || data.length === 0) return (
-    <div style={S.emptyChart}>No data yet</div>
+    <div style={S.emptyChart}>{t('stats.noData')}</div>
   )
   const max = Math.max(...data.map(d => d[valueKey]), 1)
   return (
@@ -460,6 +463,7 @@ const S = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Stats() {
+  const { t } = useTranslation()
   const [stats, setStats]   = useState(null)
   const [hovered, setHovered] = useState(null)
   const navigate = useNavigate()
@@ -470,7 +474,7 @@ export default function Stats() {
 
   if (!stats) return (
     <div style={{ ...S.root, justifyContent: 'center', alignItems: 'center' }}>
-      <span style={S.loadingText}>LOADING…</span>
+      <span style={S.loadingText}>{t('stats.loading')}</span>
     </div>
   )
 
@@ -484,16 +488,16 @@ export default function Stats() {
 
         {/* ── HEADER ── */}
         <div style={S.header}>
-          <span style={S.eyebrow}>Your Progress</span>
-          <h1 style={S.title}>Stats</h1>
+          <span style={S.eyebrow}>{t('stats.eyebrow')}</span>
+          <h1 style={S.title}>{t('stats.title')}</h1>
         </div>
 
         {/* ── SUMMARY NUMBERS ── */}
         <div style={S.summaryRow}>
           {[
-            { value: summary.total_sent,     label: 'Routes sent'    },
-            { value: summary.total_attempts, label: 'Total attempts' },
-            { value: summary.total_working,  label: 'In progress'    },
+            { value: summary.total_sent,     label: t('stats.routesSent')    },
+            { value: summary.total_attempts, label: t('stats.totalAttempts') },
+            { value: summary.total_working,  label: t('stats.inProgress')    },
           ].map((s, i) => (
             <div key={i} style={S.statCard}>
               <div style={S.statValue}>{s.value}</div>
@@ -505,16 +509,16 @@ export default function Stats() {
         {/* ── MAX GRADE HERO ── */}
         <div style={S.heroCard}>
           <div>
-            <div style={S.heroLabel}>Hardest grade sent</div>
+            <div style={S.heroLabel}>{t('stats.hardestGradeSent')}</div>
             {max_grade ? (
               <>
                 <div style={S.heroGrade(getGradeColor(max_grade.sorting_grade))}>
                   {max_grade.grade}
                 </div>
-                <div style={S.heroSub}>Personal best</div>
+                <div style={S.heroSub}>{t('stats.personalBest')}</div>
               </>
             ) : (
-              <div style={S.heroNone}>No sends yet — get on the wall!</div>
+              <div style={S.heroNone}>{t('stats.noSends')}</div>
             )}
           </div>
 
@@ -548,7 +552,7 @@ export default function Stats() {
               valueKey="count"
               labelKey="grade"
               sortingKey="sorting_grade"
-              title="Sends per grade"
+              title={t('stats.sendsPerGrade')}
               unit=""
             />
           </div>
@@ -560,18 +564,18 @@ export default function Stats() {
               valueKey="avg"
               labelKey="grade"
               sortingKey="sorting_grade"
-              title="Avg. attempts to send"
-              unit=" tries"
+              title={t('stats.avgAttemptsToSend')}
+              unit={t('stats.tries')}
             />
           </div>
 
           {/* Working routes */}
           <div style={S.chartCardFull}>
             <div style={S.chartTitle}>
-              In progress — {working.length} route{working.length !== 1 ? 's' : ''}
+              {t('stats.inProgressSection')} — {working.length} {t('stats.route', { count: working.length })}
             </div>
             {working.length === 0 ? (
-              <div style={S.emptyChart}>Nothing in progress — send everything or try harder stuff!</div>
+              <div style={S.emptyChart}>{t('stats.nothingInProgress')}</div>
             ) : (
               <div style={S.workingList}>
                 {working.map((r, i) => {
@@ -597,7 +601,7 @@ export default function Stats() {
                       </span>
                       <span style={S.workingTopo}>{r.topo_title}</span>
                       <span style={S.workingAttempts}>
-                        {r.attempts} attempt{r.attempts !== 1 ? 's' : ''}
+                        {r.attempts} {t('stats.attempt', { count: r.attempts })}
                       </span>
                       <span style={{
                         ...S.workingArrow,

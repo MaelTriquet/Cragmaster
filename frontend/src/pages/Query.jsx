@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 
 
 export default function Query() {
+  const { t } = useTranslation()
   const [sql, setSql] = useState("");
   const [rows, setRows] = useState([]);
   const [error, setError] = useState(null);
@@ -28,7 +30,7 @@ export default function Query() {
       setError(
         err.response?.data?.error ||
         err.message ||
-        "Unknown error"
+        t('query.unknownError')
       );
 
       setRows([]);
@@ -39,7 +41,7 @@ export default function Query() {
 
   const renderTable = () => {
     if (rows.length === 0) {
-      return <p>No results</p>;
+      return <p>{t('query.noResults')}</p>;
     }
 
     const columns = Object.keys(rows[0]);
@@ -98,12 +100,12 @@ export default function Query() {
         margin: "0 auto",
       }}
     >
-      <h1>SQL Query Console</h1>
+      <h1>{t('query.title')}</h1>
 
       <textarea
         value={sql}
         onChange={(e) => setSql(e.target.value)}
-        placeholder="Enter SQL query..."
+        placeholder={t('query.placeholder')}
         rows={8}
         style={{
           width: "100%",
@@ -123,7 +125,7 @@ export default function Query() {
           cursor: "pointer",
         }}
       >
-        {loading ? "Running..." : "Execute Query"}
+        {loading ? t('query.running') : t('query.execute')}
       </button>
 
       {error && (

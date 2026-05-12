@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api/client'
 
@@ -249,6 +250,7 @@ function focusStyle(e) { e.target.style.borderColor = 'var(--hold)' }
 function blurStyle(e)  { e.target.style.borderColor = 'var(--line)' }
 
 export default function Profile() {
+  const { t } = useTranslation()
   const { user, login } = useAuth()
   const navigate = useNavigate()
 
@@ -267,13 +269,13 @@ export default function Profile() {
   const handleProfileSave = async () => {
     const { username, current_password, password, confirm } = profileForm
     if (!username.trim()) {
-      setProfileStatus({ type: 'error', msg: 'Username cannot be empty' }); return
+      setProfileStatus({ type: 'error', msg: t('profile.usernameEmpty') }); return
     }
     if (!current_password) {
-      setProfileStatus({ type: 'error', msg: 'Current password is required' }); return
+      setProfileStatus({ type: 'error', msg: t('profile.currentPasswordRequired') }); return
     }
     if (password && password !== confirm) {
-      setProfileStatus({ type: 'error', msg: 'Passwords do not match' }); return
+      setProfileStatus({ type: 'error', msg: t('profile.passwordsDoNotMatch') }); return
     }
     setProfileLoading(true)
     setProfileStatus(null)
@@ -281,7 +283,7 @@ export default function Profile() {
       const payload = { username: username.trim(), current_password }
       if (password) payload.password = password
       const res = await api.patch('/auth/me', payload)
-      setProfileStatus({ type: 'success', msg: 'Profile updated' })
+      setProfileStatus({ type: 'success', msg: t('profile.profileUpdated') })
       setProfileForm(f => ({ ...f, current_password: '', password: '', confirm: '' }))
       // Store new token from server (issued after credential change)
       if (res.data.token) {
@@ -292,7 +294,7 @@ export default function Profile() {
         await login(username.trim(), password || current_password)
       }
     } catch (err) {
-      setProfileStatus({ type: 'error', msg: err.response?.data?.error || 'Update failed' })
+      setProfileStatus({ type: 'error', msg: err.response?.data?.error || t('profile.updateFailed') })
     } finally {
       setProfileLoading(false)
     }
@@ -301,7 +303,7 @@ export default function Profile() {
   const handleCreateUser = async () => {
     const { username, password, is_admin } = createForm
     if (!username.trim() || !password) {
-      setCreateStatus({ type: 'error', msg: 'Username and password are required' }); return
+      setCreateStatus({ type: 'error', msg: t('profile.usernameRequired') }); return
     }
     setCreateLoading(true)
     setCreateStatus(null)
@@ -309,10 +311,10 @@ export default function Profile() {
     try {
       const res = await api.post('/users', { username: username.trim(), password, is_admin })
       setCreatedUser(res.data)
-      setCreateStatus({ type: 'success', msg: 'User created successfully' })
+      setCreateStatus({ type: 'success', msg: t('profile.userCreated') })
       setCreateForm({ username: '', password: '', is_admin: false })
     } catch (err) {
-      setCreateStatus({ type: 'error', msg: err.response?.data?.error || 'Creation failed' })
+      setCreateStatus({ type: 'error', msg: err.response?.data?.error || t('profile.creationFailed') })
     } finally {
       setCreateLoading(false)
     }
@@ -326,18 +328,18 @@ export default function Profile() {
 
         {/* ── HEADER ── */}
         <div style={S.header}>
-          <span style={S.eyebrow}>Account</span>
+          <span style={S.eyebrow}>{t('profile.eyebrow')}</span>
           <h1 style={S.title}>{user?.username}</h1>
-          {user?.is_admin && <div style={S.adminBadge}>Admin</div>}
+          {user?.is_admin && <div style={S.adminBadge}>{t('profile.admin')}</div>}
         </div>
 
         {/* ── EDIT PROFILE CARD ── */}
         <div style={S.card}>
-          <div style={S.cardTitle}>Edit Profile</div>
+          <div style={S.cardTitle}>{t('profile.editProfile')}</div>
 
           <div style={S.fields}>
             <div style={S.field}>
-              <label style={S.label}>Username</label>
+              <label style={S.label}>{t('profile.username')}</label>
               <input
                 style={S.input}
                 type="text"
@@ -349,11 +351,11 @@ export default function Profile() {
             </div>
 
             <div style={S.field}>
-              <label style={S.label}>Current Password</label>
+              <label style={S.label}>{t('profile.currentPassword')}</label>
               <input
                 style={S.input}
                 type="password"
-                placeholder="Required to save changes"
+                placeholder={t('profile.currentPasswordPlaceholder')}
                 value={profileForm.current_password}
                 onChange={e => setProfileForm(f => ({ ...f, current_password: e.target.value }))}
                 onFocus={focusStyle}
@@ -364,11 +366,11 @@ export default function Profile() {
             <div style={S.divider} />
 
             <div style={S.field}>
-              <label style={S.label}>New Password</label>
+              <label style={S.label}>{t('profile.newPassword')}</label>
               <input
                 style={S.input}
                 type="password"
-                placeholder="Leave blank to keep current"
+                placeholder={t('profile.newPasswordPlaceholder')}
                 value={profileForm.password}
                 onChange={e => setProfileForm(f => ({ ...f, password: e.target.value }))}
                 onFocus={focusStyle}
@@ -377,11 +379,11 @@ export default function Profile() {
             </div>
 
             <div style={S.field}>
-              <label style={S.label}>Confirm Password</label>
+              <label style={S.label}>{t('profile.confirmPassword')}</label>
               <input
                 style={S.input}
                 type="password"
-                placeholder="Repeat new password"
+                placeholder={t('profile.confirmPasswordPlaceholder')}
                 value={profileForm.confirm}
                 onChange={e => setProfileForm(f => ({ ...f, confirm: e.target.value }))}
                 onFocus={focusStyle}
@@ -404,7 +406,7 @@ export default function Profile() {
               onMouseLeave={() => setHoveredBtn(null)}
               onClick={handleProfileSave}
             >
-              {profileLoading ? 'Saving…' : 'Save Changes'}
+              {t(profileLoading ? 'profile.saving' : 'profile.saveChanges')}
             </button>
 
             {profileStatus && (
@@ -418,15 +420,15 @@ export default function Profile() {
         {/* ── CREATE USER CARD (admin only) ── */}
         {user?.is_admin && (
           <div style={S.cardAccent}>
-            <div style={S.cardTitle}>Create New User</div>
+            <div style={S.cardTitle}>{t('profile.createUser')}</div>
 
             <div style={S.fields}>
               <div style={S.field}>
-                <label style={S.label}>Username</label>
+                <label style={S.label}>{t('profile.username')}</label>
                 <input
                   style={S.input}
                   type="text"
-                  placeholder="New user's username"
+                  placeholder={t('profile.newUserPlaceholder')}
                   value={createForm.username}
                   onChange={e => setCreateForm(f => ({ ...f, username: e.target.value }))}
                   onFocus={focusStyle}
@@ -435,11 +437,11 @@ export default function Profile() {
               </div>
 
               <div style={S.field}>
-                <label style={S.label}>Password</label>
+                <label style={S.label}>{t('profile.newPassword')}</label>
                 <input
                   style={S.input}
                   type="password"
-                  placeholder="Initial password"
+                  placeholder={t('profile.initialPasswordPlaceholder')}
                   value={createForm.password}
                   onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
                   onFocus={focusStyle}
@@ -485,7 +487,7 @@ export default function Profile() {
                   color: createForm.is_admin ? 'var(--chalk)' : 'var(--muted)',
                   transition: 'color 0.15s',
                 }}>
-                  Grant Admin Access
+                  {t('profile.grantAdmin')}
                 </span>
               </div>
             </div>
@@ -504,7 +506,7 @@ export default function Profile() {
                 onMouseLeave={() => setHoveredBtn(null)}
                 onClick={handleCreateUser}
               >
-                {createLoading ? 'Creating…' : 'Create User'}
+                {t(createLoading ? 'profile.creating' : 'profile.createUserBtn')}
               </button>
 
               {createStatus && (
@@ -521,7 +523,7 @@ export default function Profile() {
                   <div>
                     <div style={S.newUserName}>{createdUser.username}</div>
                     <div style={S.newUserMeta}>
-                      ID #{createdUser.id} · {createdUser.is_admin ? 'Admin' : 'Member'}
+                      ID #{createdUser.id} · {createdUser.is_admin ? t('profile.admin') : t('profile.member')}
                     </div>
                   </div>
                   <span style={{
@@ -532,7 +534,7 @@ export default function Profile() {
                     textTransform: 'uppercase',
                     color: '#7fc99a',
                   }}>
-                    Created ✓
+                    {t('profile.created')}
                   </span>
                 </div>
               </div>

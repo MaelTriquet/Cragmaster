@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -308,14 +309,16 @@ function makeIcon(color, label) {
   }
 }
 
-function popupHtml(topo, type) {
-  const typeLabel = type === 'parking' ? '🅿 Parking' : '🧗 Routes'
+function popupHtml(topo, type, viewTopoLabel, parkingLabel, routesLabel) {
+  const typeLabel = type === 'parking'
+    ? (parkingLabel || '🅿 Parking')
+    : (routesLabel || '🧗 Routes')
   return `
     <div style="font-family:'Barlow Condensed',sans-serif;background:#2e2e2a;color:#f0ede6;padding:0;min-width:180px;">
       <div style="background:#c8502a;padding:0.4rem 0.75rem;font-size:0.62rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#f0ede6;">${typeLabel}</div>
       <div style="padding:0.6rem 0.75rem;">
         <div style="font-size:1rem;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:0.3rem;line-height:1.1;">${topo.title}</div>
-        <a href="/topos/${topo.id}" style="display:inline-block;margin-top:0.4rem;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e06540;text-decoration:none;">View Topo →</a>
+        <a href="/topos/${topo.id}" style="display:inline-block;margin-top:0.4rem;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e06540;text-decoration:none;">${viewTopoLabel}</a>
       </div>
     </div>`
 }
@@ -324,6 +327,7 @@ function popupHtml(topo, type) {
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function MapPage() {
+  const { t } = useTranslation()
   const mapRef     = useRef(null)
   const leafletRef = useRef(null)
   // Live ref so the Leaflet event handler always sees the latest topo data
@@ -382,14 +386,16 @@ export default function MapPage() {
       if (L && leafletRef.current) {
         const icon = L.icon(makeIcon(type === 'parking' ? '#4a8fa8' : '#c8502a', type === 'parking' ? 'P' : 'R'))
         L.marker([latlng.lat, latlng.lng], { icon })
-          .bindPopup(popupHtml(topo, type), { maxWidth: 260 })
+          .bindPopup(popupHtml(topo, type, t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 })
           .addTo(leafletRef.current)
         setMarkerCount(n => n + 1)
       }
 
-      showToast(`✓ ${type === 'parking' ? 'Parking' : 'Routes'} set for ${topo.title}`)
+      showToast(type === 'parking'
+        ? t('map.parkingSet', { title: topo.title })
+        : t('map.routesSet', { title: topo.title }))
     } catch (err) {
-      showToast(`✗ ${err.response?.data?.error || 'Failed to set location'}`)
+      showToast(`✗ ${err.response?.data?.error || t('map.failedLocation')}`)
     }
   }, [showToast])
 
@@ -434,7 +440,7 @@ export default function MapPage() {
       )
       topoLayer.addTo(map)
       L.control.layers(
-        { '🗺 Topo (relief + trails)': topoLayer, '🛣 Street (OSM)': osmLayer, '🛰 Satellite': satelliteLayer },
+        { [t('map.layerTopo')]: topoLayer, [t('map.layerStreet')]: osmLayer, [t('map.layerSatellite')]: satelliteLayer },
         null,
         { position: 'topleft', collapsed: false }
       ).addTo(map)
@@ -479,13 +485,13 @@ export default function MapPage() {
           if (topo.parking_lat != null && topo.parking_lon != null) {
             const ll = [topo.parking_lat, topo.parking_lon]
             bounds.push(ll)
-            L.marker(ll, { icon: parkingIcon }).bindPopup(popupHtml(topo, 'parking'), { maxWidth: 260 }).addTo(map)
+            L.marker(ll, { icon: parkingIcon }).bindPopup(popupHtml(topo, 'parking', t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 }).addTo(map)
             count++
           }
           if (topo.routes_lat != null && topo.routes_lon != null) {
             const ll = [topo.routes_lat, topo.routes_lon]
             bounds.push(ll)
-            L.marker(ll, { icon: routesIcon }).bindPopup(popupHtml(topo, 'routes'), { maxWidth: 260 }).addTo(map)
+            L.marker(ll, { icon: routesIcon }).bindPopup(popupHtml(topo, 'routes', t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 }).addTo(map)
             count++
           }
         })
@@ -559,21 +565,21 @@ export default function MapPage() {
       {/* ── HEADER ── */}
       <div style={S.header}>
         <div style={S.titleBlock}>
-          <span style={S.eyebrow}>Topo Locations</span>
-          <h1 style={S.title}>Map</h1>
+          <span style={S.eyebrow}>{t('map.eyebrow')}</span>
+          <h1 style={S.title}>{t('map.title')}</h1>
         </div>
 
         <div style={S.legend}>
           <div style={S.legendItem}>
             <div style={S.legendDot('#4a8fa8')} />
-            Parking
+            {t('map.parking')}
           </div>
           <div style={S.legendItem}>
             <div style={S.legendDot('#c8502a')} />
-            Routes
+            {t('map.routes')}
           </div>
           <div style={{ ...S.legendItem, opacity: 0.45, fontSize: '0.65rem' }}>
-            Right-click to set a location · Layer switcher top-left
+            {t('map.hint')}
           </div>
         </div>
       </div>
@@ -582,20 +588,20 @@ export default function MapPage() {
       <div style={S.mapWrapper}>
         {loading && (
           <div style={S.loadingOverlay}>
-            <span style={S.loadingText}>Loading map…</span>
+            <span style={S.loadingText}>{t('map.loading')}</span>
           </div>
         )}
 
         {!loading && (
           <div style={S.countBadge}>
-            {markerCount} location{markerCount !== 1 ? 's' : ''} plotted
+            {markerCount} {t('map.location', { count: markerCount })} {t('map.plotted')}
           </div>
         )}
 
         {!loading && markerCount === 0 && (
           <div style={S.emptyState}>
-            <span style={S.emptyTitle}>No locations set yet</span>
-            <span style={S.emptyHint}>Right-click anywhere on the map to set a topo's location</span>
+            <span style={S.emptyTitle}>{t('map.noLocations')}</span>
+            <span style={S.emptyHint}>{t('map.noLocationsHint')}</span>
           </div>
         )}
 
@@ -617,7 +623,7 @@ export default function MapPage() {
   >
     {/* Header */}
     <div style={S.ctxHeader}>
-      <span>Set Location</span>
+      <span>{t('map.setLocation')}</span>
 
       <span style={S.ctxCoords}>
         {fmtCoord(ctxMenu.latlng.lat)},
@@ -647,7 +653,7 @@ export default function MapPage() {
         }}
       >
         <div style={S.ctxSectionLabel}>
-          🅿 Set Parking
+          {t('map.setParking')}
         </div>
 
         <div
@@ -659,7 +665,7 @@ export default function MapPage() {
         >
           {ctxMenu.toposNeedingParking.length === 0 ? (
             <div style={S.ctxEmpty}>
-              All topos have parking set
+              {t('map.allParkingSet')}
             </div>
           ) : (
             ctxMenu.toposNeedingParking.map(topo => {
@@ -707,7 +713,7 @@ export default function MapPage() {
         }}
       >
         <div style={S.ctxSectionLabel}>
-          🧗 Set Routes
+          {t('map.setRoutes')}
         </div>
 
         <div
@@ -719,7 +725,7 @@ export default function MapPage() {
         >
           {ctxMenu.toposNeedingRoutes.length === 0 ? (
             <div style={S.ctxEmpty}>
-              All topos have routes location set
+              {t('map.allRoutesSet')}
             </div>
           ) : (
             ctxMenu.toposNeedingRoutes.map(topo => {
@@ -767,7 +773,7 @@ export default function MapPage() {
         setCtxMenu(null)
       }}
     >
-      Dismiss ✕
+      {t('map.dismiss')}
     </div>
   </div>
 )}

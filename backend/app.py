@@ -9,7 +9,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from db import get_db, init_db
 from auth import hash_password, check_password, get_current_user, require_user, require_admin
-from ocr import extract_text_from_pdf, extract_routes, parse_routes, grade_sort_key, GRADE_PATTERN
+from ocr import extract_text_from_pdf, extract_routes, parse_routes, grade_sort_key, GRADE_PATTERN, FRENCH_ORDER
 import re
 import seed
 from fzf import fuzzy_search
@@ -347,7 +347,22 @@ def get_route(route_id):
     if user: attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone()
     tags = conn.execute('SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
     conn.close()
-    return ok(route=dict(route), comments=[dict(c) for c in comments], attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags])
+
+    # Average perceived grade from comments
+    avg_perceived = None
+    grades = []
+    for c in comments:
+        pg = c['perceived_grade']
+        if pg:
+            sg = grade_sort_key(pg)
+            if sg >= 0:
+                grades.append(sg)
+    if grades:
+        avg = round(sum(grades) / len(grades))
+        if 0 <= avg < len(FRENCH_ORDER):
+            avg_perceived = FRENCH_ORDER[avg]
+
+    return ok(route=dict(route), comments=[dict(c) for c in comments], attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived)
 
 @app.route('/api/routes/<int:route_id>', methods=['PATCH'])
 @jwt_required()

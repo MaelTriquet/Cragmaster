@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 import axios from 'axios'
 
@@ -477,6 +478,7 @@ const S = {
 }
 
 export default function TopoDetail() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -520,7 +522,7 @@ export default function TopoDetail() {
   if (!topo) return (
     <div style={{ ...S.root, justifyContent: "center" }}>
       <span style={{ fontFamily: "Barlow Condensed", fontSize: "1.2rem", letterSpacing: "0.1em", color: "var(--muted)" }}>
-        LOADING…
+        {t('topoDetail.loading')}
       </span>
     </div>
   )
@@ -547,7 +549,7 @@ export default function TopoDetail() {
   const sendLocationParking = () => {
     // Check if browser supports geolocation
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      alert(t('topoDetail.geoNotSupported'));
       return;
     }
 
@@ -576,7 +578,7 @@ export default function TopoDetail() {
       // Error callback
       (error) => {
         console.error("Error getting location:", error);
-        alert("Unable to retrieve your location");
+        alert(t('topoDetail.geoFailed'));
       }
     );
   };
@@ -585,7 +587,7 @@ export default function TopoDetail() {
   const sendLocationRoutes = () => {
     // Check if browser supports geolocation
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      alert(t('topoDetail.geoNotSupported'));
       return;
     }
 
@@ -614,7 +616,7 @@ export default function TopoDetail() {
       // Error callback
       (error) => {
         console.error("Error getting location:", error);
-        alert("Unable to retrieve your location");
+        alert(t('topoDetail.geoFailed'));
       }
     );
   };
@@ -653,15 +655,15 @@ export default function TopoDetail() {
           onMouseLeave={() => setHoveredBtn(null)}
           onClick={() => navigate("/topos")}
         >
-          ← All Topos
+          {t('topoDetail.back')}
         </button>
 
         {/* ── HEADER ── */}
         <div style={S.header}>
-          <span style={S.eyebrow}>Topo</span>
+          <span style={S.eyebrow}>{t('topoDetail.eyebrow')}</span>
           <h1 style={S.title}>{topo.title}</h1>
           <div style={S.metaRow}>
-            <span style={S.routeCount}>{routes.length} route{routes.length !== 1 ? "s" : ""}</span>
+            <span style={S.routeCount}>{t('topoDetail.route', { count: routes.length })}</span>
           </div>
 
   		  <div style={S.btnRow}>
@@ -675,16 +677,16 @@ export default function TopoDetail() {
   		  	onMouseLeave={() => setHoveredBtn(null)}
   		  	onClick={() => setShowAddForm(v => !v)}
   		    >
-  		  	{showAddForm ? "Cancel Add" : "Add Route"}
+  		  	{t(showAddForm ? 'topoDetail.cancelAdd' : 'topoDetail.addRoute')}
   		    </button>
   		  </div>
 			{showAddForm && (
 			  <div style={{ ...S.card, marginTop: "1.5rem" }}>
-				<div style={S.cardTitle}>Add Route</div>
+				<div style={S.cardTitle}>{t('topoDetail.addRoute')}</div>
 
 				<div style={S.formGrid}>
 				  <div style={S.formField}>
-					<label style={S.formLabel}>Name</label>
+					<label style={S.formLabel}>{t('topoDetail.name')}</label>
 					<input
 					  type="text"
 					  style={S.formInput}
@@ -698,7 +700,7 @@ export default function TopoDetail() {
 				  </div>
 
 				  <div style={S.formField}>
-					<label style={S.formLabel}>Grade</label>
+					<label style={S.formLabel}>{t('topoDetail.grade')}</label>
 					<input
 					  type="text"
 					  style={S.formInput}
@@ -712,7 +714,7 @@ export default function TopoDetail() {
 				  </div>
 
 				  <div style={S.formField}>
-					<label style={S.formLabel}>Length (m)</label>
+					<label style={S.formLabel}>{t('topoDetail.length')}</label>
 					<input
 					  type="number"
 					  style={S.formInput}
@@ -726,7 +728,7 @@ export default function TopoDetail() {
 				  </div>
 
 				  <div style={S.formField}>
-					<label style={S.formLabel}>Route Index</label>
+					<label style={S.formLabel}>{t('topoDetail.routeIndex')}</label>
 					<input
 					  type="number"
 					  style={S.formInput}
@@ -753,11 +755,10 @@ export default function TopoDetail() {
 				  onMouseLeave={() => setHoveredBtn(null)}
 				  onClick={submitRouteAdd}
 				>
-				  Add Route
+				  {t('topoDetail.addRoute')}
 				</button>
 			  </div>
 			)}
-
 
         </div>
 
@@ -771,7 +772,7 @@ export default function TopoDetail() {
 		  onMouseLeave={() => setHoveredBtn(null)}
 		  onClick={() => openGPS(parkingLocation)}
 		>
-		  Go to Parking Location
+		  {t('topoDetail.goParking')}
 		</button>):
 		(<button
 		  style={{
@@ -783,7 +784,7 @@ export default function TopoDetail() {
 		  onMouseLeave={() => setHoveredBtn(null)}
 		  onClick={sendLocationParking}
 		>
-		  Set Parking Location
+		  {t('topoDetail.setParking')}
 		</button>)}
 
 
@@ -798,7 +799,7 @@ export default function TopoDetail() {
 		  onMouseLeave={() => setHoveredBtn(null)}
 		  onClick={() => openGPS(routesLocation)}
 		>
-		  Go to Routes Location
+		  {t('topoDetail.goRoutes')}
 		</button>):
 		(<button
 		  style={{
@@ -812,7 +813,7 @@ export default function TopoDetail() {
 		  onMouseLeave={() => setHoveredBtn(null)}
 		  onClick={sendLocationRoutes}
 		>
-		  Set Routes Location
+		  {t('topoDetail.setRoutes')}
 		</button>)}
 
 
@@ -823,13 +824,13 @@ export default function TopoDetail() {
               style={S.toggleBtn(view === "grades")}
               onClick={() => setView("grades")}
             >
-              By Grade
+              {t('topoDetail.byGrade')}
             </button>
             <button
               style={{ ...S.toggleBtn(view === "index"), borderRight: "none" }}
               onClick={() => setView("index")}
             >
-              By Index
+              {t('topoDetail.byIndex')}
             </button>
           </div>
 
@@ -851,7 +852,7 @@ export default function TopoDetail() {
               }
             }}
           >
-            ↓ PDF
+            {t('topoDetail.download')}
           </button>
         </div>
 

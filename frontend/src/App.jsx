@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { AuthProvider } from './contexts/AuthContext'
 import PrivateRoute from './components/PrivateRoute'
 import Login from './pages/Login'
@@ -14,10 +15,11 @@ import Query from './pages/Query'
 import Map from './pages/Map'
 
 function ComingSoon({ name }) {
+  const { t } = useTranslation()
   return (
     <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
       <h2 style={{ fontFamily: 'Barlow Condensed', fontSize: '2rem', color: 'var(--muted)' }}>
-        {name} — coming soon
+        {t('comingSoon', { name })}
       </h2>
     </div>
   )
