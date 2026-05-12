@@ -394,7 +394,7 @@ export default function Search() {
     const hasQuery = query.length > 0
     const hasTags  = activeTags.size > 0
 
-    if (!hasQuery && !hasTags) {
+    if (!hasQuery && !hasTags && !projectsOnly) {
       setResults(null)
       return
     }
@@ -428,7 +428,7 @@ export default function Search() {
   const hasTags    = activeTags.size > 0
   const hasResults = results && (results.routes?.length > 0 || results.topos?.length > 0)
   const noResults  = results && !hasResults
-  const showPrompt = !hasQuery && !hasTags
+  const showPrompt = !hasQuery && !hasTags && !projectsOnly
 
   return (
     <div style={S.root}>

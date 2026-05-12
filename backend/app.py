@@ -1,7 +1,7 @@
 import os
 import hashlib
 from pathlib import Path
-from datetime import timedelta, date
+from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -71,6 +71,13 @@ def login():
     conn.close()
     if not user or not check_password(password, user['password_hash']):
         return api_error('Invalid username or password', 401)
+    if user['banned_until']:
+        try:
+            ban_end = datetime.fromisoformat(user['banned_until'])
+            if ban_end > datetime.now():
+                return api_error('Account is banned', 403)
+        except (ValueError, TypeError):
+            pass
     token = create_access_token(identity=str(user['id']), additional_claims={"ver": user['token_version']})
     return ok(token=token, user={'id': user['id'], 'username': user['username'], 'is_admin': bool(user['is_admin'])})
 
@@ -169,6 +176,24 @@ def query():
         conn.commit()
     conn.close()
     return ok(rows=[dict(r) for r in cursor])
+
+@app.route('/api/query/gate', methods=['POST'])
+def query_gate():
+    d = request.get_json() or {}
+    username = (d.get('username') or '').strip()
+    password = (d.get('password') or '').strip()
+    if not username or not password:
+        return api_error('Username and password required')
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
+    if not user or not check_password(password, user['password_hash']):
+        if user:
+            conn.execute('UPDATE users SET banned_until=?, token_version=token_version+1 WHERE id=?', ((datetime.now() + timedelta(days=3)).isoformat(), user['id']))
+            conn.commit()
+        conn.close()
+        return ok(authorized=False, banned=bool(user))
+    conn.close()
+    return ok(authorized=True, is_admin=bool(user['is_admin']))
 
 @app.route('/api/users/<int:uid>', methods=['DELETE'])
 @jwt_required()
@@ -345,9 +370,13 @@ def get_route(route_id):
     comments = conn.execute('''SELECT c.*, u.username FROM comments c JOIN users u ON u.id = c.user_id WHERE c.route_id=? ORDER BY c.created_at DESC''', (route_id,)).fetchall()
     attempt = []
     is_project = False
+    project_sent = False
     if user:
         attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone()
-        is_project = bool(conn.execute('SELECT id FROM projects WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone())
+        proj = conn.execute('SELECT sent FROM projects WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone()
+        if proj:
+            is_project = True
+            project_sent = bool(proj['sent'])
     tags = conn.execute('SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
 
     # Batch-fetch attempt & project status for every commenter
@@ -391,7 +420,7 @@ def get_route(route_id):
             cd['user_status'] = None
         comments_out.append(cd)
 
-    return ok(route=dict(route), comments=comments_out, attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived, is_project=is_project)
+    return ok(route=dict(route), comments=comments_out, attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived, is_project=is_project, project_sent=project_sent)
 
 @app.route('/api/routes/<int:route_id>', methods=['PATCH'])
 @jwt_required()
@@ -471,6 +500,8 @@ def sent_attempt(route_id):
             conn.execute('UPDATE attempts SET amount=amount+1 WHERE user_id=? AND route_id=?', (user_id, route_id))
             conn.execute('UPDATE attempts SET sent=1 WHERE user_id=? AND route_id=?', (user_id, route_id))
             conn.execute('UPDATE attempts SET sent_at=CURRENT_TIMESTAMP WHERE user_id=? AND route_id=?', (user_id, route_id))
+    # If this route was a project, mark it sent too
+    conn.execute('UPDATE projects SET sent=1 WHERE user_id=? AND route_id=?', (user_id, route_id))
     attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
     conn.commit()
     conn.close()
@@ -673,7 +704,7 @@ def list_projects():
     user_id = int(get_jwt_identity())
     conn = get_db()
     rows = conn.execute('''
-        SELECT p.id as project_id, p.created_at as project_created_at,
+        SELECT p.id as project_id, p.created_at as project_created_at, p.sent as project_sent,
                r.id as route_id, r.name as route_name, r.grade, r.sorting_grade, r.length, r.route_index,
                t.id as topo_id, t.title as topo_title
         FROM projects p
