@@ -39,7 +39,7 @@ const S = {
   root: {
     minHeight: "100vh",
     background: "var(--rock)",
-    padding: "3rem 2rem",
+    padding: "var(--page-padding)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -92,7 +92,7 @@ const S = {
 
   title: {
     fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "4rem",
+    fontSize: "var(--title-4xl)",
     fontWeight: 800,
     letterSpacing: "0.02em",
     textTransform: "uppercase",
@@ -219,7 +219,7 @@ const S = {
   // ── RESULTS LAYOUT ──
   results: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "var(--grid-2col, 1fr 1fr)",
     gap: "2rem",
     alignItems: "start",
   },

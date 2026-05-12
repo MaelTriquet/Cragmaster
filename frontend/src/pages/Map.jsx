@@ -27,7 +27,7 @@ const S = {
   },
 
   header: {
-    padding: '2rem 2rem 1rem',
+    padding: 'var(--page-padding) 1rem',
     position: 'relative',
     zIndex: 2,
     display: 'flex',
@@ -55,7 +55,7 @@ const S = {
 
   title: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '3rem',
+    fontSize: 'var(--title-2xl)',
     fontWeight: 800,
     letterSpacing: '0.02em',
     textTransform: 'uppercase',
@@ -96,7 +96,7 @@ const S = {
     flex: 1,
     position: 'relative',
     zIndex: 1,
-    margin: '0 2rem 2rem',
+    margin: 'var(--map-margin, 0 2rem 2rem)',
     border: '1px solid var(--line)',
     minHeight: '500px',
   },
@@ -636,7 +636,7 @@ export default function MapPage() {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        gridTemplateColumns: 'var(--grid-2col, 1fr 1fr)',
         gap: '0',
         flex: 1,
         minHeight: 0,

@@ -142,7 +142,7 @@ const S = {
   root: {
     minHeight: '100vh',
     background: 'var(--rock)',
-    padding: '3rem 2rem',
+    padding: 'var(--page-padding)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -183,7 +183,7 @@ const S = {
   },
   title: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '3.5rem',
+    fontSize: 'var(--title-3xl)',
     fontWeight: 800,
     letterSpacing: '0.02em',
     textTransform: 'uppercase',
@@ -195,7 +195,7 @@ const S = {
   // ── Summary row
   summaryRow: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
+    gridTemplateColumns: 'var(--grid-3col, repeat(3, 1fr))',
     gap: '1rem',
     marginBottom: '2rem',
   },
@@ -269,7 +269,7 @@ const S = {
   // ── Chart grid
   chartGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: 'var(--grid-2col, 1fr 1fr)',
     gap: '1.5rem',
     marginBottom: '2rem',
   },

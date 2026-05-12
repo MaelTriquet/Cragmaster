@@ -9,6 +9,16 @@
   --hold-lt: #e06540;
   --muted:   #6b6b60;
   --line:    #3a3a34;
+
+  --page-padding: 3rem 2rem;
+  --title-4xl: 4rem;
+  --title-3xl: 3.5rem;
+  --title-2xl: 3rem;
+  --grid-2col: 1fr 1fr;
+  --grid-3col: repeat(3, 1fr);
+  --map-margin: 0 2rem 2rem;
+  --card-padding: 3rem 2.5rem;
+  --title-login: 4.5rem;
 }
 
 * { box-sizing: border-box; }
@@ -27,4 +37,18 @@ h1, h2, h3, h4 {
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --page-padding: 1.5rem 1rem;
+    --title-4xl: 2.5rem;
+    --title-3xl: 2.2rem;
+    --title-2xl: 2rem;
+    --grid-2col: 1fr;
+    --grid-3col: 1fr;
+    --map-margin: 0;
+    --card-padding: 1.5rem 1.25rem;
+    --title-login: 2.8rem;
+  }
 }

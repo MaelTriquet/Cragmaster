@@ -125,7 +125,7 @@ const styles = {
     zIndex: 1,
     width: '100%',
     maxWidth: '420px',
-    padding: '3rem 2.5rem',
+    padding: 'var(--card-padding)',
     background: 'var(--granite)',
     borderLeft: '4px solid var(--hold)',
     boxShadow: '0 0 80px rgba(0,0,0,0.6)',
@@ -144,7 +144,7 @@ const styles = {
   },
   title: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '4.5rem',
+    fontSize: 'var(--title-login)',
     fontWeight: 800,
     lineHeight: 0.9,
     letterSpacing: '0.02em',

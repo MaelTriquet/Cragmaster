@@ -7,7 +7,7 @@ const S = {
   root: {
     minHeight: '100vh',
     background: 'var(--rock)',
-    padding: '3rem 2rem',
+    padding: 'var(--page-padding)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -29,7 +29,7 @@ const S = {
   },
   title: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '3rem',
+    fontSize: 'var(--title-2xl)',
     fontWeight: 800,
     letterSpacing: '0.04em',
     textTransform: 'uppercase',

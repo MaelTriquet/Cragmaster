@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
@@ -123,6 +124,107 @@ const S = {
     cursor: 'pointer',
     transition: 'border-color 0.15s, color 0.15s',
   },
+
+  hamburger: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '4px',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '8px',
+    marginLeft: 'auto',
+    flexShrink: 0,
+  },
+
+  hamburgerLine: (open) => ({
+    width: '20px',
+    height: '2px',
+    background: 'var(--chalk)',
+    transition: 'transform 0.2s, opacity 0.2s',
+    ...(open ? {} : {}),
+  }),
+
+  drawer: {
+    position: 'fixed',
+    top: '52px',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(26,26,24,0.98)',
+    backdropFilter: 'blur(10px)',
+    zIndex: 99,
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '1.5rem 2rem',
+    gap: '0',
+    overflowY: 'auto',
+  },
+
+  drawerLink: (active) => ({
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '1.4rem',
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: active ? 'var(--chalk)' : 'var(--muted)',
+    cursor: 'pointer',
+    background: 'none',
+    border: 'none',
+    borderLeft: active ? '3px solid var(--hold)' : '3px solid transparent',
+    padding: '0.85rem 1rem',
+    textAlign: 'left',
+    transition: 'color 0.15s, border-color 0.15s',
+  }),
+
+  drawerSection: {
+    borderTop: '1px solid var(--line)',
+    marginTop: '1.5rem',
+    paddingTop: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.85rem',
+  },
+
+  drawerLabel: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    letterSpacing: '0.2em',
+    textTransform: 'uppercase',
+    color: 'var(--hold)',
+  },
+
+  drawerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+  },
+}
+
+function Hamburger({ open, onClick }) {
+  return (
+    <button
+      style={S.hamburger}
+      onClick={onClick}
+      aria-label="Toggle navigation menu"
+    >
+      <div style={{
+        ...S.hamburgerLine(open),
+        transform: open ? 'translateY(6px) rotate(45deg)' : 'none',
+      }} />
+      <div style={{
+        ...S.hamburgerLine(open),
+        opacity: open ? 0 : 1,
+      }} />
+      <div style={{
+        ...S.hamburgerLine(open),
+        transform: open ? 'translateY(-6px) rotate(-45deg)' : 'none',
+      }} />
+    </button>
+  )
 }
 
 export default function Navbar() {
@@ -131,6 +233,21 @@ export default function Navbar() {
   const { t, i18n } = useTranslation()
   const { user, logout } = useAuth()
   const currentLang = i18n.language?.startsWith('fr') ? 'fr' : 'en'
+
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    setIsMobile(mq.matches)
+    const handler = e => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
 
   const toggleLang = () => {
     const next = currentLang === 'en' ? 'fr' : 'en'
@@ -146,6 +263,105 @@ export default function Navbar() {
   // Don't render on the login page
   if (location.pathname === '/login') return null
 
+  // ── Mobile view ─────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <>
+        <nav style={S.nav}>
+          {/* Logo */}
+          <button style={S.logo} onClick={() => navigate('/topos')}>
+            <span style={S.logoAccent}>Crag</span>Master
+          </button>
+
+          {/* Hamburger toggle */}
+          <Hamburger open={mobileOpen} onClick={() => setMobileOpen(v => !v)} />
+        </nav>
+
+        {/* Drawer */}
+        {mobileOpen && (
+          <div style={S.drawer}>
+            {/* Nav links */}
+            {NAV_ITEM_KEYS.map(item => {
+              const active = location.pathname.startsWith(item.path)
+              return (
+                <button
+                  key={item.path}
+                  style={S.drawerLink(active)}
+                  onClick={() => navigate(item.path)}
+                >
+                  {t(item.key)}
+                </button>
+              )
+            })}
+
+            {/* Lang + user + logout */}
+            <div style={S.drawerSection}>
+              <div style={S.drawerLabel}>{t('nav.settings')}</div>
+
+              <div style={S.drawerRow}>
+                <button
+                  style={{
+                    ...S.langBtn,
+                    fontSize: '0.85rem',
+                    padding: '0.45rem 0.9rem',
+                  }}
+                  onClick={toggleLang}
+                >
+                  {LANGUAGES[currentLang === 'en' ? 'en' : 'fr']}
+                </button>
+              </div>
+
+              {user && (
+                <div style={S.drawerRow}>
+                  <button
+                    style={{
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      color: 'var(--chalk)',
+                      cursor: 'pointer',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                    }}
+                    onClick={() => navigate('/profile')}
+                  >
+                    {user.username}
+                  </button>
+                </div>
+              )}
+
+              {user && (
+                <button
+                  style={{
+                    fontFamily: 'Barlow Condensed, sans-serif',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: 'var(--hold-lt)',
+                    background: 'none',
+                    border: '1px solid var(--line)',
+                    padding: '0.65rem 1rem',
+                    cursor: 'pointer',
+                    marginTop: '0.5rem',
+                    textAlign: 'center',
+                  }}
+                  onClick={handleLogout}
+                >
+                  {t('nav.signOut')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
+  // ── Desktop view (unchanged) ────────────────────────────────────────
   return (
     <nav style={S.nav}>
       {/* Logo */}

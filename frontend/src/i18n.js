@@ -16,6 +16,7 @@ i18n.use(initReactI18next).init({
           upload: 'Upload',
           map: 'Map',
           signOut: 'Sign out',
+          settings: 'Settings',
         },
         common: {
           loading: 'LOADING\u2026',
@@ -249,6 +250,7 @@ i18n.use(initReactI18next).init({
           upload: 'Importer',
           map: 'Carte',
           signOut: 'D\u00e9connexion',
+          settings: 'Param\u00e8tres',
         },
         common: {
           loading: 'CHARGEMENT\u2026',
