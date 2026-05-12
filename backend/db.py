@@ -25,7 +25,8 @@ def init_db():
             username      TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             is_admin      INTEGER DEFAULT 0,
-            token_version INTEGER DEFAULT 0
+            token_version INTEGER DEFAULT 0,
+            banned_until  DATETIME DEFAULT NULL
         );
 
         CREATE TABLE IF NOT EXISTS topos (
@@ -114,7 +115,7 @@ def init_db():
     ''')
 
     # Migrations
-    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('recommendations', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0')]:
+    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('recommendations', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL')]:
         try:
             conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
         except Exception:
