@@ -615,8 +615,20 @@ def unassign_tag(route_id, tag_id):
 @app.route('/api/stats', methods=['GET'])
 @jwt_required()
 def get_stats():
-    user_id = int(get_jwt_identity())
+    auth_user_id = int(get_jwt_identity())
     conn = get_db()
+
+    target_id = request.args.get('user_id')
+    if target_id:
+        user_id = int(target_id)
+        target_user = conn.execute('SELECT id, username FROM users WHERE id=?', (user_id,)).fetchone()
+        if not target_user:
+            conn.close()
+            return api_error('User not found', 404)
+        target_username = target_user['username']
+    else:
+        user_id = auth_user_id
+        target_username = None
 
     rows = conn.execute('''
         SELECT
@@ -689,7 +701,8 @@ def get_stats():
             'total_sent':     len(sent_rows),
             'total_attempts': sum(r['amount'] for r in rows),
             'total_working':  len(working_rows),
-        }
+        },
+        username=target_username,
     )
 
 if __name__ == '__main__':

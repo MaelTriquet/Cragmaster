@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 
@@ -463,14 +463,16 @@ const S = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Stats() {
+  const { userId } = useParams()
   const { t } = useTranslation()
   const [stats, setStats]   = useState(null)
   const [hovered, setHovered] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
-    api.get('/stats').then(res => setStats(res.data)).catch(console.error)
-  }, [])
+    const url = userId ? `/stats?user_id=${userId}` : '/stats'
+    api.get(url).then(res => setStats(res.data)).catch(console.error)
+  }, [userId])
 
   if (!stats) return (
     <div style={{ ...S.root, justifyContent: 'center', alignItems: 'center' }}>
@@ -478,7 +480,7 @@ export default function Stats() {
     </div>
   )
 
-  const { max_grade, grade_pyramid, avg_attempts_per_grade, working, summary } = stats
+  const { max_grade, grade_pyramid, avg_attempts_per_grade, working, summary, username } = stats
 
   return (
     <div style={S.root}>
@@ -488,7 +490,7 @@ export default function Stats() {
 
         {/* ── HEADER ── */}
         <div style={S.header}>
-          <span style={S.eyebrow}>{t('stats.eyebrow')}</span>
+          <span style={S.eyebrow}>{username ? `${username} — ${t('stats.title')}` : t('stats.eyebrow')}</span>
           <h1 style={S.title}>{t('stats.title')}</h1>
         </div>
 

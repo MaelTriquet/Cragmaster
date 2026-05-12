@@ -41,6 +41,7 @@ export default function App() {
           <Route path="/admin"        element={<PrivateRoute adminOnly><ComingSoon name="Admin" /></PrivateRoute>} />
 		  <Route path="/profile"      element={<PrivateRoute><Profile /></PrivateRoute>} />
 		  <Route path="/stats"        element={<PrivateRoute><Stats /></PrivateRoute>} />
+		  <Route path="/stats/:userId" element={<PrivateRoute><Stats /></PrivateRoute>} />
 		  <Route path="/query"        element={<PrivateRoute><Query /></PrivateRoute>} />
 			<Route path="/map"          element={<PrivateRoute><Map /></PrivateRoute>} />
 

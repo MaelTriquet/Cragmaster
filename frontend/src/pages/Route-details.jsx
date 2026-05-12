@@ -965,7 +965,7 @@ export default function RouteDetail() {
             comments.map(c => (
               <div key={c.id} style={S.commentItem}>
                 <div style={S.commentHeader}>
-                  <span style={S.commentUser}>{c.username}</span>
+                  <span style={{ ...S.commentUser, cursor: 'pointer' }} onClick={() => navigate(`/stats/${c.user_id}`)}>{c.username}</span>
                   <div style={S.commentMeta}>
                     {c.perceived_grade && (
                       <span style={S.commentGrade}>{c.perceived_grade}</span>
