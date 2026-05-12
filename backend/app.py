@@ -344,7 +344,10 @@ def get_route(route_id):
     if not route: conn.close(); return api_error('Route not found', 404)
     comments = conn.execute('''SELECT c.*, u.username FROM comments c JOIN users u ON u.id = c.user_id WHERE c.route_id=? ORDER BY c.created_at DESC''', (route_id,)).fetchall()
     attempt = []
-    if user: attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone()
+    is_project = False
+    if user:
+        attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone()
+        is_project = bool(conn.execute('SELECT id FROM projects WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone())
     tags = conn.execute('SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
     conn.close()
 
@@ -362,7 +365,7 @@ def get_route(route_id):
         if 0 <= avg < len(FRENCH_ORDER):
             avg_perceived = FRENCH_ORDER[avg]
 
-    return ok(route=dict(route), comments=[dict(c) for c in comments], attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived)
+    return ok(route=dict(route), comments=[dict(c) for c in comments], attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived, is_project=is_project)
 
 @app.route('/api/routes/<int:route_id>', methods=['PATCH'])
 @jwt_required()
@@ -490,8 +493,9 @@ def delete_comment(comment_id):
 @app.route('/api/search', methods=['GET'])
 @jwt_required()
 def search():
-    q       = (request.args.get('q') or '').strip()
-    tag_ids = request.args.getlist('tag_ids')   # list of tag id strings, may be empty
+    q             = (request.args.get('q') or '').strip()
+    tag_ids       = request.args.getlist('tag_ids')
+    projects_only = request.args.get('projects_only')
 
     conn = get_db()
 
@@ -506,6 +510,14 @@ def search():
         ).fetchall()
     else:
         route_rows = conn.execute('SELECT * FROM routes').fetchall()
+
+    if projects_only:
+        project_route_ids = set(
+            r['route_id'] for r in conn.execute(
+                'SELECT route_id FROM projects WHERE user_id=?', (int(get_jwt_identity()),)
+            ).fetchall()
+        )
+        route_rows = [r for r in route_rows if r['id'] in project_route_ids]
 
     topo_rows = conn.execute('SELECT * FROM topos').fetchall()
     conn.close()
@@ -610,6 +622,41 @@ def unassign_tag(route_id, tag_id):
     ).fetchall()
     conn.close()
     return ok(tags=[dict(t) for t in tags])
+
+# ── PROJECTS ────────────────────────────────────────────────────────────────────
+@app.route('/api/routes/<int:route_id>/project', methods=['POST'])
+@jwt_required()
+def toggle_project(route_id):
+    user_id = int(get_jwt_identity())
+    conn = get_db()
+    existing = conn.execute('SELECT id FROM projects WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
+    if existing:
+        conn.execute('DELETE FROM projects WHERE id=?', (existing['id'],))
+        is_project = False
+    else:
+        conn.execute('INSERT INTO projects (user_id, route_id) VALUES (?,?)', (user_id, route_id))
+        is_project = True
+    conn.commit()
+    conn.close()
+    return ok(is_project=is_project)
+
+@app.route('/api/projects', methods=['GET'])
+@jwt_required()
+def list_projects():
+    user_id = int(get_jwt_identity())
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT p.id as project_id, p.created_at as project_created_at,
+               r.id as route_id, r.name as route_name, r.grade, r.sorting_grade, r.length, r.route_index,
+               t.id as topo_id, t.title as topo_title
+        FROM projects p
+        JOIN routes r ON r.id = p.route_id
+        JOIN topos t ON t.id = r.topo_id
+        WHERE p.user_id = ?
+        ORDER BY p.created_at DESC
+    ''', (user_id,)).fetchall()
+    conn.close()
+    return ok(projects=[dict(r) for r in rows])
 
 # ── STATS ──────────────────────────────────────────────────────────────────────
 @app.route('/api/stats', methods=['GET'])

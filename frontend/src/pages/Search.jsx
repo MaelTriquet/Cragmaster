@@ -375,6 +375,7 @@ export default function Search() {
   const [hovered, setHovered]       = useState(null)
   const [allTags, setAllTags]       = useState([])
   const [activeTags, setActiveTags] = useState(new Set()) // Set of tag id numbers
+  const [projectsOnly, setProjectsOnly] = useState(false)
 
   const inputRef = useRef()
   const { t } = useTranslation()
@@ -402,6 +403,7 @@ export default function Search() {
       setLoading(true)
       const params = new URLSearchParams()
       if (query) params.set("q", query)
+      if (projectsOnly) params.set("projects_only", "1")
       activeTags.forEach(id => params.append("tag_ids", id))
 
       api.get(`/search?${params.toString()}`)
@@ -411,7 +413,7 @@ export default function Search() {
     }, 180)
 
     return () => clearTimeout(timeout)
-  }, [query, activeTags])
+  }, [query, activeTags, projectsOnly])
 
   const toggleTag = (id) => {
     setActiveTags(prev => {
@@ -474,6 +476,30 @@ export default function Search() {
               ✕
             </button>
           )}
+        </div>
+
+        {/* ── PROJECTS FILTER ── */}
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "1rem" }}>
+          <button
+            style={{
+              fontFamily: "Barlow Condensed, sans-serif",
+              fontSize: "0.68rem",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              padding: "0.25rem 0.65rem",
+              border: `1px solid ${projectsOnly ? "var(--hold)" : "var(--line)"}`,
+              color: projectsOnly ? "var(--chalk)" : "var(--muted)",
+              background: projectsOnly ? "rgba(200,80,42,0.18)" : "transparent",
+              cursor: "pointer",
+              transition: "border-color 0.15s, color 0.15s, background 0.15s",
+            }}
+            onClick={() => setProjectsOnly(v => !v)}
+            onMouseEnter={e => { if (!projectsOnly) { e.target.style.borderColor = "var(--chalk)"; e.target.style.color = "var(--chalk)" }}}
+            onMouseLeave={e => { if (!projectsOnly) { e.target.style.borderColor = "var(--line)"; e.target.style.color = "var(--muted)" }}}
+          >
+            {projectsOnly ? "\u2605" : "\u2606"} {t('search.projects')}
+          </button>
         </div>
 
         {/* ── TAG FILTER BAR ── */}

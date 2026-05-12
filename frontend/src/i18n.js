@@ -45,6 +45,7 @@ i18n.use(initReactI18next).init({
           result_other: 'results',
           tagsActive_one: 'tag active',
           tagsActive_other: 'tags active',
+          projects: 'Projects',
         },
         topos: {
           eyebrow: 'Library',
@@ -121,6 +122,8 @@ i18n.use(initReactI18next).init({
           alreadyAssigned: 'Already assigned',
           loading: 'LOADING\u2026',
           outOfFive: '{{value}}/5',
+		  markProject: 'Mark project',
+		  unmarkProject: 'Unmark project',
         },
         upload: {
           eyebrow: 'Library',
@@ -195,6 +198,8 @@ i18n.use(initReactI18next).init({
           route_one: 'route',
           route_other: 'routes',
           loading: 'LOADING\u2026',
+          markProject: '\u2606 Project',
+          unmarkProject: '\u2605 Project',
         },
         map: {
           eyebrow: 'Topo Locations',
@@ -273,6 +278,7 @@ i18n.use(initReactI18next).init({
           result_other: 'r\u00e9sultats',
           tagsActive_one: 'tag actif',
           tagsActive_other: 'tags actifs',
+          projects: 'Projets',
         },
         topos: {
           eyebrow: 'Biblioth\u00e8que',
@@ -349,6 +355,8 @@ i18n.use(initReactI18next).init({
           alreadyAssigned: 'D\u00e9j\u00e0 assign\u00e9',
           loading: 'CHARGEMENT\u2026',
           outOfFive: '{{value}}/5',
+		  markProject: 'Projet',
+		  unmarkProject: 'Projet',
         },
         upload: {
           eyebrow: 'Biblioth\u00e8que',
@@ -423,6 +431,8 @@ i18n.use(initReactI18next).init({
           route_one: 'voie',
           route_other: 'voies',
           loading: 'CHARGEMENT\u2026',
+          markProject: '\u2606 Projet',
+          unmarkProject: '\u2605 Projet',
         },
         map: {
           eyebrow: 'Emplacements des topos',

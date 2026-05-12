@@ -641,6 +641,7 @@ export default function RouteDetail() {
   const [tags, setTags] = useState([])
   const [attempt, setAttempt] = useState(null)
   const [avgPerceivedGrade, setAvgPerceivedGrade] = useState(null)
+  const [isProject, setIsProject] = useState(false)
 
   const [hoveredBtn, setHoveredBtn] = useState(null)
   const [showForm, setShowForm] = useState(false)
@@ -657,6 +658,7 @@ export default function RouteDetail() {
         setComments(d.comments)
         setTags(d.tags || [])
         setAvgPerceivedGrade(d.avg_perceived_grade || null)
+        setIsProject(d.is_project || false)
         setEditForm({
           name: d.route.name || "",
           grade: d.route.grade || "",
@@ -685,6 +687,11 @@ export default function RouteDetail() {
   const sendAttempt = () => {
     api.get(`/routes/${id}/sent_attempt`)
       .then(res => setAttempt(res.data.attempt))
+  }
+
+  const toggleProject = () => {
+    api.post(`/routes/${id}/project`)
+      .then(res => setIsProject(res.data.is_project))
   }
 
   const submitComment = () => {
@@ -760,8 +767,21 @@ export default function RouteDetail() {
           {/*   onTagsChange={setTags} */}
           {/* /> */}
 
-          {/* ── EDIT ROUTE BUTTON ── */}
+          {/* ── PROJECT + EDIT ROUTE BUTTONS ── */}
           <div style={S.btnRow}>
+            <button
+              style={{
+                ...S.btnGhost,
+                borderColor: isProject ? "var(--hold)" : "var(--line)",
+                color: isProject ? "var(--hold)" : "var(--chalk)",
+                background: isProject ? "rgba(200,80,42,0.08)" : "transparent",
+              }}
+              onMouseEnter={() => setHoveredBtn("project")}
+              onMouseLeave={() => setHoveredBtn(null)}
+              onClick={toggleProject}
+            >
+              {t(isProject ? 'routeDetail.unmarkProject' : 'routeDetail.markProject')}
+            </button>
             <button
               style={{
                 ...S.btnGhost,

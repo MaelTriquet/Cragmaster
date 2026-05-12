@@ -81,6 +81,14 @@ def init_db():
             tag_id     INTEGER REFERENCES tags(id) ON DELETE CASCADE,
             UNIQUE(route_id, tag_id)
         );
+
+        CREATE TABLE IF NOT EXISTS projects (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            route_id   INTEGER REFERENCES routes(id) ON DELETE CASCADE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, route_id)
+        );
     ''')
 
     # Migration: add token_version to existing users tables
