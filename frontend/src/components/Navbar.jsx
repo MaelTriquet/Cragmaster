@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import api from '../api/client'
 
 const LANGUAGES = { en: 'EN', fr: 'FR' }
 
@@ -111,6 +112,21 @@ const S = {
     padding: '0.3rem 0.75rem',
     cursor: 'pointer',
     transition: 'border-color 0.15s, color 0.15s',
+  },
+
+  notifBtn: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'var(--hold)',
+    background: 'rgba(200,80,42,0.1)',
+    border: '1px solid var(--hold)',
+    padding: '0.3rem 0.75rem',
+    cursor: 'pointer',
+    transition: 'background 0.15s',
+    whiteSpace: 'nowrap',
   },
 
   langBtn: {
@@ -237,6 +253,15 @@ export default function Navbar() {
 
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [unresolvedCount, setUnresolvedCount] = useState(0)
+
+  useEffect(() => {
+    if (user?.is_admin) {
+      api.get('/admin/notifications').then(res => {
+        setUnresolvedCount((res.data.items || []).filter(i => !i.resolved).length)
+      }).catch(() => {})
+    }
+  }, [user])
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 640px)')
@@ -334,6 +359,19 @@ export default function Navbar() {
                 </div>
               )}
 
+              {user?.is_admin && unresolvedCount > 0 && (
+                <button
+                  style={{
+                    ...S.notifBtn,
+                    fontSize: '0.85rem',
+                    padding: '0.65rem 1rem',
+                    marginTop: '0.5rem',
+                  }}
+                  onClick={() => navigate('/admin')}
+                >
+                  Notifications ({unresolvedCount})
+                </button>
+              )}
               {user && (
                 <button
                   style={{
@@ -414,6 +452,16 @@ export default function Navbar() {
           {LANGUAGES[currentLang === 'en' ? 'en' : 'fr']}
         </button>
 
+        {user?.is_admin && unresolvedCount > 0 && (
+          <button
+            style={S.notifBtn}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(200,80,42,0.2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(200,80,42,0.1)'}
+            onClick={() => navigate('/admin')}
+          >
+            Notifications ({unresolvedCount})
+          </button>
+        )}
         {user && (
           <>
             <button
