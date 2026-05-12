@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from "react-router-dom"
 import api from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 
 const S = {
   root: {
@@ -434,6 +435,17 @@ const S = {
     color: "var(--chalk)",
   },
 
+  commentStatus: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.6rem",
+    fontWeight: 600,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    padding: "0.1rem 0.4rem",
+    borderRadius: "2px",
+    marginLeft: "0.5rem",
+  },
+
   commentMeta: {
     display: "flex",
     gap: "0.75rem",
@@ -464,6 +476,33 @@ const S = {
     color: "var(--chalk)",
     opacity: 0.8,
     lineHeight: 1.55,
+  },
+
+  commentBetaBtn: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.72rem",
+    fontWeight: 600,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    color: "var(--hold)",
+    cursor: "pointer",
+    background: "none",
+    border: "1px solid var(--hold)",
+    padding: "0.15rem 0.55rem",
+    marginTop: "0.5rem",
+    transition: "background 0.15s",
+  },
+
+  commentBeta: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.88rem",
+    color: "var(--chalk)",
+    opacity: 0.85,
+    lineHeight: 1.55,
+    marginTop: "0.5rem",
+    padding: "0.6rem 0.8rem",
+    background: "rgba(255,255,255,0.04)",
+    borderLeft: "2px solid var(--hold)",
   },
 
   emptyComments: {
@@ -635,6 +674,7 @@ export default function RouteDetail() {
   const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [route, setRoute] = useState(null)
   const [comments, setComments] = useState([])
@@ -645,8 +685,9 @@ export default function RouteDetail() {
 
   const [hoveredBtn, setHoveredBtn] = useState(null)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ stars: "", perceived_grade: "!", body: "" })
+  const [form, setForm] = useState({ stars: "", perceived_grade: "!", body: "", beta: "" })
 
+  const [revealedBeta, setRevealedBeta] = useState(new Set())
   const [showEditForm, setShowEditForm] = useState(false)
   const [editForm, setEditForm] = useState({ name: "", grade: "", length: "", route_index: "" })
 
@@ -694,14 +735,33 @@ export default function RouteDetail() {
       .then(res => setIsProject(res.data.is_project))
   }
 
+  const toggleForm = useCallback(() => {
+    if (!showForm && user) {
+      const mine = comments.find(c => c.user_id === user.id)
+      if (mine) {
+        setForm({
+          stars: mine.stars ?? "",
+          perceived_grade: mine.perceived_grade || "!",
+          body: mine.body || "",
+          beta: mine.beta || "",
+        })
+      } else {
+        setForm({ stars: "", perceived_grade: "!", body: "", beta: "" })
+      }
+    } else {
+      setForm({ stars: "", perceived_grade: "!", body: "", beta: "" })
+    }
+    setShowForm(p => !p)
+  }, [showForm, user, comments])
+
   const submitComment = () => {
     const payload = { ...form }
     if (payload.perceived_grade === "!") payload.perceived_grade = route.grade
     api.post(`/routes/${id}/comments`, payload)
       .then(res => {
-        setComments(prev => [res.data, ...prev])
+        setComments(prev => [res.data, ...prev.filter(c => c.user_id !== user?.id)])
         setShowForm(false)
-        setForm({ stars: "", perceived_grade: "!", body: "" })
+        setForm({ stars: "", perceived_grade: "!", body: "", beta: "" })
       })
   }
 
@@ -919,7 +979,7 @@ export default function RouteDetail() {
               }}
               onMouseEnter={() => setHoveredBtn("toggleForm")}
               onMouseLeave={() => setHoveredBtn(null)}
-              onClick={() => setShowForm(p => !p)}
+              onClick={toggleForm}
             >
               {t(showForm ? 'routeDetail.cancel' : 'routeDetail.addComment')}
             </button>
@@ -963,6 +1023,17 @@ export default function RouteDetail() {
                     onBlur={e => e.target.style.borderColor = "var(--line)"}
                   />
                 </div>
+                <div style={S.formFieldFull}>
+                  <label style={S.formLabel}>Beta (hidden by default)</label>
+                  <textarea
+                    style={S.formTextarea}
+                    placeholder="Optional beta / spoiler…"
+                    value={form.beta}
+                    onChange={e => setForm({ ...form, beta: e.target.value })}
+                    onFocus={e => e.target.style.borderColor = "var(--hold)"}
+                    onBlur={e => e.target.style.borderColor = "var(--line)"}
+                  />
+                </div>
               </div>
               <button
                 style={{
@@ -982,10 +1053,22 @@ export default function RouteDetail() {
           {comments.length === 0 ? (
             <p style={S.emptyComments}>{t('routeDetail.noComments')}</p>
           ) : (
-            comments.map(c => (
+            comments.map(c => {
+              const show = revealedBeta.has(c.id)
+              return (
               <div key={c.id} style={S.commentItem}>
                 <div style={S.commentHeader}>
-                  <span style={{ ...S.commentUser, cursor: 'pointer' }} onClick={() => navigate(`/stats/${c.user_id}`)}>{c.username}</span>
+                  <span style={{ ...S.commentUser, cursor: 'pointer' }} onClick={() => navigate(`/stats/${c.user_id}`)}>
+                    {c.username}
+                    {c.user_status && (() => {
+                      const statusStyle = {
+                        sent: { background: "rgba(90,158,111,0.2)", color: "#7fc99a" },
+                        project: { background: "rgba(200,80,42,0.2)", color: "var(--hold)" },
+                        working: { background: "rgba(200,180,60,0.15)", color: "#d4c86a" },
+                      }[c.user_status] || {}
+                      return <span style={{ ...S.commentStatus, ...statusStyle }}>{c.user_status}</span>
+                    })()}
+                  </span>
                   <div style={S.commentMeta}>
                     {c.perceived_grade && (
                       <span style={S.commentGrade}>{c.perceived_grade}</span>
@@ -994,8 +1077,21 @@ export default function RouteDetail() {
                   </div>
                 </div>
                 {c.body && <p style={S.commentBody}>{c.body}</p>}
+                {c.beta && (
+                  <>
+                    {!show && (
+                      <button
+                        style={S.commentBetaBtn}
+                        onClick={() => setRevealedBeta(prev => new Set(prev).add(c.id))}
+                      >
+                        Show beta
+                      </button>
+                    )}
+                    {show && <div style={S.commentBeta}>{c.beta}</div>}
+                  </>
+                )}
               </div>
-            ))
+            )})
           )}
         </div>
 

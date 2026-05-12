@@ -1,0 +1,67 @@
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import OopsModal from './OopsModal'
+import RecommendationModal from './RecommendationModal'
+
+const S = {
+  footer: {
+    borderTop: '1px solid var(--line)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.75rem 2rem',
+    background: 'rgba(26,26,24,0.92)',
+  },
+  btn: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.7rem',
+    fontWeight: 700,
+    letterSpacing: '0.15em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    cursor: 'pointer',
+    background: 'none',
+    border: '1px solid var(--line)',
+    padding: '0.3rem 0.75rem',
+    transition: 'border-color 0.15s, color 0.15s',
+  },
+  divider: {
+    width: '1px',
+    height: '14px',
+    background: 'var(--line)',
+  },
+}
+
+export default function Footer() {
+  const { t } = useTranslation()
+  const [showOops, setShowOops] = useState(false)
+  const [showRec, setShowRec] = useState(false)
+
+  return (
+    <>
+      <footer style={S.footer}>
+        <button
+          style={S.btn}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
+          onClick={() => setShowOops(true)}
+        >
+          {t('footer.oops')}
+        </button>
+        <div style={S.divider} />
+        <button
+          style={S.btn}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
+          onClick={() => setShowRec(true)}
+        >
+          {t('footer.recommendation')}
+        </button>
+      </footer>
+
+      {showOops && <OopsModal onClose={() => setShowOops(false)} />}
+      {showRec && <RecommendationModal onClose={() => setShowRec(false)} />}
+    </>
+  )
+}

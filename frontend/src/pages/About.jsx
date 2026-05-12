@@ -117,6 +117,16 @@ const S = {
     background: 'var(--line)',
     margin: '1.25rem 0',
   },
+
+  sectionTitle: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.85rem',
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'var(--chalk)',
+    marginBottom: '0.6rem',
+  },
 }
 
 export default function About() {
@@ -145,8 +155,19 @@ export default function About() {
         </div>
 
         <div style={S.section}>
+          <div style={S.sectionTitle}>{t('about.oopsTitle')}</div>
+          <p style={S.bodyText}>{t('about.oopsDesc')}</p>
+        </div>
+
+        <div style={S.section}>
+          <div style={S.sectionTitle}>{t('about.recTitle')}</div>
+          <p style={S.bodyText}>{t('about.recDesc')}</p>
+        </div>
+
+        <div style={S.section}>
           <p style={S.bodyMuted}>{t('about.commentModeration')}</p>
         </div>
+
       </div>
     </div>
   )

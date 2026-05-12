@@ -349,6 +349,18 @@ def get_route(route_id):
         attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone()
         is_project = bool(conn.execute('SELECT id FROM projects WHERE user_id=? AND route_id=?', (user['id'], route_id)).fetchone())
     tags = conn.execute('SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
+
+    # Batch-fetch attempt & project status for every commenter
+    commenter_ids = list({c['user_id'] for c in comments})
+    commenter_attempts = {}
+    commenter_projects = set()
+    if commenter_ids:
+        placeholders = ','.join('?' * len(commenter_ids))
+        for row in conn.execute(f'SELECT user_id, sent FROM attempts WHERE route_id=? AND user_id IN ({placeholders})', (route_id, *commenter_ids)):
+            commenter_attempts[row['user_id']] = bool(row['sent'])
+        for row in conn.execute(f'SELECT user_id FROM projects WHERE route_id=? AND user_id IN ({placeholders})', (route_id, *commenter_ids)):
+            commenter_projects.add(row['user_id'])
+
     conn.close()
 
     # Average perceived grade from comments
@@ -365,7 +377,21 @@ def get_route(route_id):
         if 0 <= avg < len(FRENCH_ORDER):
             avg_perceived = FRENCH_ORDER[avg]
 
-    return ok(route=dict(route), comments=[dict(c) for c in comments], attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived, is_project=is_project)
+    comments_out = []
+    for c in comments:
+        cd = dict(c)
+        uid = c['user_id']
+        if uid in commenter_attempts and commenter_attempts[uid]:
+            cd['user_status'] = 'sent'
+        elif uid in commenter_projects:
+            cd['user_status'] = 'project'
+        elif uid in commenter_attempts:
+            cd['user_status'] = 'working'
+        else:
+            cd['user_status'] = None
+        comments_out.append(cd)
+
+    return ok(route=dict(route), comments=comments_out, attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived, is_project=is_project)
 
 @app.route('/api/routes/<int:route_id>', methods=['PATCH'])
 @jwt_required()
@@ -466,12 +492,13 @@ def upsert_comment(route_id):
     stars           = max(0.0, min(5.0, float(d.get('stars', 0))))
     perceived_grade = (d.get('perceived_grade') or '').strip()
     body            = (d.get('body') or '').strip()
+    beta            = (d.get('beta') or '').strip()
     conn = get_db()
     existing = conn.execute('SELECT id FROM comments WHERE user_id=? AND route_id=?', (uid, route_id)).fetchone()
     if existing:
-        conn.execute('UPDATE comments SET stars=?, perceived_grade=?, body=? WHERE user_id=? AND route_id=?', (stars, perceived_grade, body, uid, route_id))
+        conn.execute('UPDATE comments SET stars=?, perceived_grade=?, body=?, beta=? WHERE user_id=? AND route_id=?', (stars, perceived_grade, body, beta, uid, route_id))
     else:
-        conn.execute('INSERT INTO comments (user_id, route_id, stars, perceived_grade, body) VALUES (?,?,?,?,?)', (uid, route_id, stars, perceived_grade, body))
+        conn.execute('INSERT INTO comments (user_id, route_id, stars, perceived_grade, body, beta) VALUES (?,?,?,?,?,?)', (uid, route_id, stars, perceived_grade, body, beta))
     conn.commit()
     c = conn.execute('SELECT c.*, u.username FROM comments c JOIN users u ON u.id=c.user_id WHERE c.user_id=? AND c.route_id=?', (uid, route_id)).fetchone()
     conn.close(); return ok(dict(c))
@@ -751,6 +778,135 @@ def get_stats():
         },
         username=target_username,
     )
+
+# ── OOPS REPORTS ────────────────────────────────────────────────────────────
+@app.route('/api/oops', methods=['POST'])
+@jwt_required()
+def submit_oops():
+    user = require_user()
+    d = request.get_json() or {}
+    explanation = (d.get('explanation') or '').strip()
+    if not explanation:
+        return api_error('Explanation is required')
+
+    conn = get_db()
+    row = conn.execute(
+        'SELECT id FROM oops_reports WHERE user_id=? AND created_at > datetime("now", "-1 day")',
+        (user['id'],)
+    ).fetchone()
+    if row:
+        conn.close()
+        return api_error('You can only submit one Oops report per day', 429)
+
+    route_name = (d.get('route_name') or '').strip() or None
+    topo_name = (d.get('topo_name') or '').strip() or None
+    concerned_user = (d.get('concerned_user') or '').strip() or None
+
+    conn.execute(
+        'INSERT INTO oops_reports (user_id, explanation, route_name, topo_name, concerned_user) VALUES (?,?,?,?,?)',
+        (user['id'], explanation, route_name, topo_name, concerned_user)
+    )
+    conn.commit()
+    conn.close()
+    return ok(submitted=True), 201
+
+
+# ── RECOMMENDATIONS ─────────────────────────────────────────────────────────
+@app.route('/api/recommendations', methods=['POST'])
+@jwt_required()
+def submit_recommendation():
+    user = require_user()
+    d = request.get_json() or {}
+    username = (d.get('username') or '').strip()
+    email = (d.get('email') or '').strip()
+    if not username or not email:
+        return api_error('Username and email are required')
+
+    conn = get_db()
+    row = conn.execute(
+        'SELECT id FROM recommendations WHERE user_id=? AND created_at > datetime("now", "-1 day")',
+        (user['id'],)
+    ).fetchone()
+    if row:
+        conn.close()
+        return api_error('You can only submit one recommendation per day', 429)
+
+    conn.execute(
+        'INSERT INTO recommendations (user_id, username, email) VALUES (?,?,?)',
+        (user['id'], username, email)
+    )
+    conn.commit()
+    conn.close()
+    return ok(submitted=True), 201
+
+
+# ── ADMIN: NOTIFICATIONS ────────────────────────────────────────────────────
+@app.route('/api/admin/notifications', methods=['GET'])
+@jwt_required()
+def list_notifications():
+    try: require_admin()
+    except PermissionError as e: return api_error(str(e), 403)
+
+    conn = get_db()
+    oops = conn.execute('''
+        SELECT o.*, u.username as submitter_name
+        FROM oops_reports o
+        LEFT JOIN users u ON u.id = o.user_id
+        ORDER BY o.created_at DESC
+    ''').fetchall()
+    recs = conn.execute('''
+        SELECT r.*, u.username as submitter_name
+        FROM recommendations r
+        LEFT JOIN users u ON u.id = r.user_id
+        ORDER BY r.created_at DESC
+    ''').fetchall()
+    conn.close()
+
+    items = []
+    for r in oops:
+        d = dict(r)
+        d['type'] = 'oops'
+        items.append(d)
+    for r in recs:
+        d = dict(r)
+        d['type'] = 'recommendation'
+        items.append(d)
+
+    items.sort(key=lambda x: x['created_at'], reverse=True)
+    return ok(items=items)
+
+@app.route('/api/admin/notifications/<string:ntype>/<int:nid>/resolve', methods=['PATCH'])
+@jwt_required()
+def resolve_notification(ntype, nid):
+    try: require_admin()
+    except PermissionError as e: return api_error(str(e), 403)
+
+    table = {'oops': 'oops_reports', 'recommendation': 'recommendations'}.get(ntype)
+    if not table:
+        return api_error('Invalid notification type', 400)
+
+    conn = get_db()
+    conn.execute(f'UPDATE {table} SET resolved=1 WHERE id=?', (nid,))
+    conn.commit()
+    conn.close()
+    return ok(resolved=True)
+
+@app.route('/api/admin/notifications/<string:ntype>/<int:nid>', methods=['DELETE'])
+@jwt_required()
+def delete_notification(ntype, nid):
+    try: require_admin()
+    except PermissionError as e: return api_error(str(e), 403)
+
+    table = {'oops': 'oops_reports', 'recommendation': 'recommendations'}.get(ntype)
+    if not table:
+        return api_error('Invalid notification type', 400)
+
+    conn = get_db()
+    conn.execute(f'DELETE FROM {table} WHERE id=?', (nid,))
+    conn.commit()
+    conn.close()
+    return ok(deleted=True)
+
 
 if __name__ == '__main__':
     init_db()

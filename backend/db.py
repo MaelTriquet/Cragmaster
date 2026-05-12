@@ -66,6 +66,7 @@ def init_db():
             stars           REAL DEFAULT 0,
             perceived_grade TEXT DEFAULT '',
             body            TEXT DEFAULT '',
+            beta            TEXT DEFAULT '',
             created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, route_id)
         );
@@ -89,13 +90,34 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, route_id)
         );
+
+        CREATE TABLE IF NOT EXISTS oops_reports (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            explanation     TEXT NOT NULL,
+            route_name      TEXT DEFAULT NULL,
+            topo_name       TEXT DEFAULT NULL,
+            concerned_user  TEXT DEFAULT NULL,
+            resolved        INTEGER DEFAULT 0,
+            created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS recommendations (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            username    TEXT NOT NULL,
+            email       TEXT NOT NULL,
+            resolved    INTEGER DEFAULT 0,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     ''')
 
-    # Migration: add token_version to existing users tables
-    try:
-        conn.execute('ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0')
-    except Exception:
-        pass  # column already exists
+    # Migrations
+    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('recommendations', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""')]:
+        try:
+            conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
+        except Exception:
+            pass
 
     conn.commit()
     conn.close()
