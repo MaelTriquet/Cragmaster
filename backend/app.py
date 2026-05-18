@@ -263,6 +263,20 @@ def serve_topo_html(topo_id):
     for tag in soup.find_all(['link', 'style']):
         tag.decompose()
 
+    # Strip HTML comments
+    from bs4 import Comment
+    for comment in soup.find_all(string=lambda t: isinstance(t, Comment)):
+        comment.extract()
+
+    # Remove footer (everything below "General information")
+    footer = soup.find('footer', id='footer')
+    if footer:
+        footer.decompose()
+
+    # Remove prev/next link fragments above footer
+    for link in soup.select('a[rel="prev"], a[rel="next"]'):
+        link.decompose()
+
     # ── Color grades like CragMaster does ──
     GRADE_STOPS = [
         (0,    105, 55, 48),
@@ -305,724 +319,494 @@ def serve_topo_html(topo_id):
             grade_text = inner.get_text(strip=True)
             key = grade_sort_key(grade_text)
             color = grade_to_hsl(key)
-            grade_span['style'] = f'color: {color};'
+            inner['style'] = f'background: {color};'
             route_div = grade_span.find_parent('div', class_='route')
             if route_div:
                 border = f'3px solid {color}'
                 existing = route_div.get('style', '')
                 route_div['style'] = f'{existing} border-left: {border}; padding-left: 0.75rem;'
 
-    fragments = ["""<style>
-        /* ═══════════════════════════════════════════
-           CragMaster — theCrag.com content restyle
-           ═══════════════════════════════════════════ */
+    # Strip inline position styles from grade barchart bars (they conflict with flex)
+    for chart in soup.find_all('div', class_='grade-barchart'):
+        if chart.get('style'):
+            del chart['style']
+        for a in chart.find_all('a'):
+            if a.get('style'):
+                del a['style']
+            span = a.find('span')
+            if span and span.get('style'):
+                del span['style']
 
+
+
+    fragments = ["""<style>
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap');
 
-        /* ── Reset & base ── */
+        * { box-sizing: border-box; }
+
         body {
             margin: 0; padding: 0;
-            background: #1a1a18;
-            color: #f0ede6;
+            background: var(--rock);
+            color: var(--chalk);
             font-family: 'Barlow', sans-serif;
             font-weight: 300;
             font-size: 15px;
             line-height: 1.5;
-            min-height: 100vh;
         }
-        #wrapper {
-            max-width: 100%;
-            padding: 1rem 0;
-            margin: 0;
-        }
-        * { box-sizing: border-box; }
+        #wrapper { max-width: 100%; padding: 0.5rem 0; margin: 0; }
 
         /* ── Hide chrome ── */
         .bust, .bust__black, .bust__white,
         .regions__navdrawer, .regions__prominent, .regions__aside,
-        .regions__stream, .regions__topogroup,
+        .regions__topogroup, .regions__modal,
         .sponsor-slot, .sponsor-media-container,
         .regions__subheading, .regions__tools,
         .footer, .region-footer,
-        .node-listview__header {
+        .node-listview__header,
+        .route .check, .route .tick, .route .sticky-holder .sticky-header .check,
+        .route .sticky-holder .sticky-header .tick,
+        .regions__read .sponsor-slot,
+        div[style*="white"][style*="solid"][style*="333"],
+        .headline__act {
             display: none !important;
         }
 
         /* ── Main content layout ── */
-        .regions__content {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        .regions__inner {
-            max-width: 100% !important;
-            padding: 0 !important;
-        }
-        .regions__primary {
-            width: 100% !important;
-            max-width: 100% !important;
-            padding: 0 !important;
-            float: none !important;
-        }
+        .regions__content { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        .regions__inner { max-width: 100% !important; padding: 0 !important; }
+        .regions__primary { width: 100% !important; max-width: 100% !important; padding: 0 !important; float: none !important; }
 
-        /* ── Location breadcrumbs ── */
-        .regions__heading {
-            margin-bottom: 2rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid #2a2a26;
-        }
+        /* ── Breadcrumbs ── */
+        .regions__heading { margin-bottom: 2rem; }
+        .regions__heading .crumbs { margin: 0; padding: 0; }
+        .regions__heading .crumb,
         .regions__heading .crumb__long,
         .regions__heading .crumb__short {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.65rem;
+            font-size: 0.62rem;
             font-weight: 600;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            color: #6b6b60;
+            color: var(--muted);
         }
+        .regions__heading .crumb a { color: var(--muted); }
+        .regions__heading .crumb a:hover { color: var(--hold-lt); }
+        .regions__heading .crumb .crumb__sep { color: var(--line); margin: 0 0.25rem; }
+        .crumb--first .crumb__a .crumb__icon { display: none; }
+        .crumb--first .crumb__a::before { content: '\u2302'; margin-right: 0.25rem; }
 
-        /* ── Sector/area headings ── */
-        .heading {
-            margin: 2.5rem 0 1.5rem;
-            position: relative;
+        /* ── Page heading ── */
+        h1.heading {
+            margin: 0 0 0.25rem;
+            border-left: 4px solid var(--hold);
+            padding-left: 1.5rem;
         }
-        .heading:first-of-type {
-            margin-top: 0;
-        }
-        .heading::after {
-            content: '';
-            display: block;
-            width: 2.5rem;
-            height: 3px;
-            background: #c8502a;
-            margin-top: 0.6rem;
-            border-radius: 2px;
-        }
-        .heading .heading__t {
+        h1.heading .heading__t {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 2.6rem;
+            font-size: 2.8rem;
             font-weight: 900;
-            letter-spacing: 0.02em;
+            letter-spacing: 0.01em;
             text-transform: uppercase;
-            color: #f0ede6;
-            margin: 0;
+            color: var(--chalk);
             line-height: 1;
+            display: inline;
         }
-        .headline__byline {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.7rem;
-            font-weight: 600;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: #6b6b60;
-            margin-top: 0.3rem;
-            display: block;
-        }
-
-        /* ── Description text ── */
-        .regions__overview {
-            padding: 0.25rem 0 0.75rem;
-        }
-        .regions__overview p,
-        .description-container p,
-        .description-text {
-            color: #c0bdb6;
-            font-size: 0.9rem;
-            line-height: 1.7;
-            margin: 0 0 0.75rem;
-        }
-        .regions__overview a,
-        .description-container a {
-            color: #e06540;
-            font-weight: 500;
-        }
-        .regions__overview a:hover,
-        .description-container a:hover {
-            color: #f0ede6;
-        }
-
-        /* ── Route list ── */
-        .node-listview {
-            background: transparent !important;
-            margin: 2rem 0;
-            animation: listIn 0.4s ease-out;
-        }
-        @keyframes listIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .node-listview__body {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        /* ── Route row ── */
-        .route {
-            display: flex !important;
-            align-items: center;
-            padding: 0.5rem 1rem 0.5rem 0.75rem;
-            gap: 0.75rem;
-            background: transparent;
-            border-radius: 0;
-            margin: 0;
-            transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-            animation: rowIn 0.35s ease-out both;
-        }
-        .route:nth-child(1)  { animation-delay: 0.02s; }
-        .route:nth-child(2)  { animation-delay: 0.04s; }
-        .route:nth-child(3)  { animation-delay: 0.06s; }
-        .route:nth-child(4)  { animation-delay: 0.08s; }
-        .route:nth-child(5)  { animation-delay: 0.10s; }
-        .route:nth-child(6)  { animation-delay: 0.12s; }
-        .route:nth-child(7)  { animation-delay: 0.14s; }
-        .route:nth-child(8)  { animation-delay: 0.16s; }
-        .route:nth-child(9)  { animation-delay: 0.18s; }
-        .route:nth-child(10) { animation-delay: 0.20s; }
-        .route:nth-child(11) { animation-delay: 0.22s; }
-        .route:nth-child(12) { animation-delay: 0.24s; }
-        .route:nth-child(13) { animation-delay: 0.26s; }
-        .route:nth-child(14) { animation-delay: 0.28s; }
-        .route:nth-child(15) { animation-delay: 0.30s; }
-        .route:nth-child(16) { animation-delay: 0.32s; }
-        .route:nth-child(17) { animation-delay: 0.34s; }
-        .route:nth-child(18) { animation-delay: 0.36s; }
-        .route:nth-child(19) { animation-delay: 0.38s; }
-        .route:nth-child(20) { animation-delay: 0.40s; }
-        @keyframes rowIn {
-            from { opacity: 0; transform: translateX(-6px); }
-            to   { opacity: 1; transform: translateX(0); }
-        }
-        .route:hover {
-            background: rgba(255,255,255,0.03);
-            transform: translateX(3px);
-        }
-
-        /* Route number badge */
-        .route .num, .route .toponum {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.65rem;
-            font-weight: 700;
-            color: #6b6b60;
-            background: #242420;
-            width: 1.6rem;
-            height: 1.6rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            flex-shrink: 0;
-            text-align: center;
-            line-height: 1;
-            transition: background 0.2s, color 0.2s;
-        }
-        .route:hover .num,
-        .route:hover .toponum {
-            background: #3a3a34;
-            color: #9a9a90;
-        }
-
-        /* Route name — hero */
-        .route .name {
-            flex: 1;
-            min-width: 0;
-        }
-        .route .name a,
-        .route .primary-node-name {
-            font-family: 'Barlow', sans-serif;
-            font-size: 1rem;
-            font-weight: 450;
-            color: #f0ede6;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-        .route .name a:hover {
-            color: #e06540;
-        }
-
-        /* Route grade — pill badge using the grade color from inline style */
-        .route .r-grade {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            background: rgba(200,80,42,0.08);
-            padding: 0.15rem 0.55rem;
-            border-radius: 3px;
-            min-width: 2.8rem;
-            text-align: center;
-            flex-shrink: 0;
-            transition: transform 0.2s, background 0.2s;
-        }
-        .route:hover .r-grade {
-            transform: scale(1.08);
-            background: rgba(200,80,42,0.15);
-        }
-        .route .r-grade .difficulty {
-        }
-
-        /* Stars */
-        .route .stars,
-        .route .r-star {
-            font-family: 'Barlow', sans-serif;
-            font-size: 0.7rem;
-            color: #3a3a34;
-            width: 4rem;
-            text-align: center;
-            flex-shrink: 0;
-            letter-spacing: 0.1em;
-        }
-        .route .stars .r-star--active {
-            color: #e06540;
-        }
-
-        /* Length */
-        .route .length {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #6b6b60;
-            min-width: 3rem;
-            text-align: right;
-            flex-shrink: 0;
-        }
-
-        /* ── Info cards / boxed sections ── */
-        .boxed {
-            background: linear-gradient(135deg, #2e2e2a 0%, #282824 100%) !important;
-            border: 1px solid #3a3a34 !important;
-            border-radius: 8px;
-            padding: 1.5rem 1.75rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-            position: relative;
-        }
-        .boxed::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(200,80,42,0.3), transparent);
-            border-radius: 8px 8px 0 0;
-        }
-        .boxed .heading {
-            margin: 0 0 0.75rem;
-            border-left: none;
-            padding-left: 0;
-        }
-        .boxed .heading::after {
-            display: none;
-        }
-        .boxed .heading__t {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 1rem;
-            font-weight: 800;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            color: #f0ede6;
-        }
-        .boxed p, .boxed .boxed__content {
-            font-size: 0.85rem;
-            color: #b0ada6;
-            line-height: 1.65;
-        }
-        .boxed a {
-            color: #e06540;
-            font-weight: 500;
-        }
-        .boxed a:hover {
-            color: #f0ede6;
-        }
-
-        /* ── Legend ── */
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem 1.5rem;
-            margin: 1.5rem 0;
-            padding: 1rem 1.25rem;
-            background: #242420;
-            border: 1px solid #3a3a34;
-            border-radius: 6px;
-        }
-        .legend__item {
+        h1.heading .heading__byline {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 0.72rem;
             font-weight: 600;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.15em;
             text-transform: uppercase;
-            color: #6b6b60;
+            color: var(--muted);
+            display: block;
+            margin-top: 0.5rem;
         }
+        h1.heading .heading__byline .info a { color: var(--muted); }
+        h1.heading .heading__byline .info a:hover { color: var(--hold-lt); }
 
-        /* ── Links ── */
-        a {
-            color: #e06540;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s;
-        }
-        a:hover {
-            color: #f0ede6;
-        }
-
-        /* ── Utility panels ── */
-        .panel, .panel__content, .content-box,
-        .regions__summary, .area-summary {
-            background: transparent !important;
-        }
-
-        /* ── News feed / updates ── */
-        .news-item {
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #2a2a26;
-            transition: padding-left 0.2s;
-        }
-        .news-item:last-child {
-            border-bottom: none;
-        }
-        .news-item:hover {
-            padding-left: 0.75rem;
-        }
-        .news-item__title {
-            font-family: 'Barlow', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 400;
-            color: #f0ede6;
-            line-height: 1.4;
-        }
-        .news-item__meta {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.65rem;
-            font-weight: 600;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            color: #6b6b60;
-        }
-
-        /* ── Separators ── */
-        .regions__overview + .node-listview {
-            border-top: 1px solid #2a2a26;
-            padding-top: 0.5rem;
-        }
-
-        /* ── Tables (some theCrag pages use tables) ── */
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            border: 1px solid #3a3a34;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        th {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            color: #6b6b60;
-            background: #242420;
-            padding: 0.5rem 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid #3a3a34;
-        }
-        td {
-            padding: 0.5rem 0.75rem;
-            border-bottom: 1px solid #2a2a26;
-            color: #c0bdb6;
-            font-size: 0.85rem;
-        }
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        /* ── Mobile tweaks ── */
-        @media (max-width: 640px) {
-            .route {
-                flex-wrap: wrap;
-                padding: 0.4rem 0.6rem 0.4rem 0.6rem;
-                gap: 0.3rem;
-            }
-            .route:hover {
-                transform: none;
-            }
-            .route .r-grade {
-                min-width: 2.2rem;
-                font-size: 0.75rem;
-                padding: 0.1rem 0.3rem;
-            }
-            .route .stars {
-                width: 2.8rem;
-            }
-            .route .length {
-                min-width: 2.5rem;
-                font-size: 0.7rem;
-            }
-            .route .name a,
-            .route .primary-node-name {
-                font-size: 0.85rem;
-            }
-            .heading .heading__t {
-                font-size: 1.7rem;
-            }
-            .boxed {
-                padding: 1rem 1.25rem;
-            }
-        }
-        .node-listview__body {
+        /* ── Stats bar ── */
+        .headline__guts .stats {
+            list-style: none;
+            margin: 0.75rem 0 1rem;
+            padding: 0;
             display: flex;
-            flex-direction: column;
+            gap: 1.5rem;
         }
-
-        /* ── Route row ── */
-        .route {
-            display: flex !important;
-            align-items: center;
-            padding: 0.7rem 1rem;
-            border-bottom: 1px solid #2a2a26;
-            gap: 0.75rem;
-            transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
-            border-radius: 4px;
-            margin-bottom: 2px;
-            position: relative;
-        }
-        .route:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-        .route:hover {
-            background: #2a2a26;
-            transform: translateX(4px);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-        }
-
-        /* Route number badge */
-        .route .num, .route .toponum {
+        .headline__guts .stats li {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: #6b6b60;
-            background: #2a2a26;
-            width: 1.8rem;
-            height: 1.8rem;
-            display: inline-flex;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .headline__guts .stats li strong { color: var(--chalk); font-weight: 700; }
+        .headline__guts .stats li a { color: var(--hold-lt); }
+        .headline__guts .stats li a:hover { color: var(--chalk); }
+
+        /* ── Donut + grade bars (histogram) ── */
+        .style-donut { opacity: 1; }
+        .grade-barchart {
+            margin: 0.5rem 0 1.5rem;
+            display: flex;
             align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            flex-shrink: 0;
-            text-align: center;
-            line-height: 1;
-            transition: background 0.15s, color 0.15s;
+            gap: 1rem;
+            background: var(--granite);
+            padding: 0.75rem 1rem;
         }
-        .route:hover .num,
-        .route:hover .toponum {
-            background: #3a3a34;
-            color: #8a8a80;
-        }
-
-        /* Route name — hero */
-        .route .name {
-            flex: 1;
-            min-width: 0;
-        }
-        .route .name a,
-        .route .primary-node-name {
-            font-family: 'Barlow', sans-serif;
-            font-size: 1rem;
-            font-weight: 500;
-            color: #f0ede6;
-            text-decoration: none;
-            transition: color 0.15s;
-        }
-        .route .name a:hover {
-            color: #e06540;
-        }
-
-        /* Route grade — pill badge */
-        .route .r-grade {
+        .grade-barchart__system {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 0.85rem;
             font-weight: 800;
-            letter-spacing: 0.06em;
-            color: #c8502a;
-            background: rgba(200,80,42,0.1);
-            padding: 0.15rem 0.5rem;
-            border-radius: 3px;
-            min-width: 2.8rem;
-            text-align: center;
-            flex-shrink: 0;
-            transition: background 0.15s;
+            letter-spacing: 0.15em;
+            color: var(--chalk);
         }
-        .route:hover .r-grade {
-            background: rgba(200,80,42,0.18);
+        .grade-barchart__bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            flex: 1;
+            height: 100px;
         }
-        .route .r-grade .difficulty {
-            color: #c8502a;
+        .grade-barchart__bars a {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            text-decoration: none;
+            flex: 1;
+            max-width: 28px;
         }
-
-        /* Stars */
-        .route .stars,
-        .route .r-star {
-            font-size: 0.7rem;
-            color: #3a3a34;
-            width: 4rem;
-            text-align: center;
-            flex-shrink: 0;
-            letter-spacing: 0.08em;
+        .grade-barchart__bars a b {
+            display: block;
+            width: 100%;
+            min-height: 2px;
+            align-self: flex-end;
         }
-        .route .stars .r-star--active {
-            color: #e06540;
-        }
-
-        /* Length */
-        .route .length {
+        .grade-barchart__bars a span {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: #6b6b60;
-            width: 3.5rem;
-            text-align: right;
-            flex-shrink: 0;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: var(--muted);
+            margin-top: 3px;
+            white-space: nowrap;
         }
+        .grade-barchart__bars a:hover span { color: var(--hold-lt); }
 
-        /* ── Info cards / boxed sections ── */
-        .boxed {
-            background: #2e2e2a !important;
-            border: 1px solid #3a3a34 !important;
-            border-radius: 6px;
-            padding: 1.5rem 1.75rem;
-            margin-bottom: 1.25rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        /* ── Info sections (Map, Seasonality, Access, Ethic, Tags, Plan your Trip) ── */
+        .node-info {
+            margin: 1.25rem 0;
         }
-        .boxed .heading {
-            margin: 0 0 0.75rem;
-            border-left: none;
-            padding-left: 0;
-        }
-        .boxed .heading::after {
-            display: none;
-        }
-        .boxed .heading__t {
+        .node-info > h2 {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 1.1rem;
             font-weight: 800;
             letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: #f0ede6;
+            color: var(--chalk);
+            margin: 0 0 0.75rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--line);
         }
-        .boxed p, .boxed .boxed__content {
+        .node-info.expandable > h2 { cursor: pointer; }
+        .node-info > .content {
             font-size: 0.85rem;
-            color: #b0ada6;
+            color: var(--muted);
             line-height: 1.6;
         }
-        .boxed a {
-            color: #e06540;
-            font-weight: 500;
-        }
-        .boxed a:hover {
-            color: #f0ede6;
-        }
-
-        /* ── Legend ── */
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem 1.5rem;
-            margin: 1.25rem 0;
-            padding: 1rem 1.25rem;
-            background: #2e2e2a;
-            border: 1px solid #3a3a34;
-            border-radius: 6px;
-        }
-        .legend__item {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: #6b6b60;
-        }
-
-        /* ── Links ── */
-        a {
-            color: #e06540;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.15s;
-        }
-        a:hover {
-            color: #f0ede6;
-        }
-
-        /* ── Utility panels ── */
-        .panel, .panel__content, .content-box,
-        .regions__summary, .area-summary {
-            background: transparent !important;
-        }
-
-        /* ── News feed / updates ── */
-        .news-item {
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #3a3a34;
-            transition: padding-left 0.15s;
-        }
-        .news-item:last-child {
-            border-bottom: none;
-        }
-        .news-item:hover {
-            padding-left: 0.5rem;
-        }
-        .news-item__title {
-            font-family: 'Barlow', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 400;
-            color: #f0ede6;
-            line-height: 1.4;
-        }
-        .news-item__meta {
+        .node-info > .content p { margin: 0 0 0.5rem; }
+        .node-info > .content a { color: var(--hold-lt); font-weight: 500; }
+        .node-info > .content a:hover { color: var(--chalk); }
+        .node-info > .content small.from {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 0.65rem;
             font-weight: 600;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: #6b6b60;
+            color: var(--muted);
+        }
+        .node-info > .content .markdown p {
+            font-size: 0.85rem;
+            color: var(--muted);
+            line-height: 1.6;
         }
 
-        /* ── Separator between sections ── */
-        .regions__overview + .node-listview {
-            border-top: 1px solid #2a2a26;
-            padding-top: 0.5rem;
+        /* ── Seasonality chart ── */
+        .seasonality {
+            background: var(--granite);
+            padding: 0.75rem 1rem;
         }
+        .seasonality table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .seasonality td {
+            text-align: center;
+            vertical-align: bottom;
+            padding: 0 3px;
+        }
+        .seasonality .barchart-v__label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--chalk);
+            text-transform: uppercase;
+            padding-bottom: 4px;
+        }
+        .seasonality .barchart-v__bars span {
+            display: block;
+            min-width: 8px;
+            border-radius: 0;
+        }
+
+        /* ── Plan your Trip buttons ── */
+        .node-info > .content .icontag {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 110px !important;
+            height: 60px !important;
+            padding: 0.5rem !important;
+            margin: 0.25rem;
+            color: var(--muted);
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: border-color 0.2s, background 0.2s;
+            border: 1px solid var(--line);
+        }
+        .node-info > .content .icontag:hover {
+            border-color: var(--hold);
+            background: var(--granite);
+            color: var(--chalk);
+        }
+        .node-info > .content .icontag i {
+            font-size: 1.4rem !important;
+            width: auto !important;
+            height: auto !important;
+            line-height: 1 !important;
+        }
+
+        /* ── Aspect chart (orientation) ── */
+        div[id*="aspect_widget"] .readable > div {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        div[id*="aspect_widget"] .head {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        div[id*="aspect_widget"] [name="unknown_label_text"] {
+            font-size: 0.75rem !important;
+            color: var(--muted);
+        }
+
+        /* ── Activity stream ── */
+        .regions__stream { margin: 2rem 0; }
+        .regions__stream .heading__t {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--chalk);
+            text-decoration: none;
+        }
+        .regions__stream > p { color: var(--muted); font-size: 0.85rem; }
+        .stream { margin: 0.5rem 0; }
+        .event {
+            margin: 0.75rem 0;
+            padding: 0.75rem;
+            background: var(--granite);
+        }
+        .event-details { margin: 0; }
+        .event-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--line);
+        }
+        .event-item:last-child { border-bottom: none; }
+        .event-item .tick-item p {
+            font-size: 0.85rem;
+            color: var(--chalk);
+            line-height: 1.5;
+            margin: 0;
+        }
+        .event-item .tick-item a { color: var(--hold-lt); }
+        .event-item .tick-item .tags {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border: 1px solid var(--line);
+            padding: 0.05rem 0.35rem;
+        }
+        .event-inset {
+            margin: 0.35rem 0 0 0;
+            padding: 0.5rem 0.75rem;
+            background: rgba(255,255,255,0.04);
+            font-size: 0.85rem;
+            color: var(--chalk);
+        }
+        .event-inset p { margin: 0; color: var(--chalk); font-size: 0.85rem; }
+        .event-inset a { color: var(--hold-lt); }
+        .event-tagline { font-size: 0.82rem; color: var(--muted); margin: 0 0 0.5rem; }
+        .event-tagline a { color: var(--chalk); font-weight: 500; }
+        .event-tagline .secondary { color: var(--muted); font-size: 0.72rem; }
+
+        /* Ascent form clutter — hide inputs/logging UI */
+        .logascentflow textarea,
+        .logascentflow .markdown-preview,
+        .logascentflow label,
+        .logascentflow .btn,
+        .logascentflow .tc-modal { display: none !important; }
+
+        /* Stream UI clutter — hide */
+        .stream-group-settings, .calendar-date, .event-type,
+        .who, .tick-menu, .event-buttons, .event-why, .btn-group,
+        .event-inline-comments, .event-cpr, .grade-convert,
+        .stream-button, div.clearfix {
+            display: none !important;
+        }
+
+        /* ── Route list heading ── */
+        .node-listview h2.inline {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--chalk);
+            margin: 2rem 0 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--hold);
+            display: inline-block;
+        }
+        .node-listview .btn-group-group { display: none !important; }
+
+        /* ── Route rows ── */
+        .node-listview { margin: 0 0 1.5rem; }
+        .node-listview__body { display: flex; flex-direction: column; }
+
+        .route.header { display: none !important; }
+
+        .route {
+            display: flex !important;
+            align-items: center;
+            padding: 0.45rem 0.75rem;
+            gap: 0.6rem;
+            border-bottom: 1px solid var(--line);
+            border-left: 3px solid transparent;
+            transition: background 0.1s;
+        }
+        .route:last-child { border-bottom: none; }
+        .route:hover { background: rgba(255,255,255,0.035); }
+
+        /* Route number badge */
+        .route .num, .route .toponum {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: var(--muted);
+            width: 1.45rem;
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        /* Route title block */
+        .route .sticky-holder .sticky-header .title,
+        .route .title {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Grade pill */
+        .route .r-grade { order: 1; }
+        .route .r-grade span[class*="gb"] {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            padding: 0.12rem 0.45rem;
+            display: inline-block;
+            color: var(--chalk);
+        }
+
+        /* Route name */
+        .route .name { order: 2; flex: 1; min-width: 0; }
+        .route .name a { text-decoration: none; }
+        .route .name .primary-node-name {
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: var(--chalk);
+            transition: color 0.15s;
+        }
+        .route .name a:hover .primary-node-name { color: var(--hold-lt); }
+
+        /* Route flags (Sport, Project, etc.) */
+        .route .flags { order: 3; display: flex; gap: 0.3rem; flex-shrink: 0; }
+        .route .flags .tags {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.55rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 0.1rem 0.35rem;
+            line-height: 1.3;
+        }
+        .route .flags .tags.sport { color: var(--muted); border: 1px solid var(--line); }
+        .route .flags .tags.project { color: var(--hold); border: 1px solid var(--hold); }
+
+        /* Popularity indicator */
+        .route .r-pop { order: 4; flex-shrink: 0; width: 2rem; text-align: center; }
+        .route .r-pop a { text-decoration: none; }
+        .route .r-pop .pop {
+            display: inline-block;
+            width: 8px; height: 8px;
+            background: var(--line);
+            transition: background 0.2s;
+        }
+        .route .r-pop .pop--0 { background: var(--line); }
+        .route .r-pop .pop--1 { background: var(--hold); }
+        .route .r-pop .pop--2 { background: var(--hold-lt); }
+
+        /* ── Supporter ad (hide) ── */
+        .node-listview div[style*="margin:10px"] { display: none !important; }
+
+        /* ── Links ── */
+        a { color: var(--hold-lt); text-decoration: none; font-weight: 500; }
+        a:hover { color: var(--chalk); }
+
+        /* ── Utility ── */
+        .regions__overview { padding: 0.25rem 0; }
 
         /* ── Mobile tweaks ── */
         @media (max-width: 640px) {
-            .route {
-                flex-wrap: wrap;
-                padding: 0.5rem 0.75rem;
-                gap: 0.4rem;
-            }
-            .route:hover {
-                transform: none;
-            }
-            .route .r-grade {
-                min-width: 2.4rem;
-                font-size: 0.75rem;
-                padding: 0.1rem 0.35rem;
-            }
-            .route .stars {
-                width: 3rem;
-            }
-            .route .length {
-                width: 2.8rem;
-            }
-            .route .name a,
-            .route .primary-node-name {
-                font-size: 0.85rem;
-            }
-            .heading .heading__t {
-                font-size: 1.6rem;
-            }
+            h1.heading .heading__t { font-size: 1.8rem; }
+            h1.heading .heading__byline { font-size: 0.65rem; }
+            .route { padding: 0.35rem 0.5rem; flex-wrap: wrap; gap: 0.25rem; }
+            .route .r-grade span[class*="gb"] { font-size: 0.72rem; padding: 0.05rem 0.3rem; }
+            .route .name .primary-node-name { font-size: 0.82rem; }
+            .route .flags .tags { font-size: 0.5rem; }
+            .route .r-pop { width: 1.5rem; }
+            .headline__guts .stats { gap: 0.75rem; flex-wrap: wrap; }
+            .grade-barchart { flex-wrap: wrap; }
+            .node-listview h2.inline { font-size: 1rem; }
+            .node-info > h2 { font-size: 0.95rem; }
         }
     </style>"""]
 
