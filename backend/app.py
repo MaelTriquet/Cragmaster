@@ -2,7 +2,7 @@ import os
 import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, Response
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_limiter import Limiter
@@ -10,6 +10,8 @@ from flask_limiter.util import get_remote_address
 from db import get_db, init_db
 from auth import hash_password, check_password, get_current_user, require_user, require_admin
 from ocr import extract_text_from_pdf, extract_routes, parse_routes, grade_sort_key, GRADE_PATTERN, FRENCH_ORDER
+from bs4 import BeautifulSoup
+from thecrag_parser import parse_thecrag_html, fetch_thecrag_html
 import re
 import seed
 from fzf import fuzzy_search
@@ -236,7 +238,426 @@ def serve_pdf(topo_id):
     row = conn.execute('SELECT filename FROM topos WHERE id=?', (topo_id,)).fetchone()
     conn.close()
     if not row: return api_error('Not found', 404)
-    return send_file(UPLOAD_FOLDER / row['filename'], mimetype='application/pdf', download_name=row['filename'], as_attachment=True)
+    path = UPLOAD_FOLDER / row['filename']
+    mime = 'application/pdf' if path.suffix.lower() == '.pdf' else 'text/html'
+    return send_file(path, mimetype=mime, download_name=row['filename'], as_attachment=True)
+
+
+@app.route('/api/topos/<int:topo_id>/html')
+@jwt_required()
+def serve_topo_html(topo_id):
+    conn = get_db()
+    row = conn.execute('SELECT filename FROM topos WHERE id=?', (topo_id,)).fetchone()
+    conn.close()
+    if not row: return api_error('Not found', 404)
+    path = UPLOAD_FOLDER / row['filename']
+    if not path.exists() or path.suffix.lower() != '.html':
+        return api_error('HTML file not found', 404)
+
+    with open(path, 'r', encoding='utf-8') as f:
+        soup = BeautifulSoup(f.read(), 'html.parser')
+
+    # Strip scripts and all theCrag's own styles
+    for tag in soup.find_all('script'):
+        tag.decompose()
+    for tag in soup.find_all(['link', 'style']):
+        tag.decompose()
+
+    fragments = ["""<style>
+        /* ═══════════════════════════════════════════
+           CragMaster — theCrag.com content restyle
+           ═══════════════════════════════════════════ */
+
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap');
+
+        /* ── Reset & base ── */
+        body {
+            margin: 0; padding: 0;
+            background: #1a1a18;
+            color: #f0ede6;
+            font-family: 'Barlow', sans-serif;
+            font-weight: 300;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        #wrapper {
+            max-width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        * { box-sizing: border-box; }
+
+        /* ── Hide chrome ── */
+        .bust, .bust__black, .bust__white,
+        .regions__navdrawer, .regions__prominent, .regions__aside,
+        .regions__stream, .regions__topogroup,
+        .sponsor-slot, .sponsor-media-container,
+        .regions__subheading, .regions__tools,
+        .footer, .region-footer,
+        .node-listview__header {
+            display: none !important;
+        }
+
+        /* ── Main content layout ── */
+        .regions__content {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .regions__inner {
+            max-width: 100% !important;
+            padding: 0 !important;
+        }
+        .regions__primary {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            float: none !important;
+        }
+
+        /* ── Location breadcrumbs ── */
+        .regions__heading {
+            margin-bottom: 2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #3a3a34;
+        }
+        .regions__heading .crumb__long,
+        .regions__heading .crumb__short {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #6b6b60;
+        }
+
+        /* ── Sector/area headings ── */
+        .heading {
+            margin: 2.5rem 0 1.5rem;
+            position: relative;
+        }
+        .heading:first-of-type {
+            margin-top: 0;
+        }
+        .heading::after {
+            content: '';
+            display: block;
+            width: 3rem;
+            height: 3px;
+            background: #c8502a;
+            margin-top: 0.5rem;
+        }
+        .heading .heading__t {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 900;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #f0ede6;
+            margin: 0;
+            line-height: 1;
+        }
+        .headline__byline {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #6b6b60;
+            margin-top: 0.3rem;
+            display: block;
+        }
+
+        /* ── Description text ── */
+        .regions__overview {
+            padding: 0.25rem 0 0.75rem;
+        }
+        .regions__overview p,
+        .description-container p,
+        .description-text {
+            color: #c0bdb6;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            margin: 0 0 0.75rem;
+        }
+        .regions__overview a,
+        .description-container a {
+            color: #e06540;
+            font-weight: 500;
+        }
+        .regions__overview a:hover,
+        .description-container a:hover {
+            color: #f0ede6;
+        }
+
+        /* ── Route list ── */
+        .node-listview {
+            background: transparent !important;
+            margin: 1.5rem 0;
+        }
+        .node-listview__body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Route row ── */
+        .route {
+            display: flex !important;
+            align-items: center;
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #2a2a26;
+            gap: 0.75rem;
+            transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            position: relative;
+        }
+        .route:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .route:hover {
+            background: #2a2a26;
+            transform: translateX(4px);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Route number badge */
+        .route .num, .route .toponum {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #6b6b60;
+            background: #2a2a26;
+            width: 1.8rem;
+            height: 1.8rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            flex-shrink: 0;
+            text-align: center;
+            line-height: 1;
+            transition: background 0.15s, color 0.15s;
+        }
+        .route:hover .num,
+        .route:hover .toponum {
+            background: #3a3a34;
+            color: #8a8a80;
+        }
+
+        /* Route name — hero */
+        .route .name {
+            flex: 1;
+            min-width: 0;
+        }
+        .route .name a,
+        .route .primary-node-name {
+            font-family: 'Barlow', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #f0ede6;
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .route .name a:hover {
+            color: #e06540;
+        }
+
+        /* Route grade — pill badge */
+        .route .r-grade {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: #c8502a;
+            background: rgba(200,80,42,0.1);
+            padding: 0.15rem 0.5rem;
+            border-radius: 3px;
+            min-width: 2.8rem;
+            text-align: center;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .route:hover .r-grade {
+            background: rgba(200,80,42,0.18);
+        }
+        .route .r-grade .difficulty {
+            color: #c8502a;
+        }
+
+        /* Stars */
+        .route .stars,
+        .route .r-star {
+            font-size: 0.7rem;
+            color: #3a3a34;
+            width: 4rem;
+            text-align: center;
+            flex-shrink: 0;
+            letter-spacing: 0.08em;
+        }
+        .route .stars .r-star--active {
+            color: #e06540;
+        }
+
+        /* Length */
+        .route .length {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #6b6b60;
+            width: 3.5rem;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        /* ── Info cards / boxed sections ── */
+        .boxed {
+            background: #2e2e2a !important;
+            border: 1px solid #3a3a34 !important;
+            border-radius: 6px;
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .boxed .heading {
+            margin: 0 0 0.75rem;
+            border-left: none;
+            padding-left: 0;
+        }
+        .boxed .heading::after {
+            display: none;
+        }
+        .boxed .heading__t {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #f0ede6;
+        }
+        .boxed p, .boxed .boxed__content {
+            font-size: 0.85rem;
+            color: #b0ada6;
+            line-height: 1.6;
+        }
+        .boxed a {
+            color: #e06540;
+            font-weight: 500;
+        }
+        .boxed a:hover {
+            color: #f0ede6;
+        }
+
+        /* ── Legend ── */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1.5rem;
+            margin: 1.25rem 0;
+            padding: 1rem 1.25rem;
+            background: #2e2e2a;
+            border: 1px solid #3a3a34;
+            border-radius: 6px;
+        }
+        .legend__item {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #6b6b60;
+        }
+
+        /* ── Links ── */
+        a {
+            color: #e06540;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.15s;
+        }
+        a:hover {
+            color: #f0ede6;
+        }
+
+        /* ── Utility panels ── */
+        .panel, .panel__content, .content-box,
+        .regions__summary, .area-summary {
+            background: transparent !important;
+        }
+
+        /* ── News feed / updates ── */
+        .news-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #3a3a34;
+            transition: padding-left 0.15s;
+        }
+        .news-item:last-child {
+            border-bottom: none;
+        }
+        .news-item:hover {
+            padding-left: 0.5rem;
+        }
+        .news-item__title {
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: #f0ede6;
+            line-height: 1.4;
+        }
+        .news-item__meta {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #6b6b60;
+        }
+
+        /* ── Separator between sections ── */
+        .regions__overview + .node-listview {
+            border-top: 1px solid #2a2a26;
+            padding-top: 0.5rem;
+        }
+
+        /* ── Mobile tweaks ── */
+        @media (max-width: 640px) {
+            .route {
+                flex-wrap: wrap;
+                padding: 0.5rem 0.75rem;
+                gap: 0.4rem;
+            }
+            .route:hover {
+                transform: none;
+            }
+            .route .r-grade {
+                min-width: 2.4rem;
+                font-size: 0.75rem;
+                padding: 0.1rem 0.35rem;
+            }
+            .route .stars {
+                width: 3rem;
+            }
+            .route .length {
+                width: 2.8rem;
+            }
+            .route .name a,
+            .route .primary-node-name {
+                font-size: 0.85rem;
+            }
+            .heading .heading__t {
+                font-size: 1.6rem;
+            }
+        }
+    </style>"""]
+
+    # Extract body content
+    body_tag = soup.find('body')
+    if body_tag:
+        fragments.extend(str(c) for c in body_tag.children)
+
+    return Response('\n'.join(fragments), mimetype='text/html')
 
 @app.route('/api/topos/upload', methods=['POST'])
 @jwt_required()
@@ -275,6 +696,97 @@ def upload_topo():
     conn.commit()
     conn.close()
     return ok(routes_parsed=len(parsed)), 201
+
+@app.route('/api/topos/import/thecrag', methods=['POST'])
+@jwt_required()
+def import_thecrag():
+    user = get_current_user()
+    if not user:
+        return api_error('Authentication required', 401)
+    if 'file' not in request.files:
+        return api_error('No HTML file provided')
+    f = request.files['file']
+    if not f.filename:
+        return api_error('Empty filename')
+
+    raw = f.read()
+    try:
+        content = raw.decode('utf-8')
+    except UnicodeDecodeError:
+        return api_error('File must be UTF-8 encoded HTML')
+
+    try:
+        parsed = parse_thecrag_html(content)
+    except ValueError as e:
+        return api_error(str(e))
+
+    topo_data = parsed['topo']
+    title = (request.form.get('title') or '').strip() or topo_data['title']
+    filename = Path(f.filename).name
+    dest = UPLOAD_FOLDER / filename
+    dest.write_bytes(raw)
+
+    conn = get_db()
+    cursor = conn.execute(
+        'INSERT INTO topos (filename, title, uploaded_by) VALUES (?,?,?)',
+        (filename, title, user['id'])
+    )
+    topo_id = cursor.lastrowid
+
+    for r in parsed['routes']:
+        conn.execute(
+            'INSERT INTO routes (topo_id, name, grade, sorting_grade, route_index, length) VALUES (?,?,?,?,?,?)',
+            (topo_id, r['name'], r['grade'], r['sorting_grade'], r['route_index'], r['length'])
+        )
+    conn.commit()
+    conn.close()
+
+    return ok(topo_id=topo_id, topo_name=title, routes_parsed=len(parsed['routes'])), 201
+
+
+@app.route('/api/topos/import/thecrag/url', methods=['POST'])
+@jwt_required()
+def import_thecrag_url():
+    user = get_current_user()
+    if not user:
+        return api_error('Authentication required', 401)
+    d = request.get_json() or {}
+    url = (d.get('url') or '').strip()
+    if not url:
+        return api_error('URL is required')
+    if not url.startswith('https://www.thecrag.com/'):
+        return api_error('Only theCrag.com URLs are supported')
+
+    try:
+        html, parsed = fetch_thecrag_html(url)
+    except ValueError as e:
+        return api_error(str(e))
+    except Exception as e:
+        return api_error(f'Failed to fetch URL: {e}')
+
+    topo_data = parsed['topo']
+    title = (d.get('title') or '').strip() or topo_data['title']
+    filename = title + '.html'
+    dest = UPLOAD_FOLDER / filename
+    dest.write_text(html)
+
+    conn = get_db()
+    cursor = conn.execute(
+        'INSERT INTO topos (filename, title, uploaded_by) VALUES (?,?,?)',
+        (filename, title, user['id'])
+    )
+    topo_id = cursor.lastrowid
+
+    for r in parsed['routes']:
+        conn.execute(
+            'INSERT INTO routes (topo_id, name, grade, sorting_grade, route_index, length) VALUES (?,?,?,?,?,?)',
+            (topo_id, r['name'], r['grade'], r['sorting_grade'], r['route_index'], r['length'])
+        )
+    conn.commit()
+    conn.close()
+
+    return ok(topo_id=topo_id, topo_name=title, routes_parsed=len(parsed['routes'])), 201
+
 
 @app.route('/api/topos/<int:topo_id>', methods=['DELETE'])
 @jwt_required()

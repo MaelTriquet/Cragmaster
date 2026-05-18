@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, Link } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 import axios from 'axios'
@@ -565,6 +565,7 @@ export default function TopoDetail() {
   const [hoveredBtn, setHoveredBtn] = useState(null)
   const [hoveredRoute, setHoveredRoute] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [downloadErr, setDownloadErr] = useState('')
 
   const [addForm, setAddForm] = useState({
     name: "",
@@ -879,27 +880,64 @@ export default function TopoDetail() {
             </button>
           </div>
 
-          <button
-            style={{
-              ...S.downloadBtn,
-              borderColor: hoveredBtn === "dl" ? "var(--hold)" : "var(--line)",
-              color: hoveredBtn === "dl" ? "var(--hold)" : "var(--muted)",
-            }}
-            onMouseEnter={() => setHoveredBtn("dl")}
-            onMouseLeave={() => setHoveredBtn(null)}
-            onClick={async () => {
-              try {
-                const res = await api.get(`/topos/${id}/download`, { responseType: 'blob' })
-                const url = window.URL.createObjectURL(new Blob([res.data]))
-                window.open(url, '_blank')
-              } catch (err) {
-                console.error('Download failed:', err)
-              }
-            }}
-          >
-            {t('topoDetail.download')}
-          </button>
+          {topo.filename?.endsWith('.html') ? (
+            <Link
+              to={`/topos/${id}/view`}
+              style={{
+                ...S.downloadBtn,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                borderColor: hoveredBtn === "view" ? "var(--hold)" : "var(--line)",
+                color: hoveredBtn === "view" ? "var(--hold)" : "var(--muted)",
+              }}
+              onMouseEnter={() => setHoveredBtn("view")}
+              onMouseLeave={() => setHoveredBtn(null)}
+            >
+              {t('topoDetail.viewSource')}
+            </Link>
+          ) : (
+            <button
+              style={{
+                ...S.downloadBtn,
+                borderColor: hoveredBtn === "dl" ? "var(--hold)" : "var(--line)",
+                color: hoveredBtn === "dl" ? "var(--hold)" : "var(--muted)",
+              }}
+              onMouseEnter={() => setHoveredBtn("dl")}
+              onMouseLeave={() => setHoveredBtn(null)}
+              onClick={async () => {
+                try {
+                  const res = await api.get(`/topos/${id}/download`, { responseType: 'blob' })
+                  const url = window.URL.createObjectURL(new Blob([res.data]))
+                  window.open(url, '_blank')
+                  setDownloadErr('')
+                } catch (err) {
+                  const msg = err.response?.data?.error || err.message || t('topoDetail.downloadFailed')
+                  setDownloadErr(msg)
+                  setTimeout(() => setDownloadErr(''), 4000)
+                }
+              }}
+            >
+              {t('topoDetail.download')}
+            </button>
+          )}
         </div>
+
+        {/* ── Download error ── */}
+        {downloadErr && (
+          <p style={{
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: 'var(--hold-lt)',
+            margin: '0 0 1rem',
+            textAlign: 'center',
+          }}>
+            {downloadErr}
+          </p>
+        )}
 
         {/* ── GRADES VIEW ── */}
         {view === "grades" && (

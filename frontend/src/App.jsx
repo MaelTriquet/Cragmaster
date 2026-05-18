@@ -15,6 +15,7 @@ import Query from './pages/Query'
 import Notifications from './pages/Notifications'
 import Map from './pages/Map'
 import About from './pages/About'
+import ViewHtml from './pages/ViewHtml'
 
 const PAGE_WRAPPER = {
   display: 'flex',
@@ -38,6 +39,7 @@ export default function App() {
 
               <Route path="/topos"        element={<PrivateRoute><Topos /></PrivateRoute>} />
               <Route path="/topos/:id"    element={<PrivateRoute><TopoDetail /></PrivateRoute>} />
+              <Route path="/topos/:id/view" element={<PrivateRoute><ViewHtml /></PrivateRoute>} />
               <Route path="/routes/:id"   element={<PrivateRoute><RouteDetail /></PrivateRoute>} />
               <Route path="/search"       element={<PrivateRoute><Search /></PrivateRoute>} />
               <Route path="/upload"       element={<PrivateRoute><Upload /></PrivateRoute>} />

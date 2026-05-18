@@ -11,89 +11,203 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    paddingTop: '4rem',
   },
+
+  /* ── Header ── */
   header: {
     width: '100%',
-    maxWidth: '580px',
-    marginBottom: '2.5rem',
+    maxWidth: '620px',
+    marginBottom: '3rem',
+    position: 'relative',
+    paddingLeft: '1.5rem',
+  },
+  headerAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '3px',
+    background: 'var(--hold)',
   },
   eyebrow: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.68rem',
-    fontWeight: 600,
-    letterSpacing: '0.2em',
+    fontSize: '0.65rem',
+    fontWeight: 700,
+    letterSpacing: '0.28em',
     color: 'var(--hold)',
     textTransform: 'uppercase',
     display: 'block',
-    marginBottom: '0.4rem',
+    marginBottom: '0.6rem',
   },
   title: {
     fontFamily: 'Barlow Condensed, sans-serif',
     fontSize: 'var(--title-2xl)',
-    fontWeight: 800,
-    letterSpacing: '0.04em',
+    fontWeight: 900,
+    letterSpacing: '0.05em',
     textTransform: 'uppercase',
     color: 'var(--chalk)',
     margin: 0,
-    lineHeight: 1,
+    lineHeight: 0.95,
   },
-  rule: {
-    width: '2.5rem',
-    height: '3px',
-    background: 'var(--hold)',
-    marginTop: '1rem',
+  subtitle: {
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: '0.85rem',
+    color: 'var(--muted)',
+    marginTop: '0.75rem',
+    lineHeight: 1.5,
   },
+
+  /* ── Card ── */
   card: {
     width: '100%',
-    maxWidth: '580px',
+    maxWidth: '620px',
     background: 'var(--granite)',
-    borderLeft: '4px solid var(--hold)',
-    padding: '2rem 2.5rem',
-    boxShadow: '0 0 60px rgba(0,0,0,0.5)',
+    padding: '2.5rem',
+    boxShadow: '0 8px 60px rgba(0,0,0,0.45)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.5rem',
   },
+
+  /* ── Section label ── */
+  sectionLabel: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.6rem',
+    fontWeight: 700,
+    letterSpacing: '0.25em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    marginBottom: '0.6rem',
+  },
+
+  /* ── Dropzone ── */
   dropzone: (active) => ({
-    border: `2px dashed ${active ? 'var(--hold)' : 'var(--line)'}`,
-    background: active ? 'rgba(200,80,42,0.07)' : 'var(--rock)',
-    padding: '2.5rem 1.5rem',
-    textAlign: 'center',
+    border: `1px solid ${active ? 'var(--hold)' : 'var(--line)'}`,
+    background: active ? 'rgba(200,80,42,0.06)' : 'var(--rock)',
+    padding: '2.25rem 2rem',
     cursor: 'pointer',
-    transition: 'all 0.2s',
-    marginBottom: '1.75rem',
+    transition: 'border-color 0.2s, background 0.2s',
     position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1.5rem',
   }),
-  dropIcon: {
-    fontSize: '2.5rem',
-    marginBottom: '0.75rem',
-    display: 'block',
+  dropIconWrap: {
+    fontSize: '2rem',
     lineHeight: 1,
+    flexShrink: 0,
+    opacity: 0.85,
+  },
+  dropBody: {
+    flex: 1,
   },
   dropText: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '1rem',
-    fontWeight: 600,
+    fontSize: '0.95rem',
+    fontWeight: 700,
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
-    color: 'var(--muted)',
+    color: 'var(--chalk)',
     margin: 0,
   },
   dropSub: {
     fontFamily: 'Barlow, sans-serif',
-    fontSize: '0.8rem',
+    fontSize: '0.78rem',
     color: 'var(--muted)',
-    marginTop: '0.35rem',
+    marginTop: '0.3rem',
+  },
+  dropCorner: {
+    position: 'absolute',
+    bottom: '0.5rem',
+    right: '0.75rem',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.6rem',
+    letterSpacing: '0.15em',
+    textTransform: 'uppercase',
+    color: 'var(--hold)',
+    opacity: 0.7,
   },
   fileList: {
-    marginTop: '0.75rem',
+    marginTop: '0.6rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.3rem',
+    gap: '0.2rem',
   },
   fileName: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
     fontWeight: 700,
     color: 'var(--hold-lt)',
     letterSpacing: '0.05em',
+  },
+
+  /* ── Divider ── */
+  divider: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+  },
+  dividerLine: {
+    flex: 1,
+    height: '1px',
+    background: 'var(--line)',
+  },
+  dividerText: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.6rem',
+    fontWeight: 700,
+    letterSpacing: '0.2em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+  },
+
+  /* ── URL import ── */
+  urlRow: {
+    display: 'flex',
+    gap: '0.5rem',
+    alignItems: 'stretch',
+  },
+  urlIcon: {
+    fontSize: '1.25rem',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    paddingRight: '0.25rem',
+    opacity: 0.75,
+  },
+  urlInput: {
+    flex: 1,
+    background: 'var(--rock)',
+    border: '1px solid var(--line)',
+    padding: '0.7rem 1rem',
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: '0.82rem',
+    color: 'var(--chalk)',
+    outline: 'none',
+    transition: 'border-color 0.15s',
+  },
+  urlBtn: (disabled) => ({
+    background: 'var(--hold)',
+    color: 'var(--chalk)',
+    border: 'none',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.8rem',
+    fontWeight: 700,
+    letterSpacing: '0.15em',
+    textTransform: 'uppercase',
+    padding: '0 1.4rem',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    whiteSpace: 'nowrap',
+    opacity: disabled ? 0.35 : 1,
+    flexShrink: 0,
+    transition: 'background 0.15s',
+  }),
+
+  /* ── Submit ── */
+  submitWrap: {
+    borderTop: '1px solid var(--line)',
+    paddingTop: '1.5rem',
   },
   btn: {
     width: '100%',
@@ -102,50 +216,65 @@ const S = {
     border: 'none',
     fontFamily: 'Barlow Condensed, sans-serif',
     fontSize: '1rem',
-    fontWeight: 700,
-    letterSpacing: '0.15em',
+    fontWeight: 800,
+    letterSpacing: '0.2em',
     textTransform: 'uppercase',
-    padding: '0.9rem',
+    padding: '1rem',
     cursor: 'pointer',
     transition: 'background 0.15s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
   },
   btnDisabled: {
-    opacity: 0.4,
+    opacity: 0.35,
     cursor: 'not-allowed',
   },
-  // Per-file progress list
+
+  /* ── Progress ── */
   progressList: {
-    marginTop: '1.5rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.85rem',
+    gap: '0.6rem',
   },
   progressItem: {
-    border: '1px solid var(--line)',
-    padding: '0.9rem 1rem',
+    background: 'var(--rock)',
+    borderLeft: '3px solid var(--line)',
+    padding: '0.85rem 1rem',
+    transition: 'border-color 0.3s',
+  },
+  progressItemActive: {
+    borderLeftColor: 'var(--hold)',
+  },
+  progressItemDone: {
+    borderLeftColor: '#5a9e6f',
+  },
+  progressItemError: {
+    borderLeftColor: 'var(--hold)',
   },
   progressHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '0.5rem',
+    marginBottom: '0.55rem',
   },
   progressName: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.78rem',
+    fontSize: '0.8rem',
     fontWeight: 700,
-    letterSpacing: '0.08em',
+    letterSpacing: '0.07em',
     color: 'var(--chalk)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
-    maxWidth: '80%',
+    maxWidth: '72%',
   },
   progressStatus: (status) => ({
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.68rem',
+    fontSize: '0.65rem',
     fontWeight: 700,
-    letterSpacing: '0.12em',
+    letterSpacing: '0.15em',
     textTransform: 'uppercase',
     color:
       status === 'done'  ? '#7fc99a' :
@@ -156,51 +285,54 @@ const S = {
   }),
   progressBarOuter: {
     background: 'var(--line)',
-    height: '3px',
+    height: '2px',
     width: '100%',
   },
   progressBarInner: (pct, status) => ({
     height: '100%',
     width: `${pct}%`,
-    background: status === 'error' ? 'var(--hold)' : status === 'done' ? '#5a9e6f' : 'var(--hold)',
+    background: status === 'done' ? '#5a9e6f' : 'var(--hold)',
     transition: 'width 0.3s ease',
   }),
   progressMsg: {
-    fontFamily: 'Barlow Condensed, sans-serif',
+    fontFamily: 'Barlow, sans-serif',
     fontSize: '0.72rem',
-    letterSpacing: '0.05em',
     color: 'var(--muted)',
     marginTop: '0.4rem',
+    lineHeight: 1.4,
   },
-  // Done summary
+
+  /* ── Summary ── */
   summary: {
-    marginTop: '1.5rem',
-    borderLeft: '4px solid #5a9e6f',
-    background: 'rgba(90,158,111,0.08)',
-    padding: '1rem 1.25rem',
+    borderLeft: '3px solid #5a9e6f',
+    background: 'rgba(90,158,111,0.07)',
+    padding: '1.1rem 1.4rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.3rem',
   },
   summaryTitle: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '1rem',
-    fontWeight: 700,
-    letterSpacing: '0.1em',
+    fontSize: '0.95rem',
+    fontWeight: 800,
+    letterSpacing: '0.12em',
     color: '#7fc99a',
     textTransform: 'uppercase',
-    margin: '0 0 0.3rem',
+    margin: 0,
   },
   summaryBody: {
     fontFamily: 'Barlow, sans-serif',
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
     color: 'var(--chalk)',
     margin: 0,
   },
   summaryLink: {
     display: 'inline-block',
-    marginTop: '0.75rem',
+    marginTop: '0.4rem',
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.85rem',
+    fontSize: '0.78rem',
     fontWeight: 700,
-    letterSpacing: '0.1em',
+    letterSpacing: '0.15em',
     textTransform: 'uppercase',
     color: 'var(--hold-lt)',
     cursor: 'pointer',
@@ -226,12 +358,20 @@ function Dots() {
   )
 }
 
+function progressItemStyle(status) {
+  if (status === 'done')  return { ...S.progressItem, ...S.progressItemDone }
+  if (status === 'error') return { ...S.progressItem, ...S.progressItemError }
+  if (status === 'uploading' || status === 'ocr') return { ...S.progressItem, ...S.progressItemActive }
+  return S.progressItem
+}
+
 export default function Upload() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const inputRef = useRef()
 
-  const statusLabel = (status) => {
+  const statusLabel = (status, entry) => {
+    if (entry?._isUrl && status === 'uploading') return t('upload.fetching')
     switch (status) {
       case 'uploading': return t('upload.uploading')
       case 'ocr':       return <>OCR<Dots /></>
@@ -245,8 +385,7 @@ export default function Upload() {
   const [dragging, setDragging] = useState(false)
   const [busy,     setBusy]     = useState(false)
   const [allDone,  setAllDone]  = useState(false)
-
-  // fileStates: array of { name, status, progress, message, routes_parsed }
+  const [url,      setUrl]      = useState('')
   const [fileStates, setFileStates] = useState([])
 
   const pickFiles = (selected) => {
@@ -310,78 +449,142 @@ export default function Upload() {
     setAllDone(true)
   }
 
+  const submitUrl = async () => {
+    const trimmed = url.trim()
+    if (!trimmed || busy) return
+    if (!trimmed.startsWith('https://www.thecrag.com/')) {
+      alert(t('upload.invalidUrl'))
+      return
+    }
+
+    const idx = fileStates.length
+    setFileStates(prev => [...prev, {
+      name: 'theCrag.com',
+      _isUrl: true,
+      status: 'uploading',
+      progress: 50,
+      message: '',
+      routes_parsed: null,
+    }])
+    setBusy(true)
+    setAllDone(false)
+    setUrl('')
+
+    try {
+      const res = await api.post('/topos/import/thecrag/url', { url: trimmed })
+      updateFile(idx, {
+        status: 'done',
+        progress: 100,
+        routes_parsed: res.data.routes_parsed ?? 0,
+        message: t('upload.routesParsed', { count: res.data.routes_parsed ?? 0 }),
+      })
+    } catch (err) {
+      updateFile(idx, {
+        status: 'error',
+        progress: 100,
+        message: err.response?.data?.error || err.message || t('upload.uploadFailed'),
+      })
+    }
+
+    setBusy(false)
+    setAllDone(true)
+  }
+
   const hasFiles = files.length > 0
   const doneCount  = fileStates.filter(s => s.status === 'done').length
   const errorCount = fileStates.filter(s => s.status === 'error').length
 
   return (
     <div style={S.root}>
+
+      {/* Header */}
       <div style={S.header}>
+        <div style={S.headerAccent} />
         <span style={S.eyebrow}>{t('upload.eyebrow')}</span>
         <h1 style={S.title}>{t('upload.title')}</h1>
-        <div style={S.rule} />
+        <p style={S.subtitle}>{t('upload.subtitle', { defaultValue: 'Add PDF topos or import directly from theCrag.' })}</p>
       </div>
 
+      {/* Card */}
       <div style={S.card}>
-        {/* Drop zone */}
-        <div
-          style={S.dropzone(dragging || hasFiles)}
-          onClick={() => !busy && inputRef.current.click()}
-          onDragOver={e => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            accept="application/pdf"
-            style={{ display: 'none' }}
-            onChange={e => pickFiles(Array.from(e.target.files))}
-          />
-          <span style={S.dropIcon}>{hasFiles ? '📄' : '⛰'}</span>
-          {hasFiles ? (
-            <>
-              <p style={S.dropText}>
-                {t('upload.fileSelected', { count: files.length })}
-                {!busy && <span style={{ color: 'var(--muted)', fontWeight: 400 }}>{t('upload.clickToChange')}</span>}
-              </p>
-              <div style={S.fileList}>
-                {files.map((f, i) => (
-                  <p key={i} style={S.fileName}>{f.name}</p>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <p style={S.dropText}>{t('upload.dropPrompt')}</p>
-              <p style={S.dropSub}>{t('upload.dropSub')}</p>
-            </>
-          )}
+
+        {/* ── PDF section ── */}
+        <div>
+          <p style={S.sectionLabel}>{t('upload.sectionPdf', { defaultValue: 'PDF Topo' })}</p>
+
+          <div
+            style={S.dropzone(dragging)}
+            onClick={() => !busy && inputRef.current.click()}
+            onDragOver={e => { e.preventDefault(); setDragging(true) }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept="application/pdf"
+              style={{ display: 'none' }}
+              onChange={e => pickFiles(Array.from(e.target.files))}
+            />
+
+            <span style={S.dropIconWrap}>{hasFiles ? '📄' : '⛰'}</span>
+
+            <div style={S.dropBody}>
+              {hasFiles ? (
+                <>
+                  <p style={S.dropText}>
+                    {t('upload.fileSelected', { count: files.length })}
+                    {!busy && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: '0.5rem' }}>{t('upload.clickToChange')}</span>}
+                  </p>
+                  <div style={S.fileList}>
+                    {files.map((f, i) => (
+                      <p key={i} style={S.fileName}>{f.name}</p>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p style={S.dropText}>{t('upload.dropPrompt')}</p>
+                  <p style={S.dropSub}>{t('upload.dropSub')}</p>
+                </>
+              )}
+            </div>
+
+            {!hasFiles && (
+              <span style={S.dropCorner}>PDF only</span>
+            )}
+          </div>
         </div>
 
         {/* Submit */}
-        <button
-          style={{ ...S.btn, ...(busy || !hasFiles ? S.btnDisabled : {}) }}
-          disabled={busy || !hasFiles}
-          onClick={submit}
-          onMouseEnter={e => { if (!busy && hasFiles) e.target.style.background = 'var(--hold-lt)' }}
-          onMouseLeave={e => { if (!busy && hasFiles) e.target.style.background = 'var(--hold)' }}
-        >
-          {busy
-            ? t('upload.processing', { done: fileStates.filter(s => s.status === 'done' || s.status === 'error').length, total: files.length })
-            : files.length > 1 ? t('upload.uploadParseFiles', { count: files.length }) : t('upload.uploadParse')}
-        </button>
+        {hasFiles && (
+          <div style={S.submitWrap}>
+            <button
+              style={{ ...S.btn, ...(busy ? S.btnDisabled : {}) }}
+              disabled={busy}
+              onClick={submit}
+              onMouseEnter={e => { if (!busy) e.target.style.background = 'var(--hold-lt)' }}
+              onMouseLeave={e => { if (!busy) e.target.style.background = 'var(--hold)' }}
+            >
+              {busy
+                ? t('upload.processing', { done: fileStates.filter(s => s.status === 'done' || s.status === 'error').length, total: Math.max(files.length, fileStates.length) })
+                : files.length > 1
+                  ? t('upload.uploadParseFiles', { count: files.length })
+                  : t('upload.uploadParse')}
+            </button>
+          </div>
+        )}
 
         {/* Per-file progress */}
         {fileStates.some(s => s.status !== 'pending') && (
           <div style={S.progressList}>
             {fileStates.map((fs, i) => (
-              <div key={i} style={S.progressItem}>
+              <div key={i} style={progressItemStyle(fs.status)}>
                 <div style={S.progressHeader}>
                   <span style={S.progressName}>{fs.name}</span>
                   <span style={S.progressStatus(fs.status)}>
-                    {statusLabel(fs.status)}
+                    {statusLabel(fs.status, fs)}
                   </span>
                 </div>
                 <div style={S.progressBarOuter}>
@@ -400,7 +603,7 @@ export default function Upload() {
           </div>
         )}
 
-        {/* Final summary */}
+        {/* Summary */}
         {allDone && (
           <div style={S.summary}>
             <p style={S.summaryTitle}>
@@ -413,10 +616,47 @@ export default function Upload() {
                 t('upload.totalRoutes', { count: fileStates.filter(s => s.status === 'done').reduce((sum, s) => sum + (s.routes_parsed ?? 0), 0) })}
             </p>
             <button style={S.summaryLink} onClick={() => navigate('/topos')}>
-              {t('upload.goToList')}
+              {t('upload.goToList')} →
             </button>
           </div>
         )}
+
+        {/* Divider */}
+        <div style={S.divider}>
+          <div style={S.dividerLine} />
+          <span style={S.dividerText}>{t('upload.orImport', { defaultValue: 'or import from web' })}</span>
+          <div style={S.dividerLine} />
+        </div>
+
+        {/* ── URL import section ── */}
+        <div>
+          <p style={S.sectionLabel}>{t('upload.sectionUrl', { defaultValue: 'theCrag URL' })}</p>
+
+          <div style={S.urlRow}>
+            <span style={S.urlIcon}>🌐</span>
+            <input
+              type="url"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder={t('upload.urlPlaceholder')}
+              disabled={busy}
+              style={S.urlInput}
+              onFocus={e => { e.target.style.borderColor = 'var(--hold)' }}
+              onBlur={e => { e.target.style.borderColor = 'var(--line)' }}
+              onKeyDown={e => e.key === 'Enter' && submitUrl()}
+            />
+            <button
+              disabled={busy || !url.trim()}
+              onClick={submitUrl}
+              style={S.urlBtn(busy || !url.trim())}
+              onMouseEnter={e => { if (!busy && url.trim()) e.target.style.background = 'var(--hold-lt)' }}
+              onMouseLeave={e => { if (!busy && url.trim()) e.target.style.background = 'var(--hold)' }}
+            >
+              {t('upload.importUrl')}
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   )
