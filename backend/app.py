@@ -263,6 +263,55 @@ def serve_topo_html(topo_id):
     for tag in soup.find_all(['link', 'style']):
         tag.decompose()
 
+    # ── Color grades like CragMaster does ──
+    GRADE_STOPS = [
+        (0,    105, 55, 48),
+        (11.5, 88,  60, 46),
+        (17.5, 65,  70, 46),
+        (19.5, 45,  75, 48),
+        (21.5, 30,  78, 46),
+        (23.5, 18,  80, 45),
+        (25.5, 6,   82, 44),
+        (27.5, 352, 80, 42),
+        (29.5, 330, 75, 38),
+        (35,   285, 70, 32),
+    ]
+
+    def grade_to_hsl(grade_key):
+        if grade_key < 0:
+            return 'hsl(0, 0%, 50%)'
+        if grade_key <= GRADE_STOPS[0][0]:
+            s = GRADE_STOPS[0]
+            return f'hsl({s[1]}, {s[2]}%, {s[3]}%)'
+        if grade_key >= GRADE_STOPS[-1][0]:
+            s = GRADE_STOPS[-1]
+            return f'hsl({s[1]}, {s[2]}%, {s[3]}%)'
+        for i in range(len(GRADE_STOPS) - 1):
+            lo, hi = GRADE_STOPS[i], GRADE_STOPS[i + 1]
+            if grade_key >= lo[0] and grade_key <= hi[0]:
+                t = (grade_key - lo[0]) / (hi[0] - lo[0])
+                dh = hi[1] - lo[1]
+                if dh > 180: dh -= 360
+                if dh < -180: dh += 360
+                h = lo[1] + dh * t
+                s = lo[2] + (hi[2] - lo[2]) * t
+                l = lo[3] + (hi[3] - lo[3]) * t
+                return f'hsl({h:.1f}, {s:.1f}%, {l:.1f}%)'
+        return 'hsl(0, 0%, 50%)'
+
+    for grade_span in soup.find_all('span', class_='r-grade'):
+        inner = grade_span.find('span', recursive=False)
+        if inner:
+            grade_text = inner.get_text(strip=True)
+            key = grade_sort_key(grade_text)
+            color = grade_to_hsl(key)
+            grade_span['style'] = f'color: {color};'
+            route_div = grade_span.find_parent('div', class_='route')
+            if route_div:
+                border = f'3px solid {color}'
+                existing = route_div.get('style', '')
+                route_div['style'] = f'{existing} border-left: {border}; padding-left: 0.75rem;'
+
     fragments = ["""<style>
         /* ═══════════════════════════════════════════
            CragMaster — theCrag.com content restyle
@@ -279,10 +328,11 @@ def serve_topo_html(topo_id):
             font-weight: 300;
             font-size: 15px;
             line-height: 1.5;
+            min-height: 100vh;
         }
         #wrapper {
             max-width: 100%;
-            padding: 0;
+            padding: 1rem 0;
             margin: 0;
         }
         * { box-sizing: border-box; }
@@ -319,15 +369,15 @@ def serve_topo_html(topo_id):
         /* ── Location breadcrumbs ── */
         .regions__heading {
             margin-bottom: 2rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #3a3a34;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #2a2a26;
         }
         .regions__heading .crumb__long,
         .regions__heading .crumb__short {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 0.65rem;
             font-weight: 600;
-            letter-spacing: 0.18em;
+            letter-spacing: 0.2em;
             text-transform: uppercase;
             color: #6b6b60;
         }
@@ -343,16 +393,17 @@ def serve_topo_html(topo_id):
         .heading::after {
             content: '';
             display: block;
-            width: 3rem;
+            width: 2.5rem;
             height: 3px;
             background: #c8502a;
-            margin-top: 0.5rem;
+            margin-top: 0.6rem;
+            border-radius: 2px;
         }
         .heading .heading__t {
             font-family: 'Barlow Condensed', sans-serif;
-            font-size: 2.4rem;
+            font-size: 2.6rem;
             font-weight: 900;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.02em;
             text-transform: uppercase;
             color: #f0ede6;
             margin: 0;
@@ -362,7 +413,7 @@ def serve_topo_html(topo_id):
             font-family: 'Barlow Condensed', sans-serif;
             font-size: 0.7rem;
             font-weight: 600;
-            letter-spacing: 0.15em;
+            letter-spacing: 0.18em;
             text-transform: uppercase;
             color: #6b6b60;
             margin-top: 0.3rem;
@@ -394,7 +445,330 @@ def serve_topo_html(topo_id):
         /* ── Route list ── */
         .node-listview {
             background: transparent !important;
+            margin: 2rem 0;
+            animation: listIn 0.4s ease-out;
+        }
+        @keyframes listIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .node-listview__body {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        /* ── Route row ── */
+        .route {
+            display: flex !important;
+            align-items: center;
+            padding: 0.5rem 1rem 0.5rem 0.75rem;
+            gap: 0.75rem;
+            background: transparent;
+            border-radius: 0;
+            margin: 0;
+            transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            animation: rowIn 0.35s ease-out both;
+        }
+        .route:nth-child(1)  { animation-delay: 0.02s; }
+        .route:nth-child(2)  { animation-delay: 0.04s; }
+        .route:nth-child(3)  { animation-delay: 0.06s; }
+        .route:nth-child(4)  { animation-delay: 0.08s; }
+        .route:nth-child(5)  { animation-delay: 0.10s; }
+        .route:nth-child(6)  { animation-delay: 0.12s; }
+        .route:nth-child(7)  { animation-delay: 0.14s; }
+        .route:nth-child(8)  { animation-delay: 0.16s; }
+        .route:nth-child(9)  { animation-delay: 0.18s; }
+        .route:nth-child(10) { animation-delay: 0.20s; }
+        .route:nth-child(11) { animation-delay: 0.22s; }
+        .route:nth-child(12) { animation-delay: 0.24s; }
+        .route:nth-child(13) { animation-delay: 0.26s; }
+        .route:nth-child(14) { animation-delay: 0.28s; }
+        .route:nth-child(15) { animation-delay: 0.30s; }
+        .route:nth-child(16) { animation-delay: 0.32s; }
+        .route:nth-child(17) { animation-delay: 0.34s; }
+        .route:nth-child(18) { animation-delay: 0.36s; }
+        .route:nth-child(19) { animation-delay: 0.38s; }
+        .route:nth-child(20) { animation-delay: 0.40s; }
+        @keyframes rowIn {
+            from { opacity: 0; transform: translateX(-6px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        .route:hover {
+            background: rgba(255,255,255,0.03);
+            transform: translateX(3px);
+        }
+
+        /* Route number badge */
+        .route .num, .route .toponum {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #6b6b60;
+            background: #242420;
+            width: 1.6rem;
+            height: 1.6rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            flex-shrink: 0;
+            text-align: center;
+            line-height: 1;
+            transition: background 0.2s, color 0.2s;
+        }
+        .route:hover .num,
+        .route:hover .toponum {
+            background: #3a3a34;
+            color: #9a9a90;
+        }
+
+        /* Route name — hero */
+        .route .name {
+            flex: 1;
+            min-width: 0;
+        }
+        .route .name a,
+        .route .primary-node-name {
+            font-family: 'Barlow', sans-serif;
+            font-size: 1rem;
+            font-weight: 450;
+            color: #f0ede6;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .route .name a:hover {
+            color: #e06540;
+        }
+
+        /* Route grade — pill badge using the grade color from inline style */
+        .route .r-grade {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            background: rgba(200,80,42,0.08);
+            padding: 0.15rem 0.55rem;
+            border-radius: 3px;
+            min-width: 2.8rem;
+            text-align: center;
+            flex-shrink: 0;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .route:hover .r-grade {
+            transform: scale(1.08);
+            background: rgba(200,80,42,0.15);
+        }
+        .route .r-grade .difficulty {
+        }
+
+        /* Stars */
+        .route .stars,
+        .route .r-star {
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.7rem;
+            color: #3a3a34;
+            width: 4rem;
+            text-align: center;
+            flex-shrink: 0;
+            letter-spacing: 0.1em;
+        }
+        .route .stars .r-star--active {
+            color: #e06540;
+        }
+
+        /* Length */
+        .route .length {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b6b60;
+            min-width: 3rem;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        /* ── Info cards / boxed sections ── */
+        .boxed {
+            background: linear-gradient(135deg, #2e2e2a 0%, #282824 100%) !important;
+            border: 1px solid #3a3a34 !important;
+            border-radius: 8px;
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            position: relative;
+        }
+        .boxed::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(200,80,42,0.3), transparent);
+            border-radius: 8px 8px 0 0;
+        }
+        .boxed .heading {
+            margin: 0 0 0.75rem;
+            border-left: none;
+            padding-left: 0;
+        }
+        .boxed .heading::after {
+            display: none;
+        }
+        .boxed .heading__t {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #f0ede6;
+        }
+        .boxed p, .boxed .boxed__content {
+            font-size: 0.85rem;
+            color: #b0ada6;
+            line-height: 1.65;
+        }
+        .boxed a {
+            color: #e06540;
+            font-weight: 500;
+        }
+        .boxed a:hover {
+            color: #f0ede6;
+        }
+
+        /* ── Legend ── */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1.5rem;
             margin: 1.5rem 0;
+            padding: 1rem 1.25rem;
+            background: #242420;
+            border: 1px solid #3a3a34;
+            border-radius: 6px;
+        }
+        .legend__item {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #6b6b60;
+        }
+
+        /* ── Links ── */
+        a {
+            color: #e06540;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        a:hover {
+            color: #f0ede6;
+        }
+
+        /* ── Utility panels ── */
+        .panel, .panel__content, .content-box,
+        .regions__summary, .area-summary {
+            background: transparent !important;
+        }
+
+        /* ── News feed / updates ── */
+        .news-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #2a2a26;
+            transition: padding-left 0.2s;
+        }
+        .news-item:last-child {
+            border-bottom: none;
+        }
+        .news-item:hover {
+            padding-left: 0.75rem;
+        }
+        .news-item__title {
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: #f0ede6;
+            line-height: 1.4;
+        }
+        .news-item__meta {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #6b6b60;
+        }
+
+        /* ── Separators ── */
+        .regions__overview + .node-listview {
+            border-top: 1px solid #2a2a26;
+            padding-top: 0.5rem;
+        }
+
+        /* ── Tables (some theCrag pages use tables) ── */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: 1px solid #3a3a34;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        th {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #6b6b60;
+            background: #242420;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #3a3a34;
+        }
+        td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #2a2a26;
+            color: #c0bdb6;
+            font-size: 0.85rem;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ── Mobile tweaks ── */
+        @media (max-width: 640px) {
+            .route {
+                flex-wrap: wrap;
+                padding: 0.4rem 0.6rem 0.4rem 0.6rem;
+                gap: 0.3rem;
+            }
+            .route:hover {
+                transform: none;
+            }
+            .route .r-grade {
+                min-width: 2.2rem;
+                font-size: 0.75rem;
+                padding: 0.1rem 0.3rem;
+            }
+            .route .stars {
+                width: 2.8rem;
+            }
+            .route .length {
+                min-width: 2.5rem;
+                font-size: 0.7rem;
+            }
+            .route .name a,
+            .route .primary-node-name {
+                font-size: 0.85rem;
+            }
+            .heading .heading__t {
+                font-size: 1.7rem;
+            }
+            .boxed {
+                padding: 1rem 1.25rem;
+            }
         }
         .node-listview__body {
             display: flex;
