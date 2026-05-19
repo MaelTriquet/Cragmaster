@@ -1063,6 +1063,37 @@ def submit_recommendation():
     return ok(submitted=True), 201
 
 
+@app.route('/api/notifications', methods=['POST'])
+@jwt_required()
+def submit_notification():
+    user = require_user()
+    d = request.get_json() or {}
+    body = (d.get('body') or '').strip()
+    category = (d.get('category') or 'other').strip()
+    valid_categories = ('bug', 'misspelling', 'suggestion', 'feature', 'other')
+    if not body:
+        return api_error('Body is required')
+    if category not in valid_categories:
+        return api_error(f'Invalid category. Must be one of: {",".join(valid_categories)}')
+
+    conn = get_db()
+    row = conn.execute(
+        'SELECT id FROM notifications WHERE user_id=? AND created_at > datetime("now", "-1 day")',
+        (user['id'],)
+    ).fetchone()
+    if row:
+        conn.close()
+        return api_error('You can only submit one notification per day', 429)
+
+    conn.execute(
+        'INSERT INTO notifications (user_id, body, category) VALUES (?,?,?)',
+        (user['id'], body, category)
+    )
+    conn.commit()
+    conn.close()
+    return ok(submitted=True), 201
+
+
 # ── ADMIN: NOTIFICATIONS ────────────────────────────────────────────────────
 @app.route('/api/admin/notifications', methods=['GET'])
 @jwt_required()
@@ -1083,6 +1114,12 @@ def list_notifications():
         LEFT JOIN users u ON u.id = r.user_id
         ORDER BY r.created_at DESC
     ''').fetchall()
+    notifs = conn.execute('''
+        SELECT n.*, u.username as submitter_name
+        FROM notifications n
+        LEFT JOIN users u ON u.id = n.user_id
+        ORDER BY n.created_at DESC
+    ''').fetchall()
     conn.close()
 
     items = []
@@ -1094,6 +1131,10 @@ def list_notifications():
         d = dict(r)
         d['type'] = 'recommendation'
         items.append(d)
+    for r in notifs:
+        d = dict(r)
+        d['type'] = 'notification'
+        items.append(d)
 
     items.sort(key=lambda x: x['created_at'], reverse=True)
     return ok(items=items)
@@ -1104,7 +1145,7 @@ def resolve_notification(ntype, nid):
     try: require_admin()
     except PermissionError as e: return api_error(str(e), 403)
 
-    table = {'oops': 'oops_reports', 'recommendation': 'recommendations'}.get(ntype)
+    table = {'oops': 'oops_reports', 'recommendation': 'recommendations', 'notification': 'notifications'}.get(ntype)
     if not table:
         return api_error('Invalid notification type', 400)
 
@@ -1120,7 +1161,7 @@ def delete_notification(ntype, nid):
     try: require_admin()
     except PermissionError as e: return api_error(str(e), 403)
 
-    table = {'oops': 'oops_reports', 'recommendation': 'recommendations'}.get(ntype)
+    table = {'oops': 'oops_reports', 'recommendation': 'recommendations', 'notification': 'notifications'}.get(ntype)
     if not table:
         return api_error('Invalid notification type', 400)
 

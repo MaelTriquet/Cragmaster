@@ -134,16 +134,18 @@ const S = {
 function NotificationCard({ item, onResolve, onDelete }) {
   const { t } = useTranslation()
   const isOops = item.type === 'oops'
+  const isRec = item.type === 'recommendation'
+  const isNotif = item.type === 'notification'
   const badgeStyle = {
     ...S.typeBadge,
-    background: isOops ? 'rgba(200,80,42,0.2)' : 'rgba(80,160,200,0.2)',
-    color: isOops ? 'var(--hold-lt)' : '#50a0c8',
+    background: isOops ? 'rgba(200,80,42,0.2)' : isRec ? 'rgba(80,160,200,0.2)' : 'rgba(160,200,80,0.2)',
+    color: isOops ? 'var(--hold-lt)' : isRec ? '#50a0c8' : '#80c850',
   }
 
   return (
     <div style={{ ...S.card, ...(item.resolved ? S.cardResolved : {}) }}>
       <div style={badgeStyle}>
-        {isOops ? t('notifications.oopsLabel') : t('notifications.recLabel')}
+        {isOops ? t('notifications.oopsLabel') : isRec ? t('notifications.recLabel') : t('notifications.notifLabel')}
       </div>
       <div style={S.body}>
         {isOops ? (
@@ -157,10 +159,17 @@ function NotificationCard({ item, onResolve, onDelete }) {
               </div>
             )}
           </>
-        ) : (
+        ) : isRec ? (
           <>
             <div style={S.bodyText}>
               <strong>{item.username}</strong> &lt;{item.email}&gt;
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={S.bodyText}>{item.body}</div>
+            <div style={S.meta}>
+              {t(`footer.category_${item.category}`)}
             </div>
           </>
         )}
@@ -230,6 +239,7 @@ export default function Notifications() {
       if (filter === 'resolved') return item.resolved
       if (filter === 'oops') return item.type === 'oops'
       if (filter === 'rec') return item.type === 'recommendation'
+      if (filter === 'notification') return item.type === 'notification'
       return true
     })
     .sort((a, b) => {
@@ -254,7 +264,7 @@ export default function Notifications() {
       </div>
 
       <div style={S.filterRow}>
-        {['unresolved', 'resolved', 'oops', 'rec'].map(f => (
+        {['unresolved', 'resolved', 'oops', 'rec', 'notification'].map(f => (
           <button
             key={f}
             style={S.filterBtn(filter === f)}

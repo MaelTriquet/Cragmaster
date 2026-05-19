@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import OopsModal from './OopsModal'
 import RecommendationModal from './RecommendationModal'
+import NotifyModal from './NotifyModal'
 
 const S = {
   footer: {
@@ -37,6 +38,7 @@ export default function Footer() {
   const { t } = useTranslation()
   const [showOops, setShowOops] = useState(false)
   const [showRec, setShowRec] = useState(false)
+  const [showNotify, setShowNotify] = useState(false)
 
   return (
     <>
@@ -58,10 +60,20 @@ export default function Footer() {
         >
           {t('footer.recommendation')}
         </button>
+        <div style={S.divider} />
+        <button
+          style={S.btn}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
+          onClick={() => setShowNotify(true)}
+        >
+          {t('footer.notify')}
+        </button>
       </footer>
 
       {showOops && <OopsModal onClose={() => setShowOops(false)} />}
       {showRec && <RecommendationModal onClose={() => setShowRec(false)} />}
+      {showNotify && <NotifyModal onClose={() => setShowNotify(false)} />}
     </>
   )
 }

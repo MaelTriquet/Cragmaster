@@ -114,6 +114,15 @@ def init_db():
             resolved    INTEGER DEFAULT 0,
             created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            body       TEXT NOT NULL,
+            category   TEXT NOT NULL DEFAULT 'other',
+            resolved   INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     ''')
 
     # Migrations
