@@ -156,36 +156,18 @@ const S = {
     transition: "color 0.15s",
   },
 
-  // ── TAG FILTER BAR ──
-  tagFilterBar: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    flexWrap: "wrap",
-    padding: "0.6rem 0",
-    marginBottom: "1.5rem",
-    borderBottom: "1px solid var(--line)",
-    minHeight: "40px",
+  // ── TAG MENU ──
+  tagMenuWrap: {
+    position: "relative",
   },
 
-  tagFilterLabel: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.65rem",
-    fontWeight: 700,
-    letterSpacing: "0.18em",
-    textTransform: "uppercase",
-    color: "var(--muted)",
-    flexShrink: 0,
-    marginRight: "0.25rem",
-  },
-
-  tagFilterChip: (active) => ({
+  tagMenuBtn: (active) => ({
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "0.68rem",
     fontWeight: 600,
     letterSpacing: "0.1em",
     textTransform: "uppercase",
-    padding: "0.2rem 0.6rem",
+    padding: "0.25rem 0.65rem",
     border: `1px solid ${active ? "var(--hold)" : "var(--line)"}`,
     color: active ? "var(--chalk)" : "var(--muted)",
     background: active ? "rgba(200,80,42,0.18)" : "transparent",
@@ -193,28 +175,103 @@ const S = {
     transition: "border-color 0.15s, color 0.15s, background 0.15s",
   }),
 
-  clearTagsBtn: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.65rem",
-    fontWeight: 700,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    padding: "0.2rem 0.55rem",
+  tagDropdown: {
+    position: "absolute",
+    top: "calc(100% + 0.4rem)",
+    left: 0,
+    width: "340px",
+    background: "var(--granite)",
     border: "1px solid var(--line)",
-    color: "var(--hold-lt)",
-    background: "none",
-    cursor: "pointer",
-    marginLeft: "auto",
-    transition: "border-color 0.15s",
+    zIndex: 50,
+    display: "flex",
+    flexDirection: "column",
   },
 
-  noTagsHint: {
+  tagDropdownSearch: {
+    width: "100%",
+    background: "var(--rock)",
+    border: "none",
+    borderBottom: "1px solid var(--line)",
+    color: "var(--chalk)",
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.85rem",
+    padding: "0.55rem 0.75rem",
+    outline: "none",
+    boxSizing: "border-box",
+    flex: "none",
+  },
+
+  tagDropdownBody: {
+    overflowY: "auto",
+    padding: "0.5rem 0",
+    maxHeight: "240px",
+  },
+
+  tagDropdownCat: {
+    padding: "0.3rem 0.75rem 0.15rem",
+  },
+
+  tagDropdownCatLabel: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.6rem",
+    fontWeight: 700,
+    letterSpacing: "0.18em",
+    textTransform: "uppercase",
+    color: "var(--hold)",
+    marginBottom: "0.25rem",
+  },
+
+  tagDropdownTags: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.3rem",
+  },
+
+  tagDropdownChip: (active) => ({
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "0.65rem",
+    fontWeight: 600,
     letterSpacing: "0.1em",
-    color: "var(--line)",
     textTransform: "uppercase",
+    padding: "0.15rem 0.45rem",
+    border: `1px solid ${active ? "var(--hold)" : "var(--line)"}`,
+    color: active ? "var(--chalk)" : "var(--muted)",
+    background: active ? "rgba(200,80,42,0.18)" : "transparent",
+    cursor: "pointer",
+    transition: "border-color 0.15s, color 0.15s, background 0.15s",
+  }),
+
+  tagDropdownClear: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.6rem",
+    fontWeight: 600,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    border: "none",
+    borderTop: "1px solid var(--line)",
+    color: "var(--hold-lt)",
+    background: "var(--rock)",
+    cursor: "pointer",
+    padding: "0.5rem",
+    flex: "none",
   },
+
+  // ── FILTER SELECT ──
+  filterSelect: (active) => ({
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.68rem",
+    fontWeight: 600,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "0.25rem 0.5rem",
+    border: `1px solid ${active ? "var(--hold)" : "var(--line)"}`,
+    color: active ? "var(--chalk)" : "var(--muted)",
+    background: active ? "rgba(200,80,42,0.18)" : "transparent",
+    cursor: "pointer",
+    outline: "none",
+    appearance: "auto",
+    transition: "border-color 0.15s, color 0.15s, background 0.15s",
+  }),
 
   // ── RESULTS LAYOUT ──
   results: {
@@ -368,18 +425,46 @@ const S = {
   },
 }
 
+const CATEGORY_ORDER = ['route_style', 'hold', 'approche', 'exposure', 'style', 'other']
+
+const GRADE_OPTIONS = []
+for (let n = 3; n <= 9; n++) {
+  for (const l of ['a', 'b', 'c']) {
+    GRADE_OPTIONS.push({ label: `${n}${l}`, sort: GRADE_OPTIONS.length })
+    GRADE_OPTIONS.push({ label: `${n}${l}+`, sort: GRADE_OPTIONS.length })
+  }
+}
+
 export default function Search() {
-  const [query, setQuery]           = useState("")
-  const [results, setResults]       = useState(null)
-  const [loading, setLoading]       = useState(false)
-  const [hovered, setHovered]       = useState(null)
-  const [allTags, setAllTags]       = useState([])
-  const [activeTags, setActiveTags] = useState(new Set()) // Set of tag id numbers
+  const [query, setQuery]               = useState("")
+  const [results, setResults]           = useState(null)
+  const [loading, setLoading]           = useState(false)
+  const [hovered, setHovered]           = useState(null)
+  const [allTags, setAllTags]           = useState([])
+  const [activeTags, setActiveTags]     = useState(new Set())
   const [projectsOnly, setProjectsOnly] = useState(false)
+  const [tagMenuOpen, setTagMenuOpen]   = useState(false)
+  const [tagSearch, setTagSearch]       = useState("")
+  const [gradeMin, setGradeMin]         = useState("")
+  const [gradeMax, setGradeMax]         = useState("")
 
   const inputRef = useRef()
-  const { t } = useTranslation()
+  const menuRef = useRef()
+  const { t, i18n } = useTranslation()
+  const tagName = (tag) => (i18n.language === 'fr' && tag.name_fr ? tag.name_fr : tag.name)
   const navigate = useNavigate()
+
+  // Close tag menu on click outside
+  useEffect(() => {
+    if (!tagMenuOpen) return
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setTagMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [tagMenuOpen])
 
   // Auto-focus on mount + load all tags
   useEffect(() => {
@@ -389,12 +474,13 @@ export default function Search() {
       .catch(() => {})
   }, [])
 
-  // Re-search whenever query or active tags change
+  // Re-search whenever query, active tags, or grade range change
   useEffect(() => {
     const hasQuery = query.length > 0
     const hasTags  = activeTags.size > 0
+    const hasGrade = gradeMin !== "" || gradeMax !== ""
 
-    if (!hasQuery && !hasTags && !projectsOnly) {
+    if (!hasQuery && !hasTags && !hasGrade && !projectsOnly) {
       setResults(null)
       return
     }
@@ -405,6 +491,8 @@ export default function Search() {
       if (query) params.set("q", query)
       if (projectsOnly) params.set("projects_only", "1")
       activeTags.forEach(id => params.append("tag_ids", id))
+      if (gradeMin !== "") params.set("grade_min_sort", GRADE_OPTIONS.find(g => g.label === gradeMin)?.sort ?? "")
+      if (gradeMax !== "") params.set("grade_max_sort", GRADE_OPTIONS.find(g => g.label === gradeMax)?.sort ?? "")
 
       api.get(`/search?${params.toString()}`)
         .then(res => setResults(res.data))
@@ -413,7 +501,7 @@ export default function Search() {
     }, 180)
 
     return () => clearTimeout(timeout)
-  }, [query, activeTags, projectsOnly])
+  }, [query, activeTags, projectsOnly, gradeMin, gradeMax])
 
   const toggleTag = (id) => {
     setActiveTags(prev => {
@@ -426,9 +514,10 @@ export default function Search() {
 
   const hasQuery   = query.length > 0
   const hasTags    = activeTags.size > 0
+  const hasGrade   = gradeMin !== "" || gradeMax !== ""
   const hasResults = results && (results.routes?.length > 0 || results.topos?.length > 0)
   const noResults  = results && !hasResults
-  const showPrompt = !hasQuery && !hasTags && !projectsOnly
+  const showPrompt = !hasQuery && !hasTags && !hasGrade && !projectsOnly
 
   return (
     <div style={S.root}>
@@ -478,8 +567,8 @@ export default function Search() {
           )}
         </div>
 
-        {/* ── PROJECTS FILTER ── */}
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "1rem" }}>
+        {/* ── FILTERS ROW ── */}
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap" }}>
           <button
             style={{
               fontFamily: "Barlow Condensed, sans-serif",
@@ -500,48 +589,112 @@ export default function Search() {
           >
             {projectsOnly ? "\u2605" : "\u2606"} {t('search.projects')}
           </button>
+
+          {/* ── TAGS ── */}
+          <div style={S.tagMenuWrap} ref={menuRef}>
+          <button
+            style={S.tagMenuBtn(activeTags.size > 0)}
+            onClick={() => setTagMenuOpen(v => !v)}
+            onMouseEnter={e => { if (activeTags.size === 0) { e.target.style.borderColor = "var(--chalk)"; e.target.style.color = "var(--chalk)" }}}
+            onMouseLeave={e => { if (activeTags.size === 0) { e.target.style.borderColor = "var(--line)"; e.target.style.color = "var(--muted)" }}}
+          >
+            {t('tags.title')} {activeTags.size > 0 && `(${activeTags.size})`}
+          </button>
+
+          {tagMenuOpen && (
+            <div style={S.tagDropdown}>
+              <input
+                style={S.tagDropdownSearch}
+                type="text"
+                placeholder={t('tags.searchPlaceholder')}
+                value={tagSearch}
+                onChange={e => setTagSearch(e.target.value)}
+                onFocus={e => e.target.style.background = "var(--granite)"}
+                onBlur={e => e.target.style.background = "var(--rock)"}
+                autoFocus
+              />
+              <div style={S.tagDropdownBody}>
+                {CATEGORY_ORDER.map(cat => {
+                  const catTags = allTags.filter(t => (t.category || 'other') === cat)
+                  const catLabel = t(`tags.category_${cat}`).toLowerCase()
+                  const search = tagSearch.toLowerCase()
+                  const matched = search === ""
+                    ? true
+                    : catLabel.includes(search) || catTags.some(t => t.name.toLowerCase().includes(search))
+                  if (!matched) return null
+                  const filtered = search
+                    ? catTags.filter(t => t.name.toLowerCase().includes(search) || catLabel.includes(search))
+                    : catTags
+                  if (filtered.length === 0 && !catLabel.includes(search)) return null
+                  return (
+                    <div key={cat} style={S.tagDropdownCat}>
+                      <div style={S.tagDropdownCatLabel}>{t(`tags.category_${cat}`)}</div>
+                      <div style={S.tagDropdownTags}>
+                        {catTags.map(tg => {
+                          const active = activeTags.has(tg.id)
+                          if (search && !tg.name.toLowerCase().includes(search) && !catLabel.includes(search)) return null
+                          return (
+                            <button
+                              key={tg.id}
+                              style={{
+                                ...S.tagDropdownChip(active),
+                                ...(hovered === `stag-${tg.id}` && !active
+                                  ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
+                                  : {}),
+                              }}
+                              onMouseEnter={() => setHovered(`stag-${tg.id}`)}
+                              onMouseLeave={() => setHovered(null)}
+                              onClick={() => toggleTag(tg.id)}
+                            >
+                              {tagName(tg)}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+                {allTags.length === 0 && (
+                  <div style={{ padding: "0.75rem", fontFamily: "Barlow, sans-serif", fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
+                    No tags loaded
+                  </div>
+                )}
+              </div>
+              {activeTags.size > 0 && (
+                <button
+                  style={S.tagDropdownClear}
+                  onClick={() => { setActiveTags(new Set()); setTagMenuOpen(false) }}
+                >
+                  Clear filters ({activeTags.size})
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* ── TAG FILTER BAR ── */}
-{/* NOTE: disabled for now, might be useful later */}
-        {/* <div style={S.tagFilterBar}> */}
-        {/*   <span style={S.tagFilterLabel}>Tags</span> */}
-        {/*   {allTags.length === 0 ? ( */}
-        {/*     <span style={S.noTagsHint}>No tags yet</span> */}
-        {/*   ) : ( */}
-        {/*     <> */}
-        {/*       {allTags.map(t => ( */}
-        {/*         <button */}
-        {/*           key={t.id} */}
-        {/*           style={{ */}
-        {/*             ...S.tagFilterChip(activeTags.has(t.id)), */}
-        {/*             ...(hovered === `tag-${t.id}` && !activeTags.has(t.id) */}
-        {/*               ? { borderColor: "var(--chalk)", color: "var(--chalk)" } */}
-        {/*               : {}), */}
-        {/*           }} */}
-        {/*           onMouseEnter={() => setHovered(`tag-${t.id}`)} */}
-        {/*           onMouseLeave={() => setHovered(null)} */}
-        {/*           onClick={() => toggleTag(t.id)} */}
-        {/*         > */}
-        {/*           {t.name} */}
-        {/*           {t.route_count > 0 && ( */}
-        {/*             <span style={{ marginLeft: "0.3rem", opacity: 0.5 }}> */}
-        {/*               {t.route_count} */}
-        {/*             </span> */}
-        {/*           )} */}
-        {/*         </button> */}
-        {/*       ))} */}
-        {/*       {hasTags && ( */}
-        {/*         <button */}
-        {/*           style={S.clearTagsBtn} */}
-        {/*           onClick={() => setActiveTags(new Set())} */}
-        {/*         > */}
-        {/*           Clear filters */}
-        {/*         </button> */}
-        {/*       )} */}
-        {/*     </> */}
-        {/*   )} */}
-        {/* </div> */}
+          {/* ── GRADE RANGE ── */}
+          <select
+            style={S.filterSelect(gradeMin !== "")}
+            value={gradeMin}
+            onChange={e => setGradeMin(e.target.value)}
+          >
+            <option value="">Min grade</option>
+            {GRADE_OPTIONS.map(g => (
+              <option key={g.label} value={g.label}>{g.label}</option>
+            ))}
+          </select>
+          <span style={{ fontFamily: "Barlow, sans-serif", fontSize: "0.8rem", color: "var(--muted)" }}>–</span>
+          <select
+            style={S.filterSelect(gradeMax !== "")}
+            value={gradeMax}
+            onChange={e => setGradeMax(e.target.value)}
+          >
+            <option value="">Max grade</option>
+            {GRADE_OPTIONS.map(g => (
+              <option key={g.label} value={g.label}>{g.label}</option>
+            ))}
+          </select>
+        </div>
 
         {/* ── RESULTS ── */}
         <div style={S.results}>

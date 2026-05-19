@@ -1,16 +1,14 @@
 import os
-import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, send_file, send_from_directory, Response
+from flask import Flask, request, jsonify, send_file, send_from_directory, redirect
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from db import get_db, init_db
 from auth import hash_password, check_password, get_current_user, require_user, require_admin
-from ocr import extract_text_from_pdf, extract_routes, parse_routes, grade_sort_key, GRADE_PATTERN, FRENCH_ORDER
-from bs4 import BeautifulSoup
+from ocr import extract_text_from_pdf, parse_routes, grade_sort_key, GRADE_PATTERN, FRENCH_ORDER
 from thecrag_parser import parse_thecrag_html, fetch_thecrag_html
 import re
 import seed
@@ -238,584 +236,13 @@ def serve_pdf(topo_id):
     row = conn.execute('SELECT filename FROM topos WHERE id=?', (topo_id,)).fetchone()
     conn.close()
     if not row: return api_error('Not found', 404)
-    path = UPLOAD_FOLDER / row['filename']
+    fn = row['filename']
+    if fn.startswith('http'):
+        return redirect(fn)
+    path = UPLOAD_FOLDER / fn
     mime = 'application/pdf' if path.suffix.lower() == '.pdf' else 'text/html'
-    return send_file(path, mimetype=mime, download_name=row['filename'], as_attachment=True)
+    return send_file(path, mimetype=mime, download_name=fn, as_attachment=True)
 
-
-@app.route('/api/topos/<int:topo_id>/html')
-@jwt_required()
-def serve_topo_html(topo_id):
-    conn = get_db()
-    row = conn.execute('SELECT filename FROM topos WHERE id=?', (topo_id,)).fetchone()
-    conn.close()
-    if not row: return api_error('Not found', 404)
-    path = UPLOAD_FOLDER / row['filename']
-    if not path.exists() or path.suffix.lower() != '.html':
-        return api_error('HTML file not found', 404)
-
-    with open(path, 'r', encoding='utf-8') as f:
-        soup = BeautifulSoup(f.read(), 'html.parser')
-
-    # Strip scripts and all theCrag's own styles
-    for tag in soup.find_all('script'):
-        tag.decompose()
-    for tag in soup.find_all(['link', 'style']):
-        tag.decompose()
-
-    # Strip HTML comments
-    from bs4 import Comment
-    for comment in soup.find_all(string=lambda t: isinstance(t, Comment)):
-        comment.extract()
-
-    # Remove footer (everything below "General information")
-    footer = soup.find('footer', id='footer')
-    if footer:
-        footer.decompose()
-
-    # Remove prev/next link fragments above footer
-    for link in soup.select('a[rel="prev"], a[rel="next"]'):
-        link.decompose()
-
-    # ── Color grades like CragMaster does ──
-    GRADE_STOPS = [
-        (0,    105, 55, 48),
-        (11.5, 88,  60, 46),
-        (17.5, 65,  70, 46),
-        (19.5, 45,  75, 48),
-        (21.5, 30,  78, 46),
-        (23.5, 18,  80, 45),
-        (25.5, 6,   82, 44),
-        (27.5, 352, 80, 42),
-        (29.5, 330, 75, 38),
-        (35,   285, 70, 32),
-    ]
-
-    def grade_to_hsl(grade_key):
-        if grade_key < 0:
-            return 'hsl(0, 0%, 50%)'
-        if grade_key <= GRADE_STOPS[0][0]:
-            s = GRADE_STOPS[0]
-            return f'hsl({s[1]}, {s[2]}%, {s[3]}%)'
-        if grade_key >= GRADE_STOPS[-1][0]:
-            s = GRADE_STOPS[-1]
-            return f'hsl({s[1]}, {s[2]}%, {s[3]}%)'
-        for i in range(len(GRADE_STOPS) - 1):
-            lo, hi = GRADE_STOPS[i], GRADE_STOPS[i + 1]
-            if grade_key >= lo[0] and grade_key <= hi[0]:
-                t = (grade_key - lo[0]) / (hi[0] - lo[0])
-                dh = hi[1] - lo[1]
-                if dh > 180: dh -= 360
-                if dh < -180: dh += 360
-                h = lo[1] + dh * t
-                s = lo[2] + (hi[2] - lo[2]) * t
-                l = lo[3] + (hi[3] - lo[3]) * t
-                return f'hsl({h:.1f}, {s:.1f}%, {l:.1f}%)'
-        return 'hsl(0, 0%, 50%)'
-
-    for grade_span in soup.find_all('span', class_='r-grade'):
-        inner = grade_span.find('span', recursive=False)
-        if inner:
-            grade_text = inner.get_text(strip=True)
-            key = grade_sort_key(grade_text)
-            color = grade_to_hsl(key)
-            inner['style'] = f'background: {color};'
-            route_div = grade_span.find_parent('div', class_='route')
-            if route_div:
-                border = f'3px solid {color}'
-                existing = route_div.get('style', '')
-                route_div['style'] = f'{existing} border-left: {border}; padding-left: 0.75rem;'
-
-    # Strip inline position styles from grade barchart bars (they conflict with flex)
-    for chart in soup.find_all('div', class_='grade-barchart'):
-        if chart.get('style'):
-            del chart['style']
-        for a in chart.find_all('a'):
-            if a.get('style'):
-                del a['style']
-            span = a.find('span')
-            if span and span.get('style'):
-                del span['style']
-
-
-
-    fragments = ["""<style>
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap');
-
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0; padding: 0;
-            background: var(--rock);
-            color: var(--chalk);
-            font-family: 'Barlow', sans-serif;
-            font-weight: 300;
-            font-size: 15px;
-            line-height: 1.5;
-        }
-        #wrapper { max-width: 100%; padding: 0.5rem 0; margin: 0; }
-
-        /* ── Hide chrome ── */
-        .bust, .bust__black, .bust__white,
-        .regions__navdrawer, .regions__prominent, .regions__aside,
-        .regions__topogroup, .regions__modal,
-        .sponsor-slot, .sponsor-media-container,
-        .regions__subheading, .regions__tools,
-        .footer, .region-footer,
-        .node-listview__header,
-        .route .check, .route .tick, .route .sticky-holder .sticky-header .check,
-        .route .sticky-holder .sticky-header .tick,
-        .regions__read .sponsor-slot,
-        div[style*="white"][style*="solid"][style*="333"],
-        .headline__act {
-            display: none !important;
-        }
-
-        /* ── Main content layout ── */
-        .regions__content { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
-        .regions__inner { max-width: 100% !important; padding: 0 !important; }
-        .regions__primary { width: 100% !important; max-width: 100% !important; padding: 0 !important; float: none !important; }
-
-        /* ── Breadcrumbs ── */
-        .regions__heading { margin-bottom: 2rem; }
-        .regions__heading .crumbs { margin: 0; padding: 0; }
-        .regions__heading .crumb,
-        .regions__heading .crumb__long,
-        .regions__heading .crumb__short {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.62rem;
-            font-weight: 600;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-        .regions__heading .crumb a { color: var(--muted); }
-        .regions__heading .crumb a:hover { color: var(--hold-lt); }
-        .regions__heading .crumb .crumb__sep { color: var(--line); margin: 0 0.25rem; }
-        .crumb--first .crumb__a .crumb__icon { display: none; }
-        .crumb--first .crumb__a::before { content: '\u2302'; margin-right: 0.25rem; }
-
-        /* ── Page heading ── */
-        h1.heading {
-            margin: 0 0 0.25rem;
-            border-left: 4px solid var(--hold);
-            padding-left: 1.5rem;
-        }
-        h1.heading .heading__t {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 2.8rem;
-            font-weight: 900;
-            letter-spacing: 0.01em;
-            text-transform: uppercase;
-            color: var(--chalk);
-            line-height: 1;
-            display: inline;
-        }
-        h1.heading .heading__byline {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.72rem;
-            font-weight: 600;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            color: var(--muted);
-            display: block;
-            margin-top: 0.5rem;
-        }
-        h1.heading .heading__byline .info a { color: var(--muted); }
-        h1.heading .heading__byline .info a:hover { color: var(--hold-lt); }
-
-        /* ── Stats bar ── */
-        .headline__guts .stats {
-            list-style: none;
-            margin: 0.75rem 0 1rem;
-            padding: 0;
-            display: flex;
-            gap: 1.5rem;
-        }
-        .headline__guts .stats li {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.72rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-        .headline__guts .stats li strong { color: var(--chalk); font-weight: 700; }
-        .headline__guts .stats li a { color: var(--hold-lt); }
-        .headline__guts .stats li a:hover { color: var(--chalk); }
-
-        /* ── Donut + grade bars (histogram) ── */
-        .style-donut { opacity: 1; }
-        .grade-barchart {
-            margin: 0.5rem 0 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            background: var(--granite);
-            padding: 0.75rem 1rem;
-        }
-        .grade-barchart__system {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 800;
-            letter-spacing: 0.15em;
-            color: var(--chalk);
-        }
-        .grade-barchart__bars {
-            display: flex;
-            align-items: flex-end;
-            gap: 2px;
-            flex: 1;
-            height: 100px;
-        }
-        .grade-barchart__bars a {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            text-decoration: none;
-            flex: 1;
-            max-width: 28px;
-        }
-        .grade-barchart__bars a b {
-            display: block;
-            width: 100%;
-            min-height: 2px;
-            align-self: flex-end;
-        }
-        .grade-barchart__bars a span {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.6rem;
-            font-weight: 700;
-            color: var(--muted);
-            margin-top: 3px;
-            white-space: nowrap;
-        }
-        .grade-barchart__bars a:hover span { color: var(--hold-lt); }
-
-        /* ── Info sections (Map, Seasonality, Access, Ethic, Tags, Plan your Trip) ── */
-        .node-info {
-            margin: 1.25rem 0;
-        }
-        .node-info > h2 {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 1.1rem;
-            font-weight: 800;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--chalk);
-            margin: 0 0 0.75rem;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--line);
-        }
-        .node-info.expandable > h2 { cursor: pointer; }
-        .node-info > .content {
-            font-size: 0.85rem;
-            color: var(--muted);
-            line-height: 1.6;
-        }
-        .node-info > .content p { margin: 0 0 0.5rem; }
-        .node-info > .content a { color: var(--hold-lt); font-weight: 500; }
-        .node-info > .content a:hover { color: var(--chalk); }
-        .node-info > .content small.from {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.65rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-        .node-info > .content .markdown p {
-            font-size: 0.85rem;
-            color: var(--muted);
-            line-height: 1.6;
-        }
-
-        /* ── Seasonality chart ── */
-        .seasonality {
-            background: var(--granite);
-            padding: 0.75rem 1rem;
-        }
-        .seasonality table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .seasonality td {
-            text-align: center;
-            vertical-align: bottom;
-            padding: 0 3px;
-        }
-        .seasonality .barchart-v__label {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.65rem;
-            font-weight: 700;
-            color: var(--chalk);
-            text-transform: uppercase;
-            padding-bottom: 4px;
-        }
-        .seasonality .barchart-v__bars span {
-            display: block;
-            min-width: 8px;
-            border-radius: 0;
-        }
-
-        /* ── Plan your Trip buttons ── */
-        .node-info > .content .icontag {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 110px !important;
-            height: 60px !important;
-            padding: 0.5rem !important;
-            margin: 0.25rem;
-            color: var(--muted);
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.72rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            text-decoration: none;
-            transition: border-color 0.2s, background 0.2s;
-            border: 1px solid var(--line);
-        }
-        .node-info > .content .icontag:hover {
-            border-color: var(--hold);
-            background: var(--granite);
-            color: var(--chalk);
-        }
-        .node-info > .content .icontag i {
-            font-size: 1.4rem !important;
-            width: auto !important;
-            height: auto !important;
-            line-height: 1 !important;
-        }
-
-        /* ── Aspect chart (orientation) ── */
-        div[id*="aspect_widget"] .readable > div {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        div[id*="aspect_widget"] .head {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-        div[id*="aspect_widget"] [name="unknown_label_text"] {
-            font-size: 0.75rem !important;
-            color: var(--muted);
-        }
-
-        /* ── Activity stream ── */
-        .regions__stream { margin: 2rem 0; }
-        .regions__stream .heading__t {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 1.1rem;
-            font-weight: 800;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--chalk);
-            text-decoration: none;
-        }
-        .regions__stream > p { color: var(--muted); font-size: 0.85rem; }
-        .stream { margin: 0.5rem 0; }
-        .event {
-            margin: 0.75rem 0;
-            padding: 0.75rem;
-            background: var(--granite);
-        }
-        .event-details { margin: 0; }
-        .event-item {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--line);
-        }
-        .event-item:last-child { border-bottom: none; }
-        .event-item .tick-item p {
-            font-size: 0.85rem;
-            color: var(--chalk);
-            line-height: 1.5;
-            margin: 0;
-        }
-        .event-item .tick-item a { color: var(--hold-lt); }
-        .event-item .tick-item .tags {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.6rem;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--muted);
-            border: 1px solid var(--line);
-            padding: 0.05rem 0.35rem;
-        }
-        .event-inset {
-            margin: 0.35rem 0 0 0;
-            padding: 0.5rem 0.75rem;
-            background: rgba(255,255,255,0.04);
-            font-size: 0.85rem;
-            color: var(--chalk);
-        }
-        .event-inset p { margin: 0; color: var(--chalk); font-size: 0.85rem; }
-        .event-inset a { color: var(--hold-lt); }
-        .event-tagline { font-size: 0.82rem; color: var(--muted); margin: 0 0 0.5rem; }
-        .event-tagline a { color: var(--chalk); font-weight: 500; }
-        .event-tagline .secondary { color: var(--muted); font-size: 0.72rem; }
-
-        /* Ascent form clutter — hide inputs/logging UI */
-        .logascentflow textarea,
-        .logascentflow .markdown-preview,
-        .logascentflow label,
-        .logascentflow .btn,
-        .logascentflow .tc-modal { display: none !important; }
-
-        /* Stream UI clutter — hide */
-        .stream-group-settings, .calendar-date, .event-type,
-        .who, .tick-menu, .event-buttons, .event-why, .btn-group,
-        .event-inline-comments, .event-cpr, .grade-convert,
-        .stream-button, div.clearfix {
-            display: none !important;
-        }
-
-        /* ── Route list heading ── */
-        .node-listview h2.inline {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 1.3rem;
-            font-weight: 800;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--chalk);
-            margin: 2rem 0 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid var(--hold);
-            display: inline-block;
-        }
-        .node-listview .btn-group-group { display: none !important; }
-
-        /* ── Route rows ── */
-        .node-listview { margin: 0 0 1.5rem; }
-        .node-listview__body { display: flex; flex-direction: column; }
-
-        .route.header { display: none !important; }
-
-        .route {
-            display: flex !important;
-            align-items: center;
-            padding: 0.45rem 0.75rem;
-            gap: 0.6rem;
-            border-bottom: 1px solid var(--line);
-            border-left: 3px solid transparent;
-            transition: background 0.1s;
-        }
-        .route:last-child { border-bottom: none; }
-        .route:hover { background: rgba(255,255,255,0.035); }
-
-        /* Route number badge */
-        .route .num, .route .toponum {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.6rem;
-            font-weight: 700;
-            color: var(--muted);
-            width: 1.45rem;
-            flex-shrink: 0;
-            text-align: center;
-        }
-
-        /* Route title block */
-        .route .sticky-holder .sticky-header .title,
-        .route .title {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        /* Grade pill */
-        .route .r-grade { order: 1; }
-        .route .r-grade span[class*="gb"] {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.82rem;
-            font-weight: 800;
-            letter-spacing: 0.06em;
-            padding: 0.12rem 0.45rem;
-            display: inline-block;
-            color: var(--chalk);
-        }
-
-        /* Route name */
-        .route .name { order: 2; flex: 1; min-width: 0; }
-        .route .name a { text-decoration: none; }
-        .route .name .primary-node-name {
-            font-family: 'Barlow', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 400;
-            color: var(--chalk);
-            transition: color 0.15s;
-        }
-        .route .name a:hover .primary-node-name { color: var(--hold-lt); }
-
-        /* Route flags (Sport, Project, etc.) */
-        .route .flags { order: 3; display: flex; gap: 0.3rem; flex-shrink: 0; }
-        .route .flags .tags {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 0.55rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            padding: 0.1rem 0.35rem;
-            line-height: 1.3;
-        }
-        .route .flags .tags.sport { color: var(--muted); border: 1px solid var(--line); }
-        .route .flags .tags.project { color: var(--hold); border: 1px solid var(--hold); }
-
-        /* Popularity indicator */
-        .route .r-pop { order: 4; flex-shrink: 0; width: 2rem; text-align: center; }
-        .route .r-pop a { text-decoration: none; }
-        .route .r-pop .pop {
-            display: inline-block;
-            width: 8px; height: 8px;
-            background: var(--line);
-            transition: background 0.2s;
-        }
-        .route .r-pop .pop--0 { background: var(--line); }
-        .route .r-pop .pop--1 { background: var(--hold); }
-        .route .r-pop .pop--2 { background: var(--hold-lt); }
-
-        /* ── Supporter ad (hide) ── */
-        .node-listview div[style*="margin:10px"] { display: none !important; }
-
-        /* ── Links ── */
-        a { color: var(--hold-lt); text-decoration: none; font-weight: 500; }
-        a:hover { color: var(--chalk); }
-
-        /* ── Utility ── */
-        .regions__overview { padding: 0.25rem 0; }
-
-        /* ── Mobile tweaks ── */
-        @media (max-width: 640px) {
-            h1.heading .heading__t { font-size: 1.8rem; }
-            h1.heading .heading__byline { font-size: 0.65rem; }
-            .route { padding: 0.35rem 0.5rem; flex-wrap: wrap; gap: 0.25rem; }
-            .route .r-grade span[class*="gb"] { font-size: 0.72rem; padding: 0.05rem 0.3rem; }
-            .route .name .primary-node-name { font-size: 0.82rem; }
-            .route .flags .tags { font-size: 0.5rem; }
-            .route .r-pop { width: 1.5rem; }
-            .headline__guts .stats { gap: 0.75rem; flex-wrap: wrap; }
-            .grade-barchart { flex-wrap: wrap; }
-            .node-listview h2.inline { font-size: 1rem; }
-            .node-info > h2 { font-size: 0.95rem; }
-        }
-    </style>"""]
-
-    # Extract body content
-    body_tag = soup.find('body')
-    if body_tag:
-        fragments.extend(str(c) for c in body_tag.children)
-
-    return Response('\n'.join(fragments), mimetype='text/html')
 
 @app.route('/api/topos/upload', methods=['POST'])
 @jwt_required()
@@ -916,7 +343,7 @@ def import_thecrag_url():
         return api_error('Only theCrag.com URLs are supported')
 
     try:
-        html, parsed = fetch_thecrag_html(url)
+        _, parsed = fetch_thecrag_html(url)
     except ValueError as e:
         return api_error(str(e))
     except Exception as e:
@@ -924,14 +351,11 @@ def import_thecrag_url():
 
     topo_data = parsed['topo']
     title = (d.get('title') or '').strip() or topo_data['title']
-    filename = title + '.html'
-    dest = UPLOAD_FOLDER / filename
-    dest.write_text(html)
 
     conn = get_db()
     cursor = conn.execute(
         'INSERT INTO topos (filename, title, uploaded_by) VALUES (?,?,?)',
-        (filename, title, user['id'])
+        (url, title, user['id'])
     )
     topo_id = cursor.lastrowid
 
@@ -1047,7 +471,7 @@ def get_route(route_id):
         if proj:
             is_project = True
             project_sent = bool(proj['sent'])
-    tags = conn.execute('SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
+    tags = conn.execute('SELECT t.id, t.name, t.name_fr, t.category FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?', (route_id,)).fetchall()
 
     # Batch-fetch attempt & project status for every commenter
     commenter_ids = list({c['user_id'] for c in comments})
@@ -1221,21 +645,34 @@ def delete_comment(comment_id):
 @app.route('/api/search', methods=['GET'])
 @jwt_required()
 def search():
-    q             = (request.args.get('q') or '').strip()
-    tag_ids       = request.args.getlist('tag_ids')
-    projects_only = request.args.get('projects_only')
+    q               = (request.args.get('q') or '').strip()
+    tag_ids         = request.args.getlist('tag_ids')
+    projects_only   = request.args.get('projects_only')
+    grade_min_sort  = request.args.get('grade_min_sort', type=int)
+    grade_max_sort  = request.args.get('grade_max_sort', type=int)
 
     conn = get_db()
 
     # Build route query — optionally filter by tags
+    conditions = []
+    params = []
+
     if tag_ids:
         placeholders = ','.join('?' * len(tag_ids))
-        route_rows = conn.execute(
-            f'''SELECT DISTINCT r.* FROM routes r
-                JOIN tag_routes tr ON tr.route_id = r.id
-                WHERE tr.tag_id IN ({placeholders})''',
-            tag_ids
-        ).fetchall()
+        conditions.append(f'''r.id IN (SELECT route_id FROM tag_routes WHERE tag_id IN ({placeholders}))''')
+        params.extend(tag_ids)
+
+    if grade_min_sort is not None:
+        conditions.append('r.sorting_grade >= ?')
+        params.append(grade_min_sort)
+
+    if grade_max_sort is not None:
+        conditions.append('r.sorting_grade <= ?')
+        params.append(grade_max_sort)
+
+    if conditions:
+        where = ' WHERE ' + ' AND '.join(conditions)
+        route_rows = conn.execute(f'SELECT DISTINCT r.* FROM routes r{where}', params).fetchall()
     else:
         route_rows = conn.execute('SELECT * FROM routes').fetchall()
 
@@ -1270,37 +707,28 @@ def search():
 @app.route('/api/tags', methods=['GET'])
 @jwt_required()
 def list_tags():
-    """Return all tags, each with the count of routes using them."""
+    """Return all tags, optionally filtered by category, each with route count."""
+    category = request.args.get('category')
     conn = get_db()
-    tags = conn.execute('''
-        SELECT t.id, t.name, COUNT(tr.route_id) as route_count
-        FROM tags t
-        LEFT JOIN tag_routes tr ON tr.tag_id = t.id
-        GROUP BY t.id
-        ORDER BY t.name
-    ''').fetchall()
+    if category:
+        tags = conn.execute('''
+            SELECT t.id, t.name, t.name_fr, t.category, COUNT(tr.route_id) as route_count
+            FROM tags t
+            LEFT JOIN tag_routes tr ON tr.tag_id = t.id
+            WHERE t.category=?
+            GROUP BY t.id
+            ORDER BY t.name
+        ''', (category,)).fetchall()
+    else:
+        tags = conn.execute('''
+            SELECT t.id, t.name, t.name_fr, t.category, COUNT(tr.route_id) as route_count
+            FROM tags t
+            LEFT JOIN tag_routes tr ON tr.tag_id = t.id
+            GROUP BY t.id
+            ORDER BY t.category, t.name
+        ''').fetchall()
     conn.close()
     return ok(tags=[dict(t) for t in tags])
-
-@app.route('/api/tags', methods=['POST'])
-@jwt_required()
-def create_tag():
-    """Create a new tag. Returns existing tag if name already exists."""
-    user = get_current_user()
-    if not user: return api_error('Authentication required', 401)
-    d = request.get_json() or {}
-    name = (d.get('name') or '').strip().lower()
-    if not name: return api_error('Tag name required')
-    conn = get_db()
-    existing = conn.execute('SELECT * FROM tags WHERE name=?', (name,)).fetchone()
-    if existing:
-        conn.close()
-        return ok(tag=dict(existing)), 200
-    conn.execute('INSERT INTO tags (name) VALUES (?)', (name,))
-    conn.commit()
-    tag = conn.execute('SELECT * FROM tags WHERE name=?', (name,)).fetchone()
-    conn.close()
-    return ok(tag=dict(tag)), 201
 
 @app.route('/api/routes/<int:route_id>/tags', methods=['POST'])
 @jwt_required()
@@ -1326,7 +754,7 @@ def assign_tag(route_id):
     )
     conn.commit()
     tags = conn.execute(
-        'SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
+        'SELECT t.id, t.name, t.name_fr, t.category FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
         (route_id,)
     ).fetchall()
     conn.close()
@@ -1345,7 +773,7 @@ def unassign_tag(route_id, tag_id):
     )
     conn.commit()
     tags = conn.execute(
-        'SELECT t.id, t.name FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
+        'SELECT t.id, t.name, t.name_fr, t.category FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
         (route_id,)
     ).fetchall()
     conn.close()

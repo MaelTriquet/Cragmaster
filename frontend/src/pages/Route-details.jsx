@@ -120,136 +120,135 @@ const S = {
 
   // ── TAGS ──────────────────────────────────────────────
   tagsSection: {
-    marginTop: "1rem",
+    marginTop: "1.5rem",
+    borderTop: "1px solid var(--line)",
+    paddingTop: "1.25rem",
   },
 
-  tagsRow: {
-    display: "flex",
-    gap: "0.5rem",
-    flexWrap: "wrap",
-    alignItems: "center",
-    marginBottom: "0.6rem",
-  },
-
-  tag: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "0.35rem",
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.72rem",
-    fontWeight: 600,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    padding: "0.2rem 0.5rem 0.2rem 0.6rem",
-    border: "1px solid var(--line)",
-    color: "var(--chalk)",
-    background: "rgba(255,255,255,0.04)",
-    transition: "border-color 0.15s",
-  },
-
-  tagRemoveBtn: {
-    background: "none",
-    border: "none",
-    color: "var(--muted)",
-    cursor: "pointer",
-    fontSize: "0.75rem",
-    padding: "0",
-    lineHeight: 1,
-    display: "flex",
-    alignItems: "center",
-    transition: "color 0.15s",
-  },
-
-  addTagBtn: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.72rem",
-    fontWeight: 600,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    padding: "0.2rem 0.6rem",
-    border: "1px dashed var(--line)",
-    color: "var(--muted)",
-    background: "none",
-    cursor: "pointer",
-    transition: "border-color 0.15s, color 0.15s",
-  },
-
-  // ── TAG PANEL ──
-  tagPanel: {
-    background: "var(--granite)",
-    border: "1px solid var(--line)",
-    padding: "1rem 1.25rem",
-    marginTop: "0.6rem",
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.85rem",
-  },
-
-  tagPanelTitle: {
+  tagsTitle: {
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "0.65rem",
     fontWeight: 700,
     letterSpacing: "0.2em",
     textTransform: "uppercase",
-    color: "var(--hold)",
+    color: "var(--muted)",
+    marginBottom: "1rem",
   },
 
-  tagInputRow: {
+  tagCategoryRow: {
     display: "flex",
+    alignItems: "baseline",
     gap: "0.5rem",
+    padding: "0.3rem 0",
+    borderBottom: "1px solid rgba(255,255,255,0.03)",
   },
 
-  tagInput: {
+  tagCategoryLabel: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.68rem",
+    fontWeight: 700,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase",
+    color: "var(--hold)",
+    minWidth: "6.5rem",
+    flexShrink: 0,
+  },
+
+  tagCategoryTags: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.3rem",
+    alignItems: "center",
     flex: 1,
+  },
+
+  tagChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.25rem",
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.7rem",
+    fontWeight: 600,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "0.1rem 0.45rem",
+    border: "1px solid var(--line)",
+    color: "var(--chalk)",
+    background: "rgba(255,255,255,0.04)",
+  },
+
+  tagRemoveChip: {
+    background: "none",
+    border: "none",
+    color: "var(--muted)",
+    cursor: "pointer",
+    fontSize: "0.65rem",
+    padding: "0",
+    lineHeight: 1,
+    display: "inline-flex",
+    transition: "color 0.15s",
+  },
+
+  noTagText: {
+    fontFamily: "Barlow, sans-serif",
+    fontSize: "0.8rem",
+    fontStyle: "italic",
+    color: "var(--line)",
+  },
+
+  addTagBtnSmall: {
+    fontFamily: "Barlow Condensed, sans-serif",
+    fontSize: "0.65rem",
+    fontWeight: 700,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    padding: "0.1rem 0.4rem",
+    border: "1px dashed var(--line)",
+    color: "var(--muted)",
+    background: "none",
+    cursor: "pointer",
+    flexShrink: 0,
+    transition: "border-color 0.15s, color 0.15s",
+  },
+
+  // ── TAG PICKER ──
+  tagPicker: {
+    background: "var(--granite)",
+    border: "1px solid var(--line)",
+    padding: "0.75rem 1rem",
+    marginTop: "0.4rem",
+    marginBottom: "0.3rem",
+  },
+
+  tagPickerSearch: {
+    width: "100%",
     background: "var(--rock)",
     border: "1px solid var(--line)",
     color: "var(--chalk)",
     fontFamily: "Barlow, sans-serif",
-    fontSize: "0.9rem",
-    padding: "0.45rem 0.7rem",
+    fontSize: "0.85rem",
+    padding: "0.4rem 0.65rem",
     outline: "none",
+    marginBottom: "0.6rem",
+    boxSizing: "border-box",
     transition: "border-color 0.15s",
-    minWidth: 0,
   },
 
-  tagSubmitBtn: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.78rem",
-    fontWeight: 700,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    padding: "0.45rem 0.9rem",
-    background: "var(--hold)",
-    color: "var(--chalk)",
-    border: "none",
-    cursor: "pointer",
-    transition: "background 0.15s",
-    flexShrink: 0,
-  },
-
-  existingTagsLabel: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.62rem",
-    fontWeight: 600,
-    letterSpacing: "0.15em",
-    textTransform: "uppercase",
-    color: "var(--muted)",
-    marginBottom: "0.4rem",
-  },
-
-  existingTagsList: {
+  tagPickerList: {
     display: "flex",
     flexWrap: "wrap",
-    gap: "0.4rem",
+    gap: "0.35rem",
+    maxHeight: "140px",
+    overflowY: "auto",
   },
 
-  existingTagBtn: (assigned) => ({
+  tagPickerBtn: (assigned) => ({
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "0.68rem",
     fontWeight: 600,
     letterSpacing: "0.1em",
     textTransform: "uppercase",
-    padding: "0.2rem 0.55rem",
+    padding: "0.15rem 0.5rem",
     border: `1px solid ${assigned ? "var(--hold)" : "var(--line)"}`,
     color: assigned ? "var(--hold)" : "var(--muted)",
     background: assigned ? "rgba(200,80,42,0.1)" : "transparent",
@@ -525,39 +524,40 @@ function StarDisplay({ value }) {
   )
 }
 
+const CATEGORY_ORDER = ['route_style', 'hold', 'approche', 'exposure', 'style', 'other']
+
 // ── Tag management panel ───────────────────────────────────────────────────────
 function TagManager({ routeId, tags, onTagsChange }) {
   const [allTags, setAllTags] = useState([])
-  const [newTagName, setNewTagName] = useState("")
-  const [open, setOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(null)
+  const [pickerSearch, setPickerSearch] = useState({})
   const [hovered, setHovered] = useState(null)
-  const inputRef = useRef()
+  const { t, i18n } = useTranslation()
 
-  // Load all existing tags when panel opens
+  const tagName = (tag) => (i18n.language === 'fr' && tag.name_fr ? tag.name_fr : tag.name)
+
   useEffect(() => {
-    if (open) {
-      api.get("/tags").then(res => setAllTags(res.data.tags || []))
-    }
-  }, [open])
+    api.get("/tags").then(res => setAllTags(res.data.tags || [])).catch(() => {})
+  }, [])
 
-  const assignedIds = new Set(tags.map(t => t.id))
-
-  const handleCreateAndAssign = async () => {
-    const name = newTagName.trim().toLowerCase()
-    if (!name) return
-    // Step 1: create tag (returns existing if duplicate)
-    const createRes = await api.post("/tags", { name })
-    const tag = createRes.data.tag
-    // Step 2: assign to route
-    const assignRes = await api.post(`/routes/${routeId}/tags`, { tag_id: tag.id })
-    onTagsChange(assignRes.data.tags)
-    setNewTagName("")
-    // Refresh all-tags list so the new one appears
-    const tagsRes = await api.get("/tags")
-    setAllTags(tagsRes.data.tags || [])
+  // Group all tags by category
+  const allByCategory = {}
+  for (const tag of allTags) {
+    const cat = tag.category || 'other'
+    if (!allByCategory[cat]) allByCategory[cat] = []
+    allByCategory[cat].push(tag)
   }
 
-  const handleAssignExisting = async (tagId) => {
+  // Group route's assigned tags by category
+  const assignedByCategory = {}
+  for (const tag of tags) {
+    const cat = tag.category || 'other'
+    if (!assignedByCategory[cat]) assignedByCategory[cat] = []
+    assignedByCategory[cat].push(tag)
+  }
+  const assignedIds = new Set(tags.map(t => t.id))
+
+  const handleAssign = async (tagId) => {
     if (assignedIds.has(tagId)) return
     const res = await api.post(`/routes/${routeId}/tags`, { tag_id: tagId })
     onTagsChange(res.data.tags)
@@ -568,104 +568,102 @@ function TagManager({ routeId, tags, onTagsChange }) {
     onTagsChange(res.data.tags)
   }
 
+  const togglePicker = (cat) => {
+    setPickerOpen(prev => prev === cat ? null : cat)
+    setPickerSearch({})
+  }
+
   return (
     <div style={S.tagsSection}>
-      <div style={S.tagsRow}>
-        {tags.map(t => (
-          <span key={t.id} style={S.tag}>
-            {t.name}
+      <div style={S.tagsTitle}>{t('tags.title')}</div>
+      {CATEGORY_ORDER.map(cat => {
+        const assigned = assignedByCategory[cat] || []
+        const available = allByCategory[cat] || []
+        const search = (pickerSearch[cat] || '').toLowerCase()
+        const filtered = search
+          ? available.filter(t => t.name.toLowerCase().includes(search))
+          : available
+
+        return (
+          <div key={cat} style={S.tagCategoryRow}>
+            <span style={S.tagCategoryLabel}>{t(`tags.category_${cat}`)}</span>
+            <div style={S.tagCategoryTags}>
+              {assigned.length > 0 ? assigned.map(tg => (
+                <span key={tg.id} style={S.tagChip}>
+                  {tagName(tg)}
+                  <button
+                    style={{
+                      ...S.tagRemoveChip,
+                      color: hovered === `rm-${tg.id}` ? "var(--hold-lt)" : "var(--muted)",
+                    }}
+                    onMouseEnter={() => setHovered(`rm-${tg.id}`)}
+                    onMouseLeave={() => setHovered(null)}
+                    onClick={() => handleRemove(tg.id)}
+                  >
+                    ✕
+                  </button>
+                </span>
+              )) : (
+                <span style={S.noTagText}>{t('tags.noTag')}</span>
+              )}
+            </div>
             <button
               style={{
-                ...S.tagRemoveBtn,
-                color: hovered === `rm-${t.id}` ? "var(--hold-lt)" : "var(--muted)",
+                ...S.addTagBtnSmall,
+                borderColor: pickerOpen === cat ? "var(--hold)" : "var(--line)",
+                color: pickerOpen === cat ? "var(--hold)" : "var(--muted)",
               }}
-              title="Remove tag"
-              onMouseEnter={() => setHovered(`rm-${t.id}`)}
+              onMouseEnter={() => setHovered(`add-${cat}`)}
               onMouseLeave={() => setHovered(null)}
-              onClick={() => handleRemove(t.id)}
+              onClick={() => togglePicker(cat)}
             >
-              ✕
+              {t('tags.addTag')}
             </button>
-          </span>
-        ))}
-        <button
-          style={{
-            ...S.addTagBtn,
-            borderColor: open ? "var(--hold)" : "var(--line)",
-            color: open ? "var(--hold)" : "var(--muted)",
-          }}
-          onClick={() => {
-            setOpen(v => !v)
-            setTimeout(() => inputRef.current?.focus(), 50)
-          }}
-        >
-          {open ? "Done" : "+ Tag"}
-        </button>
-      </div>
 
-      {open && (
-        <div style={S.tagPanel}>
-          {/* Create new tag */}
-          <div>
-            <div style={S.tagPanelTitle}>Create & assign new tag</div>
-            <div style={S.tagInputRow}>
-              <input
-                ref={inputRef}
-                style={S.tagInput}
-                type="text"
-                placeholder="e.g. overhang, slab, crimpy…"
-                value={newTagName}
-                onChange={e => setNewTagName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleCreateAndAssign() }}
-                onFocus={e => e.target.style.borderColor = "var(--hold)"}
-                onBlur={e => e.target.style.borderColor = "var(--line)"}
-              />
-              <button
-                style={{
-                  ...S.tagSubmitBtn,
-                  background: hovered === "create" ? "var(--hold-lt)" : "var(--hold)",
-                }}
-                onMouseEnter={() => setHovered("create")}
-                onMouseLeave={() => setHovered(null)}
-                onClick={handleCreateAndAssign}
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Assign existing tags */}
-          {allTags.length > 0 && (
-            <div>
-              <div style={S.existingTagsLabel}>Assign existing tag</div>
-              <div style={S.existingTagsList}>
-                {allTags.map(t => {
-                  const assigned = assignedIds.has(t.id)
-                  return (
-                    <button
-                      key={t.id}
-                      style={{
-                        ...S.existingTagBtn(assigned),
-                        ...(hovered === `ex-${t.id}` && !assigned
-                          ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
-                          : {}),
-                      }}
-                      disabled={assigned}
-                      onMouseEnter={() => !assigned && setHovered(`ex-${t.id}`)}
-                      onMouseLeave={() => setHovered(null)}
-                      onClick={() => handleAssignExisting(t.id)}
-                      title={assigned ? "Already assigned" : `Assign "${t.name}"`}
-                    >
-                      {t.name}
-                      {assigned && " ✓"}
-                    </button>
-                  )
-                })}
+            {pickerOpen === cat && (
+              <div style={S.tagPicker}>
+                <input
+                  style={S.tagPickerSearch}
+                  type="text"
+                  placeholder={t('tags.searchPlaceholder')}
+                  value={pickerSearch[cat] || ''}
+                  onChange={e => setPickerSearch({ ...pickerSearch, [cat]: e.target.value })}
+                  onFocus={e => e.target.style.borderColor = "var(--hold)"}
+                  onBlur={e => e.target.style.borderColor = "var(--line)"}
+                  autoFocus
+                />
+                <div style={S.tagPickerList}>
+                  {filtered.length === 0 && (
+                    <span style={{ fontFamily: "Barlow, sans-serif", fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
+                      {search ? 'No match' : 'No tags'}
+                    </span>
+                  )}
+                  {filtered.map(tg => {
+                    const as = assignedIds.has(tg.id)
+                    return (
+                      <button
+                        key={tg.id}
+                        style={{
+                          ...S.tagPickerBtn(as),
+                          ...(hovered === `pick-${tg.id}` && !as
+                            ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
+                            : {}),
+                        }}
+                        disabled={as}
+                        onMouseEnter={() => !as && setHovered(`pick-${tg.id}`)}
+                        onMouseLeave={() => setHovered(null)}
+                        onClick={() => handleAssign(tg.id)}
+                      >
+                        {tagName(tg)}{as && ' ✓'}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -820,12 +818,11 @@ export default function RouteDetail() {
           </div>
 
           {/* ── TAGS ── */}
-{/* NOTE: disabled for now, might be useful later */}
-          {/* <TagManager */}
-          {/*   routeId={id} */}
-          {/*   tags={tags} */}
-          {/*   onTagsChange={setTags} */}
-          {/* /> */}
+          <TagManager
+            routeId={id}
+            tags={tags}
+            onTagsChange={setTags}
+          />
 
           {/* ── PROJECT + EDIT ROUTE BUTTONS ── */}
           <div style={S.btnRow}>

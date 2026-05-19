@@ -74,7 +74,9 @@ def init_db():
 
         CREATE TABLE IF NOT EXISTS tags (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            name       TEXT NOT NULL
+            name       TEXT NOT NULL,
+            name_fr    TEXT DEFAULT NULL,
+            category   TEXT NOT NULL DEFAULT 'other'
         );
 
         CREATE TABLE IF NOT EXISTS tag_routes (
@@ -115,9 +117,52 @@ def init_db():
     ''')
 
     # Migrations
-    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('recommendations', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL')]:
+    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('recommendations', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL'), ('tags', 'category', 'TEXT NOT NULL DEFAULT \'other\''), ('tags', 'name_fr', 'TEXT DEFAULT NULL')]:
         try:
             conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
+        except Exception:
+            pass
+
+    # Seed predefined tags (idempotent)
+    seed_tags = [
+        ('slab', 'Dalle', 'route_style'),
+        ('overhand', 'D\u00e9vers', 'route_style'),
+        ('roof', 'Toit', 'route_style'),
+        ('dihedral', 'Di\u00e8dre', 'route_style'),
+        ('crack', 'Fissure', 'route_style'),
+        ('ridge', 'Ar\u00eate', 'route_style'),
+        ('vertical', 'Vertical', 'route_style'),
+        ('crimp', 'R\u00e9glettes', 'hold'),
+        ('sloper', 'Plats', 'hold'),
+        ('pinch', 'Pinces', 'hold'),
+        ('mono', 'Monodoigt', 'hold'),
+        ('jug', 'Bac', 'hold'),
+        ('smear', 'Adh\u00e9rence', 'hold'),
+        ('easy', 'Facile', 'approach'),
+        ('medium', 'Moyen', 'approach'),
+        ('hard', 'Difficile', 'approach'),
+        ('north', 'Nord', 'exposure'),
+        ('south', 'Sud', 'exposure'),
+        ('east', 'Est', 'exposure'),
+        ('west', 'Ouest', 'exposure'),
+        ('north-east', 'Nord-Est', 'exposure'),
+        ('north-west', 'Nord-Ouest', 'exposure'),
+        ('south-east', 'Sud-Est', 'exposure'),
+        ('south-west', 'Sud-Ouest', 'exposure'),
+        ('endurance', 'Endurance', 'style'),
+        ('technique', 'Technique', 'style'),
+        ('powerful', 'Puissant', 'style'),
+        ('boulder', 'Bloc', 'style'),
+        ('reading', 'Lecture', 'style'),
+        ('need-a-crashpad', 'Besoin d\u2019un crashpad', 'other'),
+    ]
+    for name, name_fr, category in seed_tags:
+        try:
+            cursor = conn.execute('SELECT id FROM tags WHERE name=?', (name,)).fetchone()
+            if cursor:
+                conn.execute('UPDATE tags SET name_fr=?, category=? WHERE id=?', (name_fr, category, cursor['id']))
+            else:
+                conn.execute('INSERT INTO tags (name, name_fr, category) VALUES (?,?,?)', (name, name_fr, category))
         except Exception:
             pass
 

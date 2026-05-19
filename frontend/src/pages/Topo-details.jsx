@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate, Link } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 import axios from 'axios'
@@ -880,9 +880,11 @@ export default function TopoDetail() {
             </button>
           </div>
 
-          {topo.filename?.endsWith('.html') ? (
-            <Link
-              to={`/topos/${id}/view`}
+          {topo.filename?.startsWith('http') ? (
+            <a
+              href={topo.filename}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 ...S.downloadBtn,
                 textDecoration: 'none',
@@ -895,7 +897,7 @@ export default function TopoDetail() {
               onMouseLeave={() => setHoveredBtn(null)}
             >
               {t('topoDetail.viewSource')}
-            </Link>
+            </a>
           ) : (
             <button
               style={{
