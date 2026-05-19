@@ -165,6 +165,11 @@ export default function About() {
         </div>
 
         <div style={S.section}>
+          <div style={S.sectionTitle}>{t('about.notTitle')}</div>
+          <p style={S.bodyText}>{t('about.notDesc')}</p>
+        </div>
+
+        <div style={S.section}>
           <p style={S.bodyMuted}>{t('about.commentModeration')}</p>
         </div>
 

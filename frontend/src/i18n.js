@@ -668,7 +668,7 @@ i18n.use(initReactI18next).init({
         tags: {
           category_route_style: 'Profil de voie',
           category_hold: 'Prise',
-          category_approche: 'Approche',
+          category_approach: 'Approche',
           category_exposure: 'Orientation',
           category_style: 'Style',
           category_other: 'Autre',
