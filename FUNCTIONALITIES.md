@@ -33,6 +33,7 @@ View a single topo and its routes.
 **Actions:**
 - Download the original PDF
 - **Add Route** manually (name, grade, length in meters, index number)
+- **Edit topo name** — click the "Edit" button next to the title to rename inline (Enter to save, Escape to cancel)
 - **Set Parking Location** — uses browser geolocation to tag the parking spot (one-time per topo). Once set, shows "Go to Parking Location" which opens Google Maps / Apple Maps / geo URI depending on device
 - **Set Routes Location** — same as above, for the base of the routes
 
@@ -53,10 +54,16 @@ View a single route, track attempts, and discuss.
 **Editing:**
 - "Edit Route" form to change name, grade, length, and route index
 
+**Tags:**
+- Tags displayed per category (Route profile, Hold, Approach, Exposure, Style, Other)
+- Remove a tag by clicking the ✕ on its chip
+- Click the **"+ Add Tags"** button at the bottom of the section to open a modal showing all available tags grouped by category. Already-assigned tags are highlighted; click any unassigned tag to add it
+
 **Comments:**
 - View all comments from other users (username, star rating, perceived grade, body text)
-- "+ Add Comment" opens a form with stars (0–5, 0.5 steps), perceived grade (defaults to the route's grade), and a free-text body
+- "+ Add Comment" opens a form with stars (0–5, 0.5 steps), perceived grade (defaults to the route's grade), a free-text body, and an optional hidden beta/spoiler field
 - One comment per user per route (subsequent submissions overwrite)
+- Beta text is hidden by default; each comment has a "Show beta" toggle
 
 ---
 

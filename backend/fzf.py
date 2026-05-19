@@ -23,7 +23,7 @@ from fuzzysearch import find_near_matches
 #     return results
 
 def fuzzy_search(query, l):
-    MAX_DIST = 1
+    MAX_DIST = 2
     buckets = [[] for _ in range(MAX_DIST + 1)]
 
     for s in l:
