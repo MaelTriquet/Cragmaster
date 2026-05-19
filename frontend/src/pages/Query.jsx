@@ -222,20 +222,20 @@ export default function Query() {
         if (res.data.is_admin) {
           setAuthorized(true)
         } else {
-          setGateWarning("Your account does not have admin access.")
+          setGateWarning(t('query.notAdmin'))
           setTimeout(() => navigate("/topos"), 2000)
         }
       } else {
         if (res.data.banned) {
           localStorage.removeItem("token")
-          setGateError("Wrong credentials. Account banned for 3 days.")
+          setGateError(t('query.banned'))
           setTimeout(() => navigate("/login"), 2000)
         } else {
-          setGateError("Invalid username or password.")
+          setGateError(t('query.invalidCredentials'))
         }
       }
     } catch (err) {
-      setGateError(err.response?.data?.error || "An error occurred")
+      setGateError(err.response?.data?.error || t('query.errorOccurred'))
     } finally {
       setGateLoading(false)
     }
@@ -260,14 +260,14 @@ export default function Query() {
         <div style={S.noise} />
         <div style={S.container}>
           <div style={S.header}>
-            <span style={S.eyebrow}>Admin</span>
-            <h1 style={S.title}>Query</h1>
+            <span style={S.eyebrow}>{t('notifications.eyebrow')}</span>
+            <h1 style={S.title}>{t('query.title')}</h1>
           </div>
           <div style={S.card}>
             {gateError && <div style={S.error}>{gateError}</div>}
             {gateWarning && <div style={S.warning}>{gateWarning}</div>}
             <div style={S.field}>
-              <label style={S.label}>Username</label>
+              <label style={S.label}>{t('login.username')}</label>
               <input
                 ref={inputRef}
                 type="text"
@@ -280,7 +280,7 @@ export default function Query() {
               />
             </div>
             <div style={S.field}>
-              <label style={S.label}>Password</label>
+              <label style={S.label}>{t('login.password')}</label>
               <input
                 type="password"
                 style={S.input}
@@ -302,7 +302,7 @@ export default function Query() {
               onMouseLeave={() => setHovered(null)}
               onClick={handleGate}
             >
-              {gateLoading ? "Checking\u2026" : "Authenticate"}
+              {gateLoading ? t('query.checking') : t('query.authenticate')}
             </button>
           </div>
         </div>

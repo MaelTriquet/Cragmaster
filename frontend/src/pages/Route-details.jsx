@@ -198,65 +198,21 @@ const S = {
     color: "var(--line)",
   },
 
-  addTagBtnSmall: {
+  addTagBtn: {
     fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.65rem",
+    fontSize: "0.78rem",
     fontWeight: 700,
-    letterSpacing: "0.1em",
+    letterSpacing: "0.15em",
     textTransform: "uppercase",
-    padding: "0.1rem 0.4rem",
+    padding: "0.55rem 1.2rem",
     border: "1px dashed var(--line)",
     color: "var(--muted)",
     background: "none",
     cursor: "pointer",
-    flexShrink: 0,
+    width: "100%",
+    marginTop: "0.75rem",
     transition: "border-color 0.15s, color 0.15s",
   },
-
-  // ── TAG PICKER ──
-  tagPicker: {
-    background: "var(--granite)",
-    border: "1px solid var(--line)",
-    padding: "0.75rem 1rem",
-    marginTop: "0.4rem",
-    marginBottom: "0.3rem",
-  },
-
-  tagPickerSearch: {
-    width: "100%",
-    background: "var(--rock)",
-    border: "1px solid var(--line)",
-    color: "var(--chalk)",
-    fontFamily: "Barlow, sans-serif",
-    fontSize: "0.85rem",
-    padding: "0.4rem 0.65rem",
-    outline: "none",
-    marginBottom: "0.6rem",
-    boxSizing: "border-box",
-    transition: "border-color 0.15s",
-  },
-
-  tagPickerList: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "0.35rem",
-    maxHeight: "140px",
-    overflowY: "auto",
-  },
-
-  tagPickerBtn: (assigned) => ({
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.68rem",
-    fontWeight: 600,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    padding: "0.15rem 0.5rem",
-    border: `1px solid ${assigned ? "var(--hold)" : "var(--line)"}`,
-    color: assigned ? "var(--hold)" : "var(--muted)",
-    background: assigned ? "rgba(200,80,42,0.1)" : "transparent",
-    cursor: assigned ? "default" : "pointer",
-    transition: "border-color 0.15s, color 0.15s, background 0.15s",
-  }),
 
   // ── CARDS ──────────────────────────────────────────────
   card: {
@@ -531,8 +487,7 @@ const CATEGORY_ORDER = ['route_style', 'hold', 'approach', 'exposure', 'style', 
 // ── Tag management panel ───────────────────────────────────────────────────────
 function TagManager({ routeId, tags, onTagsChange }) {
   const [allTags, setAllTags] = useState([])
-  const [pickerOpen, setPickerOpen] = useState(null)
-  const [pickerSearch, setPickerSearch] = useState({})
+  const [showPicker, setShowPicker] = useState(false)
   const [hovered, setHovered] = useState(null)
   const { t, i18n } = useTranslation()
   const { showToast } = useToast()
@@ -573,21 +528,11 @@ function TagManager({ routeId, tags, onTagsChange }) {
     onTagsChange(res.data.tags)
   }
 
-  const togglePicker = (cat) => {
-    setPickerOpen(prev => prev === cat ? null : cat)
-    setPickerSearch({})
-  }
-
   return (
     <div style={S.tagsSection}>
       <div style={S.tagsTitle}>{t('tags.title')}</div>
       {CATEGORY_ORDER.map(cat => {
         const assigned = assignedByCategory[cat] || []
-        const available = allByCategory[cat] || []
-        const search = (pickerSearch[cat] || '').toLowerCase()
-        const filtered = search
-          ? available.filter(t => t.name.toLowerCase().includes(search))
-          : available
 
         return (
           <div key={cat} style={S.tagCategoryRow}>
@@ -612,63 +557,118 @@ function TagManager({ routeId, tags, onTagsChange }) {
                 <span style={S.noTagText}>{t('tags.noTag')}</span>
               )}
             </div>
-            <button
-              style={{
-                ...S.addTagBtnSmall,
-                borderColor: pickerOpen === cat ? "var(--hold)" : "var(--line)",
-                color: pickerOpen === cat ? "var(--hold)" : "var(--muted)",
-              }}
-              onMouseEnter={() => setHovered(`add-${cat}`)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => togglePicker(cat)}
-            >
-              {t('tags.addTag')}
-            </button>
-
-            {pickerOpen === cat && (
-              <div style={S.tagPicker}>
-                <input
-                  style={S.tagPickerSearch}
-                  type="text"
-                  placeholder={t('tags.searchPlaceholder')}
-                  value={pickerSearch[cat] || ''}
-                  onChange={e => setPickerSearch({ ...pickerSearch, [cat]: e.target.value })}
-                  onFocus={e => e.target.style.borderColor = "var(--hold)"}
-                  onBlur={e => e.target.style.borderColor = "var(--line)"}
-                  autoFocus
-                />
-                <div style={S.tagPickerList}>
-                  {filtered.length === 0 && (
-                    <span style={{ fontFamily: "Barlow, sans-serif", fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
-                      {search ? 'No match' : 'No tags'}
-                    </span>
-                  )}
-                  {filtered.map(tg => {
-                    const as = assignedIds.has(tg.id)
-                    return (
-                      <button
-                        key={tg.id}
-                        style={{
-                          ...S.tagPickerBtn(as),
-                          ...(hovered === `pick-${tg.id}` && !as
-                            ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
-                            : {}),
-                        }}
-                        disabled={as}
-                        onMouseEnter={() => !as && setHovered(`pick-${tg.id}`)}
-                        onMouseLeave={() => setHovered(null)}
-                        onClick={() => handleAssign(tg.id)}
-                      >
-                        {tagName(tg)}{as && ' ✓'}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         )
       })}
+
+      <button
+        style={{
+          ...S.addTagBtn,
+          borderColor: showPicker ? "var(--hold)" : "var(--line)",
+          color: showPicker ? "var(--hold)" : "var(--muted)",
+        }}
+        onMouseEnter={() => setHovered("addTags")}
+        onMouseLeave={() => setHovered(null)}
+        onClick={() => setShowPicker(true)}
+      >
+        + {t('tags.addTag')}
+      </button>
+
+      {showPicker && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem',
+        }} onClick={() => setShowPicker(false)}>
+          <div style={{
+            background: 'var(--granite)',
+            border: '1px solid var(--line)',
+            width: '100%', maxWidth: '520px',
+            maxHeight: '80vh',
+            display: 'flex', flexDirection: 'column',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1rem 1.25rem', borderBottom: '1px solid var(--line)',
+              flexShrink: 0,
+            }}>
+              <span style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontSize: '1.1rem', fontWeight: 700, color: 'var(--chalk)',
+              }}>
+                {t('tags.title')}
+              </span>
+              <button
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--muted)', fontSize: '1.2rem', padding: '0.25rem',
+                  lineHeight: 1,
+                }}
+                onMouseEnter={e => e.target.style.color = 'var(--chalk)'}
+                onMouseLeave={e => e.target.style.color = 'var(--muted)'}
+                onClick={() => setShowPicker(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{
+              flex: 1, overflow: 'auto', padding: '1.25rem',
+            }}>
+              {CATEGORY_ORDER.map(cat => {
+                const available = allByCategory[cat] || []
+                if (available.length === 0) return null
+                return (
+                  <div key={cat} style={{ marginBottom: '1rem' }}>
+                    <div style={{
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontSize: '0.72rem', fontWeight: 700,
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      color: 'var(--hold)', marginBottom: '0.4rem',
+                    }}>
+                      {t(`tags.category_${cat}`)}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {available.map(tg => {
+                        const as = assignedIds.has(tg.id)
+                        return (
+                          <button
+                            key={tg.id}
+                            style={{
+                              fontFamily: 'Barlow Condensed, sans-serif',
+                              fontSize: '0.68rem', fontWeight: 600,
+                              letterSpacing: '0.05em', textTransform: 'uppercase',
+                              padding: '0.3rem 0.6rem', borderRadius: '3px',
+                              cursor: as ? 'default' : 'pointer', border: '1px solid',
+                              background: as ? 'var(--hold)' : 'transparent',
+                              borderColor: as ? 'var(--hold)' : 'var(--line)',
+                              color: as ? '#fff' : hovered === `pick-${tg.id}` ? 'var(--chalk)' : 'var(--muted)',
+                            }}
+                            onMouseEnter={() => !as && setHovered(`pick-${tg.id}`)}
+                            onMouseLeave={() => setHovered(null)}
+                            onClick={() => !as && handleAssign(tg.id)}
+                          >
+                            {tagName(tg)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+              {allTags.length === 0 && (
+                <div style={{
+                  fontFamily: 'Barlow, sans-serif', fontSize: '0.8rem',
+                  color: 'var(--muted)', fontStyle: 'italic',
+                }}>
+                  {t('tags.loading')}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1074,7 +1074,7 @@ export default function RouteDetail() {
                       marginBottom: '0.4rem',
                     }}>
                       {t(`tags.category_${cat}`)}
-                      {isEmpty && <span style={{ color: 'var(--hold)', marginLeft: '0.4rem', fontSize: '0.65rem' }}>(new)</span>}
+                      {isEmpty && <span style={{ color: 'var(--hold)', marginLeft: '0.4rem', fontSize: '0.65rem' }}>{t('routeDetail.tagNew')}</span>}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                       {filtered.map(tg => {
@@ -1127,7 +1127,7 @@ export default function RouteDetail() {
                   fontFamily: 'Barlow, sans-serif', fontSize: '0.8rem',
                   color: 'var(--muted)', fontStyle: 'italic',
                 }}>
-                  {t('tags.loading', { defaultValue: 'Loading tags...' })}
+                  {t('tags.loading')}
                 </div>
               )}
             </div>
@@ -1219,10 +1219,10 @@ export default function RouteDetail() {
                   />
                 </div>
                 <div style={S.formFieldFull}>
-                  <label style={S.formLabel}>Beta (hidden by default)</label>
+                  <label style={S.formLabel}>{t('routeDetail.betaLabel')}</label>
                   <textarea
                     style={S.formTextarea}
-                    placeholder="Optional beta / spoiler…"
+                    placeholder={t('routeDetail.betaPlaceholder')}
                     value={form.beta}
                     onChange={e => setForm({ ...form, beta: e.target.value })}
                     onFocus={e => e.target.style.borderColor = "var(--hold)"}
@@ -1261,7 +1261,8 @@ export default function RouteDetail() {
                         project: { background: "rgba(200,80,42,0.2)", color: "var(--hold)" },
                         working: { background: "rgba(200,180,60,0.15)", color: "#d4c86a" },
                       }[c.user_status] || {}
-                      return <span style={{ ...S.commentStatus, ...statusStyle }}>{c.user_status}</span>
+                      const statusKey = `routeDetail.status${c.user_status.charAt(0).toUpperCase() + c.user_status.slice(1)}`
+                      return <span style={{ ...S.commentStatus, ...statusStyle }}>{t(statusKey)}</span>
                     })()}
                   </span>
                   <div style={S.commentMeta}>
@@ -1279,7 +1280,7 @@ export default function RouteDetail() {
                         style={S.commentBetaBtn}
                         onClick={() => setRevealedBeta(prev => new Set(prev).add(c.id))}
                       >
-                        Show beta
+                        {t('routeDetail.showBeta')}
                       </button>
                     )}
                     {show && <div style={S.commentBeta}>{c.beta}</div>}

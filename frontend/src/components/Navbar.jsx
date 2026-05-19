@@ -225,7 +225,7 @@ function Hamburger({ open, onClick }) {
     <button
       style={S.hamburger}
       onClick={onClick}
-      aria-label="Toggle navigation menu"
+      aria-label={t('nav.toggleMenu')}
     >
       <div style={{
         ...S.hamburgerLine(open),
@@ -368,7 +368,20 @@ export default function Navbar() {
                   }}
                   onClick={() => navigate('/admin')}
                 >
-                  Notifications ({unresolvedCount})
+                  {t('nav.notifications', { count: unresolvedCount })}
+                </button>
+              )}
+              {user && (
+                <button
+                  style={{
+                    ...S.notifBtn,
+                    fontSize: '0.85rem',
+                    padding: '0.65rem 1rem',
+                    marginTop: '0.5rem',
+                  }}
+                  onClick={() => navigate('/admin')}
+                >
+                  {t('nav.notifications', { count: unresolvedCount })}
                 </button>
               )}
               {user && (
@@ -458,7 +471,7 @@ export default function Navbar() {
             onMouseLeave={e => e.currentTarget.style.background = 'rgba(200,80,42,0.1)'}
             onClick={() => navigate('/admin')}
           >
-            Notifications ({unresolvedCount})
+            {t('nav.notifications', { count: unresolvedCount })}
           </button>
         )}
         {user && (

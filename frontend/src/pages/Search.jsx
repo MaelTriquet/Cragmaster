@@ -656,7 +656,7 @@ export default function Search() {
                 })}
                 {allTags.length === 0 && (
                   <div style={{ padding: "0.75rem", fontFamily: "Barlow, sans-serif", fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
-                    No tags loaded
+                    {t('search.noTagsLoaded')}
                   </div>
                 )}
               </div>
@@ -665,7 +665,7 @@ export default function Search() {
                   style={S.tagDropdownClear}
                   onClick={() => { setActiveTags(new Set()); setTagMenuOpen(false) }}
                 >
-                  Clear filters ({activeTags.size})
+                  {t('search.clearFilters', { count: activeTags.size })}
                 </button>
               )}
             </div>
@@ -678,7 +678,7 @@ export default function Search() {
             value={gradeMin}
             onChange={e => setGradeMin(e.target.value)}
           >
-            <option value="">Min grade</option>
+            <option value="">{t('search.minGrade')}</option>
             {GRADE_OPTIONS.map(g => (
               <option key={g.label} value={g.label}>{g.label}</option>
             ))}
@@ -689,7 +689,7 @@ export default function Search() {
             value={gradeMax}
             onChange={e => setGradeMax(e.target.value)}
           >
-            <option value="">Max grade</option>
+            <option value="">{t('search.maxGrade')}</option>
             {GRADE_OPTIONS.map(g => (
               <option key={g.label} value={g.label}>{g.label}</option>
             ))}

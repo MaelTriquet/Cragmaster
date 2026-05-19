@@ -366,7 +366,7 @@ function FlashPie({ data, title }) {
             )}
             {total > 0 && (
               <text x={cx} y={cy + 14} textAnchor="middle" fontFamily="Barlow Condensed, sans-serif" fontSize="12" fontWeight="600" fill="var(--muted)">
-                {flashRate}% flash
+                {flashRate}% {t('stats.flash')}
               </text>
             )}
           </svg>

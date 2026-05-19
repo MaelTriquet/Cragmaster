@@ -155,9 +155,9 @@ function NotificationCard({ item, onResolve, onDelete }) {
             <div style={S.bodyText}>{item.explanation}</div>
             {(item.route_name || item.topo_name || item.concerned_user) && (
               <div style={S.meta}>
-                {item.route_name && <>Route: {item.route_name} &middot; </>}
-                {item.topo_name && <>Topo: {item.topo_name} &middot; </>}
-                {item.concerned_user && <>User: {item.concerned_user}</>}
+                {item.route_name && <>{t('notifications.routeLabel', { name: item.route_name })}</>}
+                {item.topo_name && <>{t('notifications.topoLabel', { name: item.topo_name })}</>}
+                {item.concerned_user && <>{t('notifications.userLabel', { name: item.concerned_user })}</>}
               </div>
             )}
           </>

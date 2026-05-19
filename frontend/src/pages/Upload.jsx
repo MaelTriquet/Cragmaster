@@ -375,7 +375,7 @@ export default function Upload() {
     if (entry?._isUrl && status === 'uploading') return t('upload.fetching')
     switch (status) {
       case 'uploading': return t('upload.uploading')
-      case 'ocr':       return <>OCR<Dots /></>
+      case 'ocr':       return <>{t('upload.ocr')}<Dots /></>
       case 'done':      return t('upload.done')
       case 'error':     return t('upload.failed')
       default:          return t('upload.pending')
@@ -503,7 +503,7 @@ export default function Upload() {
         <div style={S.headerAccent} />
         <span style={S.eyebrow}>{t('upload.eyebrow')}</span>
         <h1 style={S.title}>{t('upload.title')}</h1>
-        <p style={S.subtitle}>{t('upload.subtitle', { defaultValue: 'Add PDF topos or import directly from theCrag.' })}</p>
+        <p style={S.subtitle}>{t('upload.subtitle')}</p>
       </div>
 
       {/* Card */}
@@ -511,7 +511,7 @@ export default function Upload() {
 
         {/* ── PDF section ── */}
         <div>
-          <p style={S.sectionLabel}>{t('upload.sectionPdf', { defaultValue: 'PDF Topo' })}</p>
+          <p style={S.sectionLabel}>{t('upload.sectionPdf')}</p>
 
           <div
             style={S.dropzone(dragging)}
@@ -553,7 +553,7 @@ export default function Upload() {
             </div>
 
             {!hasFiles && (
-              <span style={S.dropCorner}>PDF only</span>
+              <span style={S.dropCorner}>{t('upload.pdfOnly')}</span>
             )}
           </div>
         </div>
@@ -625,13 +625,13 @@ export default function Upload() {
         {/* Divider */}
         <div style={S.divider}>
           <div style={S.dividerLine} />
-          <span style={S.dividerText}>{t('upload.orImport', { defaultValue: 'or import from web' })}</span>
+          <span style={S.dividerText}>{t('upload.orImport')}</span>
           <div style={S.dividerLine} />
         </div>
 
         {/* ── URL import section ── */}
         <div>
-          <p style={S.sectionLabel}>{t('upload.sectionUrl', { defaultValue: 'theCrag URL' })}</p>
+          <p style={S.sectionLabel}>{t('upload.sectionUrl')}</p>
 
           <div style={S.urlRow}>
             <span style={S.urlIcon}>🌐</span>
