@@ -725,48 +725,33 @@ export default function RouteDetail() {
   const initialTagIdsRef = useRef(null)
   const { showToast } = useToast()
 
-  const loadRoute = useCallback(() => {
+  const applyRouteData = useCallback((d) => {
+    setRoute(d.route)
+    setComments(d.comments)
+    setTags(d.tags || [])
+    setAvgPerceivedGrade(d.avg_perceived_grade || null)
+    setIsProject(d.is_project || false)
+    setEditForm({
+      name: d.route.name || "",
+      grade: d.route.grade || "",
+      length: d.route.length > 0 ? d.route.length : "",
+      route_index: d.route.route_index > 0 ? d.route.route_index : "",
+    })
+    if (!d.attempt || Object.keys(d.attempt).length === 0)
+      setAttempt({ id: null, amount: 0, sent: false })
+    else setAttempt(d.attempt)
+  }, [])
+
+  const loadRoute = useCallback(async () => {
+    if (!isOnline()) {
+      const offline = await getOfflineRoute(id)
+      if (offline) applyRouteData(offline)
+      return
+    }
     api.get(`/routes/${id}`)
-      .then(res => {
-        const d = res.data
-        setRoute(d.route)
-        setComments(d.comments)
-        setTags(d.tags || [])
-        setAvgPerceivedGrade(d.avg_perceived_grade || null)
-        setIsProject(d.is_project || false)
-        setEditForm({
-          name: d.route.name || "",
-          grade: d.route.grade || "",
-          length: d.route.length > 0 ? d.route.length : "",
-          route_index: d.route.route_index > 0 ? d.route.route_index : "",
-        })
-        if (!d.attempt || Object.keys(d.attempt).length === 0)
-          setAttempt({ id: null, amount: 0, sent: false })
-        else setAttempt(d.attempt)
-      })
-      .catch(async () => {
-        if (!isOnline()) {
-          const offline = await getOfflineRoute(id)
-          if (offline) {
-            const d = offline
-            setRoute(d.route)
-            setComments(d.comments)
-            setTags(d.tags || [])
-            setAvgPerceivedGrade(d.avg_perceived_grade || null)
-            setIsProject(d.is_project || false)
-            setEditForm({
-              name: d.route.name || "",
-              grade: d.route.grade || "",
-              length: d.route.length > 0 ? d.route.length : "",
-              route_index: d.route.route_index > 0 ? d.route.route_index : "",
-            })
-            if (!d.attempt || Object.keys(d.attempt).length === 0)
-              setAttempt({ id: null, amount: 0, sent: false })
-            else setAttempt(d.attempt)
-          }
-        }
-      })
-  }, [id])
+      .then(res => applyRouteData(res.data))
+      .catch(() => {})
+  }, [id, applyRouteData])
 
   useEffect(() => { loadRoute() }, [loadRoute])
 

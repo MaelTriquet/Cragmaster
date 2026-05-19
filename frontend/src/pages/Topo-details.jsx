@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 import axios from 'axios'
-import { saveTopoForOffline, isOnline } from '../lib/offline'
+import { saveTopoForOffline, getOfflineTopo, isOnline } from '../lib/offline'
 import { useToast } from '../contexts/ToastContext'
 
 const getGradeColor = (grade) => {
@@ -582,14 +582,27 @@ export default function TopoDetail() {
   const { showToast } = useToast()
 
   useEffect(() => {
-    api.get(`/topos/${id}`)
-      .then(res => {
-        setTopo(res.data.topo)
-        setRoutes(res.data.routes)
-		setParkingLocation(res.data.parking_location)
-		setRoutesLocation(res.data.routes_location)
-      })
-      .catch(err => console.error(err))
+    const load = async () => {
+      if (!isOnline()) {
+        const cached = await getOfflineTopo(id)
+        if (cached) {
+          setTopo(cached.topo)
+          setRoutes(cached.routes)
+          setParkingLocation(cached.parking_location)
+          setRoutesLocation(cached.routes_location)
+        }
+        return
+      }
+      api.get(`/topos/${id}`)
+        .then(res => {
+          setTopo(res.data.topo)
+          setRoutes(res.data.routes)
+          setParkingLocation(res.data.parking_location)
+          setRoutesLocation(res.data.routes_location)
+        })
+        .catch(err => console.error(err))
+    }
+    load()
   }, [id])
 
   const submitRouteAdd = () => {
