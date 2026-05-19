@@ -425,7 +425,7 @@ const S = {
   },
 }
 
-const CATEGORY_ORDER = ['route_style', 'hold', 'approche', 'exposure', 'style', 'other']
+const CATEGORY_ORDER = ['route_style', 'hold', 'approach', 'exposure', 'style', 'other']
 
 const GRADE_OPTIONS = []
 for (let n = 3; n <= 9; n++) {
