@@ -596,10 +596,22 @@ def sent_attempt(route_id):
             conn.execute('UPDATE attempts SET sent_at=CURRENT_TIMESTAMP WHERE user_id=? AND route_id=?', (user_id, route_id))
     # If this route was a project, mark it sent too
     conn.execute('UPDATE projects SET sent=1 WHERE user_id=? AND route_id=?', (user_id, route_id))
+
+    # Check for tag categories that have never been used on any route
+    empty_categories = [
+        r['category'] for r in conn.execute('''
+            SELECT t.category FROM tags t
+            LEFT JOIN tag_routes tr ON tr.tag_id = t.id
+            WHERE t.category != 'other'
+            GROUP BY t.category
+            HAVING COUNT(tr.id) = 0
+        ''').fetchall()
+    ]
+
     attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
     conn.commit()
     conn.close()
-    return ok(attempt=dict(attempt))
+    return ok(attempt=dict(attempt), empty_categories=empty_categories)
 
 # ── COMMENTS ─────────────────────────────────────────────────────────────────
 @app.route('/api/routes/<int:route_id>/comments', methods=['GET'])
@@ -653,26 +665,45 @@ def search():
 
     conn = get_db()
 
-    # Build route query — optionally filter by tags
-    conditions = []
-    params = []
+    # Separate topo-level tags (approach/exposure) from route-level tags
+    topo_level_categories = ('approach', 'exposure')
+    topo_tag_ids = []
+    route_tag_ids = []
+    if tag_ids:
+        tag_rows = conn.execute(
+            f'SELECT id, category FROM tags WHERE id IN ({",".join("?" * len(tag_ids))})',
+            tag_ids
+        ).fetchall()
+        tag_id_to_cat = {t['id']: t['category'] for t in tag_rows}
+        for tid in tag_ids:
+            tid_int = int(tid)
+            cat = tag_id_to_cat.get(tid_int)
+            if cat in topo_level_categories:
+                topo_tag_ids.append(tid_int)
+            else:
+                route_tag_ids.append(tid_int)
 
+    # ── Build route query ──
+    route_conditions = []
+    route_params = []
+
+    # Include ALL tag_ids in the route filter (topo-level tags cascade to all sibling routes)
     if tag_ids:
         placeholders = ','.join('?' * len(tag_ids))
-        conditions.append(f'''r.id IN (SELECT route_id FROM tag_routes WHERE tag_id IN ({placeholders}))''')
-        params.extend(tag_ids)
+        route_conditions.append(f'r.id IN (SELECT route_id FROM tag_routes WHERE tag_id IN ({placeholders}))')
+        route_params.extend(tag_ids)
 
     if grade_min_sort is not None:
-        conditions.append('r.sorting_grade >= ?')
-        params.append(grade_min_sort)
+        route_conditions.append('r.sorting_grade >= ?')
+        route_params.append(grade_min_sort)
 
     if grade_max_sort is not None:
-        conditions.append('r.sorting_grade <= ?')
-        params.append(grade_max_sort)
+        route_conditions.append('r.sorting_grade <= ?')
+        route_params.append(grade_max_sort)
 
-    if conditions:
-        where = ' WHERE ' + ' AND '.join(conditions)
-        route_rows = conn.execute(f'SELECT DISTINCT r.* FROM routes r{where}', params).fetchall()
+    if route_conditions:
+        where = ' WHERE ' + ' AND '.join(route_conditions)
+        route_rows = conn.execute(f'SELECT DISTINCT r.* FROM routes r{where}', route_params).fetchall()
     else:
         route_rows = conn.execute('SELECT * FROM routes').fetchall()
 
@@ -684,7 +715,22 @@ def search():
         )
         route_rows = [r for r in route_rows if r['id'] in project_route_ids]
 
-    topo_rows = conn.execute('SELECT * FROM topos').fetchall()
+    # ── Build topo query ──
+    topo_conditions = []
+    topo_params = []
+
+    if topo_tag_ids:
+        placeholders = ','.join('?' * len(topo_tag_ids))
+        topo_conditions.append(
+            f't.id IN (SELECT r.topo_id FROM routes r JOIN tag_routes tr ON tr.route_id=r.id WHERE tr.tag_id IN ({placeholders}))'
+        )
+        topo_params.extend(topo_tag_ids)
+
+    if topo_conditions:
+        topo_where = ' WHERE ' + ' AND '.join(topo_conditions)
+        topo_rows = conn.execute(f'SELECT DISTINCT t.* FROM topos t{topo_where}', topo_params).fetchall()
+    else:
+        topo_rows = conn.execute('SELECT * FROM topos').fetchall()
     conn.close()
 
     route_by_name = {r['name']: dict(r) for r in route_rows}
@@ -696,9 +742,12 @@ def search():
         routes = [route_by_name[n] for n in matched_route_names if n in route_by_name]
         topos  = [topo_by_title[t] for t in matched_topo_titles  if t in topo_by_title]
     else:
-        # tag-only filter: return all matched routes, no topo filtering
-        routes = list(route_by_name.values())[:40]
-        topos  = []
+        # When only topo-level tags (approach/exposure) are active, hide routes
+        if topo_tag_ids and not route_tag_ids and grade_min_sort is None and grade_max_sort is None and not projects_only:
+            routes = []
+        else:
+            routes = list(route_by_name.values())[:40]
+        topos  = list(topo_by_title.values())[:40] if topo_tag_ids else []
 
     return ok(routes=routes, topos=topos)
 
@@ -752,6 +801,17 @@ def assign_tag(route_id):
         'INSERT OR IGNORE INTO tag_routes (route_id, tag_id) VALUES (?,?)',
         (route_id, tag_id)
     )
+    # Cascade approach/exposure tags to all routes in the same topo
+    if tag['category'] in ('approach', 'exposure'):
+        topo_id = conn.execute('SELECT topo_id FROM routes WHERE id=?', (route_id,)).fetchone()['topo_id']
+        sibling_ids = conn.execute(
+            'SELECT id FROM routes WHERE topo_id=? AND id!=?', (topo_id, route_id)
+        ).fetchall()
+        for row in sibling_ids:
+            conn.execute(
+                'INSERT OR IGNORE INTO tag_routes (route_id, tag_id) VALUES (?,?)',
+                (row['id'], tag_id)
+            )
     conn.commit()
     tags = conn.execute(
         'SELECT t.id, t.name, t.name_fr, t.category FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',

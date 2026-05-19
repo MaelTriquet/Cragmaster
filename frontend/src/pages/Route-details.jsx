@@ -669,7 +669,8 @@ function TagManager({ routeId, tags, onTagsChange }) {
 }
 
 export default function RouteDetail() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const tagName = (tag) => (i18n.language === 'fr' && tag.name_fr ? tag.name_fr : tag.name)
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -688,6 +689,13 @@ export default function RouteDetail() {
   const [revealedBeta, setRevealedBeta] = useState(new Set())
   const [showEditForm, setShowEditForm] = useState(false)
   const [editForm, setEditForm] = useState({ name: "", grade: "", length: "", route_index: "" })
+  const [showCongrats, setShowCongrats] = useState(false)
+  const [emptyCategories, setEmptyCategories] = useState([])
+  const [allTags, setAllTags] = useState([])
+  const [popupTagSearch, setPopupTagSearch] = useState("")
+  const [popupHovered, setPopupHovered] = useState(null)
+  const tagsRef = useRef(null)
+  const initialTagIdsRef = useRef(null)
 
   useEffect(() => {
     api.get(`/routes/${id}`)
@@ -725,7 +733,15 @@ export default function RouteDetail() {
 
   const sendAttempt = () => {
     api.get(`/routes/${id}/sent_attempt`)
-      .then(res => setAttempt(res.data.attempt))
+      .then(res => {
+        setAttempt(res.data.attempt)
+        if (res.data.empty_categories?.length > 0) {
+          setEmptyCategories(res.data.empty_categories)
+          initialTagIdsRef.current = new Set(tags.map(t => t.id))
+          setShowCongrats(true)
+          api.get("/tags").then(r => setAllTags(r.data.tags || [])).catch(() => {})
+        }
+      })
   }
 
   const toggleProject = () => {
@@ -773,6 +789,10 @@ export default function RouteDetail() {
 
   const attemptCount = attempt?.amount ?? 0
   const isSent = attempt?.sent
+  const assignedTagIds = new Set(tags.map(t => t.id))
+  const hasNewTags = initialTagIdsRef.current
+    ? tags.some(t => !initialTagIdsRef.current.has(t.id))
+    : false
 
   return (
     <div style={S.root}>
@@ -818,11 +838,13 @@ export default function RouteDetail() {
           </div>
 
           {/* ── TAGS ── */}
-          <TagManager
-            routeId={id}
-            tags={tags}
-            onTagsChange={setTags}
-          />
+          <div ref={tagsRef}>
+            <TagManager
+              routeId={id}
+              tags={tags}
+              onTagsChange={setTags}
+            />
+          </div>
 
           {/* ── PROJECT + EDIT ROUTE BUTTONS ── */}
           <div style={S.btnRow}>
@@ -959,6 +981,157 @@ export default function RouteDetail() {
             </button>
           </div>
         </div>
+
+        {/* ── FIRST SENT CONGRATULATIONS ── */}
+        {showCongrats && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'var(--rock)', display: 'flex',
+            flexDirection: 'column',
+            paddingTop: '52px',
+          }}>
+            {/* ── header ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1rem 1.5rem', borderBottom: '1px solid var(--line)',
+              flexShrink: 0,
+            }}>
+              <span style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontSize: '2.3rem', fontWeight: 700, color: 'var(--chalk)',
+              }}>
+                🎉 {t('routeDetail.firstSentTitle')}
+              </span>
+              <button
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--muted)', fontSize: '1.2rem', padding: '0.25rem',
+                  lineHeight: 1,
+                }}
+                onMouseEnter={e => e.target.style.color = 'var(--chalk)'}
+                onMouseLeave={e => e.target.style.color = 'var(--muted)'}
+                onClick={() => setShowCongrats(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* ── body ── */}
+            <div style={{
+              flex: 1, overflow: 'auto', padding: '1.5rem',
+              fontFamily: 'Barlow, sans-serif', fontSize: '0.9rem',
+              color: 'var(--text)', lineHeight: 1.6,
+            }}>
+              <p style={{ marginBottom: '1.25rem' }}>
+                {t('routeDetail.firstSentBody')}
+              </p>
+
+              {/* ── tag categories ── */}
+              {CATEGORY_ORDER.map(cat => {
+                const catTags = allTags.filter(t => (t.category || 'other') === cat)
+                const catLabel = t(`tags.category_${cat}`).toLowerCase()
+                const srch = popupTagSearch.toLowerCase()
+                const matched = srch === ''
+                  ? true
+                  : catLabel.includes(srch) || catTags.some(t => t.name.toLowerCase().includes(srch))
+                if (!matched && srch) return null
+                const filtered = srch
+                  ? catTags.filter(t => t.name.toLowerCase().includes(srch) || catLabel.includes(srch))
+                  : catTags
+                if (filtered.length === 0 && !catLabel.includes(srch)) return null
+                const isEmpty = emptyCategories.includes(cat)
+                return (
+                  <div key={cat} style={{ marginBottom: '1rem' }}>
+                    <div style={{
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontSize: '0.75rem', fontWeight: 700,
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      color: isEmpty ? 'var(--hold-lt)' : 'var(--muted)',
+                      marginBottom: '0.4rem',
+                    }}>
+                      {t(`tags.category_${cat}`)}
+                      {isEmpty && <span style={{ color: 'var(--hold)', marginLeft: '0.4rem', fontSize: '0.65rem' }}>(new)</span>}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {filtered.map(tg => {
+                        const assigned = assignedTagIds.has(tg.id)
+                        const key = `pop-${tg.id}`
+                        return (
+                          <button
+                            key={tg.id}
+                            style={{
+                              fontFamily: 'Barlow Condensed, sans-serif',
+                              fontSize: '0.65rem', fontWeight: 600,
+                              letterSpacing: '0.05em', textTransform: 'uppercase',
+                              padding: '0.3rem 0.65rem', borderRadius: '3px',
+                              cursor: 'pointer', border: '1px solid',
+                              background: assigned ? 'var(--hold)' : 'transparent',
+                              borderColor: assigned ? 'var(--hold)' : 'var(--line)',
+                              color: assigned ? '#fff' : popupHovered === key ? 'var(--chalk)' : 'var(--muted)',
+                              transition: 'none',
+                            }}
+                            onMouseEnter={() => setPopupHovered(key)}
+                            onMouseLeave={() => setPopupHovered(null)}
+                            onClick={async () => {
+                              if (assigned) {
+                                const res = await api.delete(`/routes/${id}/tags/${tg.id}`)
+                                setTags(res.data.tags)
+                              } else {
+                                const res = await api.post(`/routes/${id}/tags`, { tag_id: tg.id })
+                                setTags(res.data.tags)
+                                // check if this category is no longer empty
+                                const newAssigned = res.data.tags
+                                const catIds = allTags.filter(t => t.category === cat).map(t => t.id)
+                                const nowHasTag = newAssigned.some(t => catIds.includes(t.id))
+                                if (isEmpty && nowHasTag) {
+                                  setEmptyCategories(prev => prev.filter(c => c !== cat))
+                                }
+                              }
+                            }}
+                          >
+                            {tagName(tg)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+              {allTags.length === 0 && (
+                <div style={{
+                  fontFamily: 'Barlow, sans-serif', fontSize: '0.8rem',
+                  color: 'var(--muted)', fontStyle: 'italic',
+                }}>
+                  {t('tags.loading', { defaultValue: 'Loading tags...' })}
+                </div>
+              )}
+            </div>
+
+            {/* ── footer ── */}
+            <div style={{
+              display: 'flex', justifyContent: 'flex-end', gap: '0.75rem',
+              padding: '1rem 1.5rem', borderTop: '1px solid var(--line)',
+              flexShrink: 0,
+            }}>
+              <button
+                style={{
+                  padding: '0.6rem 1.4rem', cursor: 'pointer',
+                  background: 'transparent',
+                  border: `1px solid ${hasNewTags ? 'var(--hold)' : 'var(--line)'}`,
+                  borderRadius: '4px',
+                  color: hasNewTags ? 'var(--hold)' : 'var(--muted)',
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.05em',
+                }}
+                onMouseEnter={e => { e.target.style.color = hasNewTags ? 'var(--hold-lt)' : 'var(--chalk)'; e.target.style.borderColor = hasNewTags ? 'var(--hold-lt)' : 'var(--chalk)' }}
+                onMouseLeave={e => { e.target.style.color = hasNewTags ? 'var(--hold)' : 'var(--muted)'; e.target.style.borderColor = hasNewTags ? 'var(--hold)' : 'var(--line)' }}
+                onClick={() => { initialTagIdsRef.current = null; setShowCongrats(false) }}
+              >
+                {t(hasNewTags ? 'routeDetail.save' : 'routeDetail.dismiss')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── COMMENTS CARD ── */}
         <div style={S.card}>

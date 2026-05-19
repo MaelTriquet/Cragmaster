@@ -154,6 +154,7 @@ def init_db():
         ('powerful', 'Puissant', 'style'),
         ('boulder', 'Bloc', 'style'),
         ('reading', 'Lecture', 'style'),
+        ('reachy', '"Reachy"', 'style'),
         ('need-a-crashpad', 'Besoin d\u2019un crashpad', 'other'),
     ]
     for name, name_fr, category in seed_tags:

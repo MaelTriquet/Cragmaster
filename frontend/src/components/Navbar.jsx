@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api/client'
 
-const LANGUAGES = { en: 'EN', fr: 'FR' }
 
 const NAV_ITEM_KEYS = [
   { key: 'nav.topos', path: '/topos' },
@@ -333,7 +332,7 @@ export default function Navbar() {
                   }}
                   onClick={toggleLang}
                 >
-                  {LANGUAGES[currentLang === 'en' ? 'en' : 'fr']}
+                  {currentLang === 'en' ? '\ud83c\uddeb\ud83c\uddf7' : '\ud83c\uddec\ud83c\udde7'}
                 </button>
               </div>
 
@@ -449,7 +448,7 @@ export default function Navbar() {
           }}
           onClick={toggleLang}
         >
-          {LANGUAGES[currentLang === 'en' ? 'en' : 'fr']}
+          {currentLang === 'en' ? '\ud83c\uddeb\ud83c\uddf7' : '\ud83c\uddec\ud83c\udde7'}
         </button>
 
         {user?.is_admin && unresolvedCount > 0 && (
