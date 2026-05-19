@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 import axios from 'axios'
+import { saveTopoForOffline, isOnline } from '../lib/offline'
+import { useToast } from '../contexts/ToastContext'
 
 const getGradeColor = (grade) => {
   if (grade < 0) return 'hsl(0, 0%, 50%)'
@@ -575,6 +577,9 @@ export default function TopoDetail() {
   })
 
   const [confirmModal, setConfirmModal] = useState(null)
+  const [savingOffline, setSavingOffline] = useState(false)
+  const [offlineSaved, setOfflineSaved] = useState(false)
+  const { showToast } = useToast()
 
   useEffect(() => {
     api.get(`/topos/${id}`)
@@ -588,12 +593,28 @@ export default function TopoDetail() {
   }, [id])
 
   const submitRouteAdd = () => {
+    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
     api.post(`/topos/${id}/add_route`, addForm)
       .then(res => {
         setRoutes(res.data.routes)
         setShowAddForm(false)
         setAddForm({ name: "", grade: "", length: "", route_index: "" })
       })
+  }
+
+  const handleSaveOffline = async () => {
+    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+    setSavingOffline(true)
+    setOfflineSaved(false)
+    try {
+      await saveTopoForOffline(id)
+      setOfflineSaved(true)
+      setTimeout(() => setOfflineSaved(false), 3000)
+    } catch {
+      showToast(t('topoDetail.downloadFailed'))
+    } finally {
+      setSavingOffline(false)
+    }
   }
 
   if (!topo) return (
@@ -624,6 +645,7 @@ export default function TopoDetail() {
   }
 
   const doGeoLocation = (type) => {
+    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
     if (!navigator.geolocation) {
       alert(t('topoDetail.geoNotSupported'));
       return;
@@ -923,6 +945,20 @@ export default function TopoDetail() {
               {t('topoDetail.download')}
             </button>
           )}
+
+          <button
+            style={{
+              ...S.downloadBtn,
+              borderColor: offlineSaved ? "var(--good)" : hoveredBtn === "offline" ? "var(--hold)" : "var(--line)",
+              color: offlineSaved ? "var(--good)" : hoveredBtn === "offline" ? "var(--hold)" : "var(--muted)",
+            }}
+            onMouseEnter={() => setHoveredBtn("offline")}
+            onMouseLeave={() => setHoveredBtn(null)}
+            onClick={handleSaveOffline}
+            disabled={savingOffline}
+          >
+            {savingOffline ? t('topoDetail.savingOffline') : offlineSaved ? t('topoDetail.savedOffline') : t('topoDetail.downloadOffline')}
+          </button>
         </div>
 
         {/* ── Download error ── */}

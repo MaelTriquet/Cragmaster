@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
 import PrivateRoute from './components/PrivateRoute'
 import Login from './pages/Login'
 import Upload from './pages/Upload'
@@ -28,6 +29,7 @@ const MAIN = {
 export default function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter>
         <div style={PAGE_WRAPPER}>
           <Navbar />
@@ -54,6 +56,7 @@ export default function App() {
           <Footer />
         </div>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   )
 }

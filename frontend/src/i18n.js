@@ -90,6 +90,10 @@ i18n.use(initReactI18next).init({
           confirmMapHint: 'If not, right-click on the map to set the location from afar.',
           confirmHere: 'Yes, I\u2019m here',
           confirmSetOnMap: 'Set on Map',
+          downloadOffline: '\u2193 Offline',
+          savingOffline: 'Saving\u2026',
+          savedOffline: '\u2713 Saved for offline',
+          offlineMessage: 'You are offline',
         },
         routeDetail: {
           back: '\u2190 {{name}}',
@@ -428,6 +432,10 @@ i18n.use(initReactI18next).init({
           confirmMapHint: 'Sinon, faites un clic droit sur la carte pour d\u00e9finir l\u2019emplacement \u00e0 distance.',
           confirmHere: 'Oui, j\u2019y suis',
           confirmSetOnMap: 'D\u00e9finir sur la carte',
+          downloadOffline: '\u2193 Hors-ligne',
+          savingOffline: 'Enregistrement\u2026',
+          savedOffline: '\u2713 Enregistr\u00e9 pour hors-ligne',
+          offlineMessage: 'Vous \u00eates hors-ligne',
         },
         routeDetail: {
           back: '\u2190 {{name}}',

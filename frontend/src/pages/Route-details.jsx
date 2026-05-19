@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from "react-router-dom"
 import api from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { getOfflineRoute, isOnline } from '../lib/offline'
+import { useToast } from '../contexts/ToastContext'
 
 const S = {
   root: {
@@ -533,6 +535,7 @@ function TagManager({ routeId, tags, onTagsChange }) {
   const [search, setSearch] = useState('')
   const [hovered, setHovered] = useState(null)
   const { t, i18n } = useTranslation()
+  const { showToast } = useToast()
 
   const tagName = (tag) => (i18n.language === 'fr' && tag.name_fr ? tag.name_fr : tag.name)
 
@@ -559,11 +562,13 @@ function TagManager({ routeId, tags, onTagsChange }) {
 
   const handleAssign = async (tagId) => {
     if (assignedIds.has(tagId)) return
+    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
     const res = await api.post(`/routes/${routeId}/tags`, { tag_id: tagId })
     onTagsChange(res.data.tags)
   }
 
   const handleRemove = async (tagId) => {
+    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
     const res = await api.delete(`/routes/${routeId}/tags/${tagId}`)
     onTagsChange(res.data.tags)
   }
@@ -718,8 +723,9 @@ export default function RouteDetail() {
   const [popupHovered, setPopupHovered] = useState(null)
   const tagsRef = useRef(null)
   const initialTagIdsRef = useRef(null)
+  const { showToast } = useToast()
 
-  useEffect(() => {
+  const loadRoute = useCallback(() => {
     api.get(`/routes/${id}`)
       .then(res => {
         const d = res.data
@@ -738,9 +744,39 @@ export default function RouteDetail() {
           setAttempt({ id: null, amount: 0, sent: false })
         else setAttempt(d.attempt)
       })
+      .catch(async () => {
+        if (!isOnline()) {
+          const offline = await getOfflineRoute(id)
+          if (offline) {
+            const d = offline
+            setRoute(d.route)
+            setComments(d.comments)
+            setTags(d.tags || [])
+            setAvgPerceivedGrade(d.avg_perceived_grade || null)
+            setIsProject(d.is_project || false)
+            setEditForm({
+              name: d.route.name || "",
+              grade: d.route.grade || "",
+              length: d.route.length > 0 ? d.route.length : "",
+              route_index: d.route.route_index > 0 ? d.route.route_index : "",
+            })
+            if (!d.attempt || Object.keys(d.attempt).length === 0)
+              setAttempt({ id: null, amount: 0, sent: false })
+            else setAttempt(d.attempt)
+          }
+        }
+      })
   }, [id])
 
+  useEffect(() => { loadRoute() }, [loadRoute])
+
+  const offlineGuard = () => {
+    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return true }
+    return false
+  }
+
   const submitRouteEdit = () => {
+    if (offlineGuard()) return
     api.patch(`/routes/${id}`, editForm)
       .then(res => {
         setRoute(res.data.route)
@@ -749,11 +785,13 @@ export default function RouteDetail() {
   }
 
   const addAttempt = () => {
+    if (offlineGuard()) return
     api.get(`/routes/${id}/add_attempt`)
       .then(res => setAttempt(res.data.attempt))
   }
 
   const sendAttempt = () => {
+    if (offlineGuard()) return
     api.get(`/routes/${id}/sent_attempt`)
       .then(res => {
         setAttempt(res.data.attempt)
@@ -767,6 +805,7 @@ export default function RouteDetail() {
   }
 
   const toggleProject = () => {
+    if (offlineGuard()) return
     api.post(`/routes/${id}/project`)
       .then(res => setIsProject(res.data.is_project))
   }
@@ -791,6 +830,7 @@ export default function RouteDetail() {
   }, [showForm, user, comments])
 
   const submitComment = () => {
+    if (offlineGuard()) return
     const payload = { ...form }
     if (payload.perceived_grade === "!") payload.perceived_grade = route.grade
     api.post(`/routes/${id}/comments`, payload)
@@ -1095,6 +1135,7 @@ export default function RouteDetail() {
                             onMouseEnter={() => setPopupHovered(key)}
                             onMouseLeave={() => setPopupHovered(null)}
                             onClick={async () => {
+                              if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
                               if (assigned) {
                                 const res = await api.delete(`/routes/${id}/tags/${tg.id}`)
                                 setTags(res.data.tags)
