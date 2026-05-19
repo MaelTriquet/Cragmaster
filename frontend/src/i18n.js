@@ -100,6 +100,7 @@ i18n.use(initReactI18next).init({
           savingOffline: 'Saving\u2026',
           savedOffline: '\u2713 Saved for offline',
           offlineMessage: 'You are offline',
+          editTopo: 'Edit',
         },
         routeDetail: {
           back: '\u2190 {{name}}',
@@ -475,6 +476,7 @@ i18n.use(initReactI18next).init({
           savingOffline: 'Enregistrement\u2026',
           savedOffline: '\u2713 Enregistr\u00e9 pour hors-ligne',
           offlineMessage: 'Vous \u00eates hors-ligne',
+          editTopo: 'Modifier',
         },
         routeDetail: {
           back: '\u2190 {{name}}',

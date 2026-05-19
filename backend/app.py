@@ -370,6 +370,19 @@ def import_thecrag_url():
     return ok(topo_id=topo_id, topo_name=title, routes_parsed=len(parsed['routes'])), 201
 
 
+@app.route('/api/topos/<int:topo_id>', methods=['PATCH'])
+@jwt_required()
+def update_topo(topo_id):
+    conn = get_db()
+    topo = conn.execute('SELECT * FROM topos WHERE id=?', (topo_id,)).fetchone()
+    if not topo: conn.close(); return api_error('Topo not found', 404)
+    data = request.get_json(silent=True) or {}
+    title = data.get('title', '').strip()
+    if not title: conn.close(); return api_error('Title is required', 400)
+    conn.execute('UPDATE topos SET title=? WHERE id=?', (title, topo_id))
+    conn.commit(); conn.close()
+    return ok(title=title)
+
 @app.route('/api/topos/<int:topo_id>', methods=['DELETE'])
 @jwt_required()
 def delete_topo(topo_id):

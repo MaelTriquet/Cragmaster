@@ -568,6 +568,8 @@ export default function TopoDetail() {
   const [hoveredRoute, setHoveredRoute] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [downloadErr, setDownloadErr] = useState('')
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
 
   const [addForm, setAddForm] = useState({
     name: "",
@@ -738,7 +740,65 @@ export default function TopoDetail() {
         {/* ── HEADER ── */}
         <div style={S.header}>
           <span style={S.eyebrow}>{t('topoDetail.eyebrow')}</span>
-          <h1 style={S.title}>{topo.title}</h1>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem" }}>
+            {editingTitle ? (
+              <input
+                type="text"
+                value={titleDraft}
+                onChange={e => setTitleDraft(e.target.value)}
+                onKeyDown={async e => {
+                  if (e.key === "Enter" && titleDraft.trim()) {
+                    await api.patch(`/topos/${id}`, { title: titleDraft.trim() })
+                    setTopo({ ...topo, title: titleDraft.trim() })
+                    setEditingTitle(false)
+                  }
+                  if (e.key === "Escape") setEditingTitle(false)
+                }}
+                onBlur={async () => {
+                  if (titleDraft.trim() && titleDraft.trim() !== topo.title) {
+                    await api.patch(`/topos/${id}`, { title: titleDraft.trim() })
+                    setTopo({ ...topo, title: titleDraft.trim() })
+                  }
+                  setEditingTitle(false)
+                }}
+                autoFocus
+                style={{
+                  ...S.formInput,
+                  fontSize: "var(--title-3xl)",
+                  fontFamily: "Barlow Condensed, sans-serif",
+                  fontWeight: 800,
+                  letterSpacing: "0.02em",
+                  textTransform: "uppercase",
+                  lineHeight: 0.95,
+                  padding: "0.2rem 0.5rem",
+                  margin: 0,
+                }}
+              />
+            ) : (
+              <h1 style={{ ...S.title, margin: 0 }}>{topo.title}</h1>
+            )}
+            <button
+              style={{
+                background: "none",
+                border: "1px solid var(--line)",
+                color: "var(--muted)",
+                cursor: "pointer",
+                fontFamily: "Barlow Condensed, sans-serif",
+                fontSize: "0.65rem",
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                padding: "0.2rem 0.5rem",
+                transition: "border-color 0.15s, color 0.15s",
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--hold)"; e.currentTarget.style.color = "var(--hold)" }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.color = "var(--muted)" }}
+              onClick={() => { setTitleDraft(topo.title); setEditingTitle(true) }}
+            >
+              {t('topoDetail.editTopo')}
+            </button>
+          </div>
           <div style={S.metaRow}>
             <span style={S.routeCount}>{t('topoDetail.route', { count: routes.length })}</span>
           </div>
