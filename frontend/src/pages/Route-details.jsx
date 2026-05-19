@@ -529,8 +529,8 @@ const CATEGORY_ORDER = ['route_style', 'hold', 'approach', 'exposure', 'style', 
 // ── Tag management panel ───────────────────────────────────────────────────────
 function TagManager({ routeId, tags, onTagsChange }) {
   const [allTags, setAllTags] = useState([])
-  const [pickerOpen, setPickerOpen] = useState(null)
-  const [pickerSearch, setPickerSearch] = useState({})
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const [hovered, setHovered] = useState(null)
   const { t, i18n } = useTranslation()
 
@@ -568,22 +568,11 @@ function TagManager({ routeId, tags, onTagsChange }) {
     onTagsChange(res.data.tags)
   }
 
-  const togglePicker = (cat) => {
-    setPickerOpen(prev => prev === cat ? null : cat)
-    setPickerSearch({})
-  }
-
   return (
     <div style={S.tagsSection}>
       <div style={S.tagsTitle}>{t('tags.title')}</div>
       {CATEGORY_ORDER.map(cat => {
         const assigned = assignedByCategory[cat] || []
-        const available = allByCategory[cat] || []
-        const search = (pickerSearch[cat] || '').toLowerCase()
-        const filtered = search
-          ? available.filter(t => t.name.toLowerCase().includes(search))
-          : available
-
         return (
           <div key={cat} style={S.tagCategoryRow}>
             <span style={S.tagCategoryLabel}>{t(`tags.category_${cat}`)}</span>
@@ -607,63 +596,96 @@ function TagManager({ routeId, tags, onTagsChange }) {
                 <span style={S.noTagText}>{t('tags.noTag')}</span>
               )}
             </div>
-            <button
-              style={{
-                ...S.addTagBtnSmall,
-                borderColor: pickerOpen === cat ? "var(--hold)" : "var(--line)",
-                color: pickerOpen === cat ? "var(--hold)" : "var(--muted)",
-              }}
-              onMouseEnter={() => setHovered(`add-${cat}`)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => togglePicker(cat)}
-            >
-              {t('tags.addTag')}
-            </button>
-
-            {pickerOpen === cat && (
-              <div style={S.tagPicker}>
-                <input
-                  style={S.tagPickerSearch}
-                  type="text"
-                  placeholder={t('tags.searchPlaceholder')}
-                  value={pickerSearch[cat] || ''}
-                  onChange={e => setPickerSearch({ ...pickerSearch, [cat]: e.target.value })}
-                  onFocus={e => e.target.style.borderColor = "var(--hold)"}
-                  onBlur={e => e.target.style.borderColor = "var(--line)"}
-                  autoFocus
-                />
-                <div style={S.tagPickerList}>
-                  {filtered.length === 0 && (
-                    <span style={{ fontFamily: "Barlow, sans-serif", fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
-                      {search ? 'No match' : 'No tags'}
-                    </span>
-                  )}
-                  {filtered.map(tg => {
-                    const as = assignedIds.has(tg.id)
-                    return (
-                      <button
-                        key={tg.id}
-                        style={{
-                          ...S.tagPickerBtn(as),
-                          ...(hovered === `pick-${tg.id}` && !as
-                            ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
-                            : {}),
-                        }}
-                        disabled={as}
-                        onMouseEnter={() => !as && setHovered(`pick-${tg.id}`)}
-                        onMouseLeave={() => setHovered(null)}
-                        onClick={() => handleAssign(tg.id)}
-                      >
-                        {tagName(tg)}{as && ' ✓'}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         )
       })}
+
+      <button
+        style={{
+          ...S.addTagBtnSmall,
+          marginTop: '0.6rem',
+          padding: '0.35rem 0.8rem',
+          fontSize: '0.75rem',
+          borderColor: pickerOpen ? "var(--hold)" : "var(--line)",
+          color: pickerOpen ? "var(--hold)" : "var(--muted)",
+        }}
+        onMouseEnter={() => setHovered('add')}
+        onMouseLeave={() => setHovered(null)}
+        onClick={() => { setPickerOpen(p => !p); setSearch('') }}
+      >
+        + {t('tags.addTag')}
+      </button>
+
+      {pickerOpen && (
+        <div style={S.tagPicker}>
+          <input
+            style={S.tagPickerSearch}
+            type="text"
+            placeholder={t('tags.searchPlaceholder')}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onFocus={e => e.target.style.borderColor = "var(--hold)"}
+            onBlur={e => e.target.style.borderColor = "var(--line)"}
+            autoFocus
+          />
+          <div style={S.tagPickerList}>
+            {CATEGORY_ORDER.map(cat => {
+              const available = allByCategory[cat] || []
+              const lowerSearch = search.toLowerCase()
+              const filtered = search
+                ? available.filter(t => tagName(t).toLowerCase().includes(lowerSearch))
+                : available
+              if (filtered.length === 0) return null
+              return (
+                <div key={cat} style={{ width: '100%', marginBottom: '0.4rem' }}>
+                  <div style={{
+                    fontFamily: "Barlow Condensed, sans-serif",
+                    fontSize: "0.6rem", fontWeight: 700,
+                    letterSpacing: "0.15em", textTransform: "uppercase",
+                    color: "var(--hold)", marginBottom: "0.25rem",
+                  }}>
+                    {t(`tags.category_${cat}`)}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                    {filtered.map(tg => {
+                      const as = assignedIds.has(tg.id)
+                      return (
+                        <button
+                          key={tg.id}
+                          style={{
+                            ...S.tagPickerBtn(as),
+                            ...(hovered === `pick-${tg.id}` && !as
+                              ? { borderColor: "var(--chalk)", color: "var(--chalk)" }
+                              : {}),
+                          }}
+                          disabled={as}
+                          onMouseEnter={() => !as && setHovered(`pick-${tg.id}`)}
+                          onMouseLeave={() => setHovered(null)}
+                          onClick={() => handleAssign(tg.id)}
+                        >
+                          {tagName(tg)}{as && ' ✓'}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+            {CATEGORY_ORDER.every(cat => {
+              const available = allByCategory[cat] || []
+              const lowerSearch = search.toLowerCase()
+              const filtered = search
+                ? available.filter(t => tagName(t).toLowerCase().includes(lowerSearch))
+                : available
+              return filtered.length === 0
+            }) && (
+              <span style={{ fontFamily: "Barlow, sans-serif", fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
+                {search ? t('tags.noMatch', { defaultValue: 'No match' }) : t('tags.noTags', { defaultValue: 'No tags' })}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
