@@ -352,7 +352,7 @@ const S = {
   // ── COMMENT FORM ──────────────────────────────────────
   formGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "var(--grid-2col, 1fr 1fr)",
     gap: "0.85rem",
     marginBottom: "0.85rem",
   },

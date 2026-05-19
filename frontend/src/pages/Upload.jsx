@@ -63,7 +63,7 @@ const S = {
     width: '100%',
     maxWidth: '620px',
     background: 'var(--granite)',
-    padding: '2.5rem',
+    padding: 'var(--card-padding)',
     boxShadow: '0 8px 60px rgba(0,0,0,0.45)',
     display: 'flex',
     flexDirection: 'column',
@@ -167,6 +167,7 @@ const S = {
     display: 'flex',
     gap: '0.5rem',
     alignItems: 'stretch',
+    flexWrap: 'wrap',
   },
   urlIcon: {
     fontSize: '1.25rem',

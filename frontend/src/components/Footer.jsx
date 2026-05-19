@@ -16,7 +16,7 @@ const S = {
   },
   btn: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.7rem',
+    fontSize: 'var(--footer-btn-font, 0.7rem)',
     fontWeight: 700,
     letterSpacing: '0.15em',
     textTransform: 'uppercase',
@@ -24,7 +24,7 @@ const S = {
     cursor: 'pointer',
     background: 'none',
     border: '1px solid var(--line)',
-    padding: '0.3rem 0.75rem',
+    padding: 'var(--footer-btn-padding, 0.3rem 0.75rem)',
     transition: 'border-color 0.15s, color 0.15s',
   },
   divider: {

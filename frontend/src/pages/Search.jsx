@@ -179,7 +179,7 @@ const S = {
     position: "absolute",
     top: "calc(100% + 0.4rem)",
     left: 0,
-    width: "340px",
+    width: "min(340px, 90vw)",
     background: "var(--granite)",
     border: "1px solid var(--line)",
     zIndex: 50,

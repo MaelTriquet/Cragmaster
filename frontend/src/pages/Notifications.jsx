@@ -49,6 +49,7 @@ const S = {
     display: 'flex',
     gap: '1rem',
     alignItems: 'flex-start',
+    flexWrap: 'wrap',
   },
   cardResolved: {
     opacity: 0.4,
@@ -114,6 +115,7 @@ const S = {
   filterRow: {
     display: 'flex',
     gap: '0.5rem',
+    flexWrap: 'wrap',
     marginBottom: '1.5rem',
   },
   filterBtn: (active) => ({

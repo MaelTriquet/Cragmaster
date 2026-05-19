@@ -351,6 +351,7 @@ export default function Query() {
           {rows.length === 0
             ? <p style={{ fontFamily: "Barlow Condensed", fontSize: "0.85rem", color: "var(--muted)" }}>{t('query.noResults')}</p>
             : (
+              <div style={{ overflowX: 'auto' }}>
               <table style={S.table}>
                 <thead>
                   <tr>
@@ -369,6 +370,7 @@ export default function Query() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )
           }
         </div>
