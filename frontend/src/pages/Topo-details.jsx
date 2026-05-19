@@ -582,8 +582,14 @@ export default function TopoDetail() {
   const { showToast } = useToast()
 
   useEffect(() => {
-    const load = async () => {
-      if (!isOnline()) {
+    (async () => {
+      try {
+        const res = await api.get(`/topos/${id}`)
+        setTopo(res.data.topo)
+        setRoutes(res.data.routes)
+        setParkingLocation(res.data.parking_location)
+        setRoutesLocation(res.data.routes_location)
+      } catch {
         const cached = await getOfflineTopo(id)
         if (cached) {
           setTopo(cached.topo)
@@ -591,18 +597,8 @@ export default function TopoDetail() {
           setParkingLocation(cached.parking_location)
           setRoutesLocation(cached.routes_location)
         }
-        return
       }
-      api.get(`/topos/${id}`)
-        .then(res => {
-          setTopo(res.data.topo)
-          setRoutes(res.data.routes)
-          setParkingLocation(res.data.parking_location)
-          setRoutesLocation(res.data.routes_location)
-        })
-        .catch(err => console.error(err))
-    }
-    load()
+    })()
   }, [id])
 
   const submitRouteAdd = () => {

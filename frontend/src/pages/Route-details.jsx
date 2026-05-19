@@ -743,14 +743,13 @@ export default function RouteDetail() {
   }, [])
 
   const loadRoute = useCallback(async () => {
-    if (!isOnline()) {
+    try {
+      const res = await api.get(`/routes/${id}`)
+      applyRouteData(res.data)
+    } catch {
       const offline = await getOfflineRoute(id)
       if (offline) applyRouteData(offline)
-      return
     }
-    api.get(`/routes/${id}`)
-      .then(res => applyRouteData(res.data))
-      .catch(() => {})
   }, [id, applyRouteData])
 
   useEffect(() => { loadRoute() }, [loadRoute])

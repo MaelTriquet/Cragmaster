@@ -12,8 +12,13 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('token')
     if (!token) { setLoading(false); return }
     authApi.me()
-      .then(res => setUser(res.data.user))   // ← was res.data (missing .user)
-      .catch(() => localStorage.removeItem('token'))
+      .then(res => setUser(res.data.user))
+      .catch(err => {
+        // Only wipe the token on explicit auth failures, not network errors
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token')
+        }
+      })
       .finally(() => setLoading(false))
   }, [])
 
