@@ -907,7 +907,6 @@ def get_stats():
         JOIN topos t ON t.id = r.topo_id
         WHERE a.user_id = ?
     ''', (user_id,)).fetchall()
-    conn.close()
 
     rows = [dict(r) for r in rows]
 
@@ -955,11 +954,46 @@ def get_stats():
         for r in sorted(working_rows, key=lambda x: x['sorting_grade'], reverse=True)
     ]
 
+    # ── Tag breakdown: which tags appear on sent routes ──
+    tag_rows = conn.execute('''
+        SELECT t.category, t.name, t.name_fr, COUNT(*) as count
+        FROM attempts a
+        JOIN tag_routes tr ON tr.route_id = a.route_id
+        JOIN tags t ON t.id = tr.tag_id
+        WHERE a.user_id = ? AND a.sent = 1 AND (t.category == 'style' OR t.category == 'route_style' OR t.category == 'hold')
+        GROUP BY t.id
+        ORDER BY t.category, count DESC
+    ''', (user_id,)).fetchall()
+    tag_breakdown = [dict(r) for r in tag_rows]
+
+    # ── Flash rate by grade ──
+    flash_rows = conn.execute('''
+        SELECT
+            r.grade,
+            r.sorting_grade,
+            COUNT(*) as total,
+            SUM(CASE WHEN a.amount = 1 THEN 1 ELSE 0 END) as flash_count,
+            SUM(CASE WHEN a.amount > 1 THEN 1 ELSE 0 END) as non_flash_count
+        FROM attempts a
+        JOIN routes r ON r.id = a.route_id
+        WHERE a.user_id = ? AND a.sent = 1
+        GROUP BY r.grade
+        ORDER BY r.sorting_grade
+    ''', (user_id,)).fetchall()
+    flash_by_grade = []
+    for r in flash_rows:
+        d = dict(r)
+        d['flash_rate'] = round(d['flash_count'] / d['total'], 2) if d['total'] > 0 else 0
+        flash_by_grade.append(d)
+
+    conn.close()
     return ok(
         max_grade=max_grade,
         grade_pyramid=grade_pyramid,
         avg_attempts_per_grade=avg_attempts,
         working=working,
+        tag_breakdown=tag_breakdown,
+        flash_by_grade=flash_by_grade,
         summary={
             'total_sent':     len(sent_rows),
             'total_attempts': sum(r['amount'] for r in rows),

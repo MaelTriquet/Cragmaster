@@ -36,6 +36,25 @@ const getGradeColor = (sorting_grade) => {
   return `hsl(${(lo[1]+dh*t).toFixed(1)},${(lo[2]+(hi[2]-lo[2])*t).toFixed(1)}%,${(lo[3]+(hi[3]-lo[3])*t).toFixed(1)}%)`
 }
 
+const CATEGORY_ORDER = ['route_style', 'hold', 'approche', 'exposure', 'style', 'other']
+
+const CATEGORY_COLORS = {
+  route_style: 'hsl(200, 60%, 50%)',
+  hold:        'hsl(140, 50%, 45%)',
+  approche:    'hsl(30,  70%, 50%)',
+  exposure:    'hsl(260, 50%, 55%)',
+  style:       'hsl(350, 60%, 50%)',
+  other:       'hsl(0,   0%,  50%)',
+}
+
+const GRADE_OPTIONS = []
+for (let n = 3; n <= 9; n++) {
+  for (const l of ['a', 'b', 'c']) {
+    GRADE_OPTIONS.push({ label: `${n}${l}`, sort: GRADE_OPTIONS.length })
+    GRADE_OPTIONS.push({ label: `${n}${l}+`, sort: GRADE_OPTIONS.length })
+  }
+}
+
 // ── Tiny bar-chart component ─────────────────────────────────────────────────
 function BarChart({ data, valueKey, labelKey, sortingKey, title, unit = '' }) {
   const { t } = useTranslation()
@@ -133,6 +152,254 @@ function HBarChart({ data, valueKey, labelKey, sortingKey, title, unit = '' }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// ── Tag fingerprint component ─────────────────────────────────────────────────
+function TagFingerprint({ data, title }) {
+  const { t, i18n } = useTranslation()
+  const [hovered, setHovered] = useState(null)
+  const tagName = (tag) => (i18n.language === 'fr' && tag.name_fr ? tag.name_fr : tag.name)
+
+  if (!data || data.length === 0) return (
+    <div style={S.emptyChart}>{t('stats.noData')}</div>
+  )
+
+  const byCategory = {}
+  for (const d of data) {
+    const cat = d.category || 'other'
+    if (!byCategory[cat]) byCategory[cat] = []
+    byCategory[cat].push(d)
+  }
+  const maxCount = Math.max(...data.map(d => d.count), 1)
+
+  return (
+    <div>
+      <div style={S.chartTitle}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {CATEGORY_ORDER.map(cat => {
+          const items = byCategory[cat]
+          if (!items || items.length === 0) return null
+          return (
+            <div key={cat}>
+              <div style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontSize: '0.6rem', fontWeight: 700,
+                letterSpacing: '0.15em', textTransform: 'uppercase',
+                color: CATEGORY_COLORS[cat] || 'var(--muted)',
+                marginBottom: '0.35rem',
+              }}>
+                {t(`tags.category_${cat}`)}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {items.map((d, i) => {
+                  const pct = (d.count / maxCount) * 100
+                  const isHov = hovered === `${cat}-${i}`
+                  const color = CATEGORY_COLORS[cat] || 'var(--muted)'
+                  return (
+                    <div
+                      key={d.name}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        cursor: 'default',
+                      }}
+                      onMouseEnter={() => setHovered(`${cat}-${i}`)}
+                      onMouseLeave={() => setHovered(null)}
+                    >
+                      <span style={{
+                        fontFamily: 'Barlow Condensed, sans-serif',
+                        fontSize: '0.68rem', fontWeight: 600,
+                        letterSpacing: '0.05em',
+                        color: isHov ? 'var(--chalk)' : 'var(--muted)',
+                        width: '70px', flexShrink: 0, textAlign: 'right',
+                        transition: 'color 0.15s',
+                      }}>
+                        {tagName(d)}
+                      </span>
+                      <div style={{
+                        flex: 1, height: '14px',
+                        background: 'rgba(255,255,255,0.04)',
+                        position: 'relative',
+                      }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${Math.max(pct, 2)}%`,
+                          background: color,
+                          opacity: isHov ? 1 : 0.7,
+                          transition: 'width 0.4s ease, opacity 0.15s',
+                        }} />
+                      </div>
+                      <span style={{
+                        fontFamily: 'Barlow Condensed, sans-serif',
+                        fontSize: '0.65rem', fontWeight: 700,
+                        color: isHov ? 'var(--chalk)' : 'var(--muted)',
+                        width: '24px', textAlign: 'right',
+                        transition: 'color 0.15s',
+                      }}>
+                        {d.count}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Flash rate pie chart ─────────────────────────────────────────────────────
+function FlashPie({ data, title }) {
+  const { t } = useTranslation()
+  const [selectedGrade, setSelectedGrade] = useState('')
+  const [hoveredSlice, setHoveredSlice] = useState(null)
+
+  if (!data || data.length === 0) return (
+    <div style={S.emptyChart}>{t('stats.noData')}</div>
+  )
+
+  const gradeData = selectedGrade
+    ? data.find(d => d.grade === selectedGrade)
+    : null
+
+  const pieData = gradeData
+    ? [
+        { label: t('stats.flash'), value: gradeData.flash_count, color: 'hsl(140, 50%, 45%)' },
+        { label: t('stats.nonFlash'), value: gradeData.non_flash_count, color: 'var(--hold)' },
+      ]
+    : []
+
+  const total = pieData.reduce((s, d) => s + d.value, 0)
+  const flashRate = total > 0 ? Math.round((pieData[0]?.value || 0) / total * 100) : 0
+
+  // SVG pie helpers
+  const cx = 100, cy = 100, r = 80
+  let currentAngle = -Math.PI / 2
+  const slices = pieData.map(d => {
+    const sliceAngle = total > 0 ? (d.value / total) * Math.PI * 2 : 0
+    const startAngle = currentAngle
+    const endAngle = currentAngle + sliceAngle
+    currentAngle = endAngle
+    const x1 = cx + r * Math.cos(startAngle)
+    const y1 = cy + r * Math.sin(startAngle)
+    const x2 = cx + r * Math.cos(endAngle)
+    const y2 = cy + r * Math.sin(endAngle)
+    const largeArc = sliceAngle > Math.PI ? 1 : 0
+    const path = sliceAngle >= Math.PI * 2
+      ? `M${cx},${cy - r} A${r},${r} 0 1,1 ${cx - 0.01},${cy - r} A${r},${r} 0 1,1 ${cx},${cy - r}`
+      : sliceAngle > 0
+        ? `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`
+        : null
+    return { ...d, path, startAngle, endAngle }
+  }).filter(s => s.path)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        <div style={S.chartTitle}>{title}</div>
+        <div style={{ marginLeft: 'auto' }}>
+          <select
+            style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontSize: '0.65rem', fontWeight: 600,
+              letterSpacing: '0.05em',
+              background: 'var(--rock)', border: '1px solid var(--line)',
+              color: selectedGrade ? 'var(--chalk)' : 'var(--muted)',
+              padding: '0.25rem 0.4rem', borderRadius: '3px',
+              cursor: 'pointer', outline: 'none',
+            }}
+            value={selectedGrade}
+            onChange={e => setSelectedGrade(e.target.value)}
+          >
+            <option value="">{t('stats.selectGrade')}</option>
+            {data.map(d => (
+              <option key={d.grade} value={d.grade}>{d.grade}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {!selectedGrade ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '2rem 0',
+          fontFamily: 'Barlow Condensed, sans-serif',
+          fontSize: '0.85rem', letterSpacing: '0.05em',
+          color: 'var(--muted)',
+        }}>
+          {t('stats.pickGrade')}
+        </div>
+      ) : !gradeData ? (
+        <div style={S.emptyChart}>{t('stats.noData')}</div>
+      ) : total === 0 ? (
+        <div style={S.emptyChart}>{t('stats.noData')}</div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'center' }}>
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            {slices.map((s, i) => {
+              const isHov = hoveredSlice === i
+              const midAngle = (s.startAngle + s.endAngle) / 2
+              const explodeOffset = isHov ? 6 : 0
+              const dx = explodeOffset * Math.cos(midAngle)
+              const dy = explodeOffset * Math.sin(midAngle)
+              const transform = dx || dy ? `translate(${dx},${dy})` : undefined
+              return (
+                <path
+                  key={i}
+                  d={s.path}
+                  fill={s.color}
+                  opacity={isHov ? 1 : 0.85}
+                  transform={transform}
+                  style={{ transition: 'opacity 0.15s, transform 0.2s', cursor: 'pointer' }}
+                  onMouseEnter={() => setHoveredSlice(i)}
+                  onMouseLeave={() => setHoveredSlice(null)}
+                />
+              )
+            })}
+            {total > 0 && (
+              <text x={cx} y={cy - 6} textAnchor="middle" fontFamily="Barlow Condensed, sans-serif" fontSize="28" fontWeight="800" fill="var(--chalk)">
+                {total}
+              </text>
+            )}
+            {total > 0 && (
+              <text x={cx} y={cy + 14} textAnchor="middle" fontFamily="Barlow Condensed, sans-serif" fontSize="12" fontWeight="600" fill="var(--muted)">
+                {flashRate}% flash
+              </text>
+            )}
+          </svg>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {pieData.map((d, i) => {
+              const isHov = hoveredSlice === i
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    fontFamily: 'Barlow Condensed, sans-serif',
+                    fontSize: '0.75rem', fontWeight: 600,
+                    letterSpacing: '0.05em',
+                    color: isHov ? 'var(--chalk)' : 'var(--muted)',
+                    cursor: 'pointer', transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={() => setHoveredSlice(i)}
+                  onMouseLeave={() => setHoveredSlice(null)}
+                >
+                  <span style={{
+                    width: '10px', height: '10px',
+                    background: d.color, display: 'inline-block',
+                    flexShrink: 0,
+                  }} />
+                  {d.label}
+                  <span style={{ fontWeight: 700, color: 'var(--chalk)' }}>{d.value}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -480,7 +747,7 @@ export default function Stats() {
     </div>
   )
 
-  const { max_grade, grade_pyramid, avg_attempts_per_grade, working, summary, username } = stats
+  const { max_grade, grade_pyramid, avg_attempts_per_grade, working, tag_breakdown, flash_by_grade, summary, username } = stats
 
   return (
     <div style={S.root}>
@@ -614,6 +881,22 @@ export default function Stats() {
                 })}
               </div>
             )}
+          </div>
+
+          {/* ── TAG FINGERPRINT ── */}
+          <div style={S.chartCardFull}>
+            <TagFingerprint
+              data={tag_breakdown}
+              title={t('stats.styleFingerprint')}
+            />
+          </div>
+
+          {/* ── FLASH RATE PIE ── */}
+          <div style={S.chartCardFull}>
+            <FlashPie
+              data={flash_by_grade}
+              title={t('stats.flashByGrade')}
+            />
           </div>
 
         </div>
