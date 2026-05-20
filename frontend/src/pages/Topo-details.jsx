@@ -1014,7 +1014,7 @@ export default function TopoDetail() {
                     const saved = await Filesystem.writeFile({
                       path: filename,
                       data: base64,
-                      directory: Directory.Documents,
+                      directory: Directory.Cache,
                     })
                     await Share.share({ url: saved.uri, title: filename })
                   } else {
