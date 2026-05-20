@@ -221,6 +221,7 @@ const S = {
 }
 
 function Hamburger({ open, onClick }) {
+  const { t } = useTranslation()
   return (
     <button
       style={S.hamburger}
