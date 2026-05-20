@@ -11,6 +11,7 @@ from auth import hash_password, check_password, get_current_user, require_user, 
 from ocr import extract_text_from_pdf, parse_routes, grade_sort_key, GRADE_PATTERN, FRENCH_ORDER
 from thecrag_parser import parse_thecrag_html, fetch_thecrag_html
 import re
+import unicodedata
 import seed
 from fzf import fuzzy_search
 
@@ -467,6 +468,24 @@ def set_location_routes(topo_id):
     return ok(routes_location=dict(routes_location))
 
 # ── ROUTES ────────────────────────────────────────────────────────────────────
+@app.route('/api/routes/generate-passphrase')
+@jwt_required()
+def generate_passphrase():
+    conn = get_db()
+    def strip_accents(s):
+        return ''.join(c for c in unicodedata.normalize('NFKD', s) if not unicodedata.category(c).startswith('M'))
+    words = []
+    while len(words) < 2:
+        row = conn.execute('SELECT name FROM routes ORDER BY RANDOM() LIMIT 1').fetchone()
+        if not row: continue
+        name = row['name']
+        longest = max(name.split(), key=len) if name.split() else ''
+        clean = strip_accents(longest)
+        if clean.isalpha():
+            words.append(clean.lower())
+    conn.close()
+    return ok(passphrase='-'.join(words))
+
 @app.route('/api/routes/<int:route_id>', methods=['GET'])
 @jwt_required()
 def get_route(route_id):

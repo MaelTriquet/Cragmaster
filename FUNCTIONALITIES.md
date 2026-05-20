@@ -129,7 +129,7 @@ User account management.
 - Passwords must match confirmation field
 
 **Admin-only** (visible if logged-in user has `is_admin = true`):
-- **Create New User** form: username, password, optional admin toggle
+- **Create New User** form: username, password, optional admin toggle, and a "Generate a passphrase" button that concatenates 2 random route names (lowercased, no spaces) into a password
 - New user summary shown on successful creation
 
 ---

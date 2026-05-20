@@ -217,6 +217,7 @@ i18n.use(initReactI18next).init({
           created: 'Created \u2713',
           newUserPlaceholder: "New user's username",
           initialPasswordPlaceholder: 'Initial password',
+          generatePassphrase: 'Generate a passphrase',
         },
         stats: {
           eyebrow: 'Your Progress',
@@ -592,6 +593,7 @@ i18n.use(initReactI18next).init({
           created: 'Cr\u00e9\u00e9 \u2713',
           newUserPlaceholder: 'Identifiant du nouvel utilisateur',
           initialPasswordPlaceholder: 'Mot de passe initial',
+          generatePassphrase: 'G\u00e9n\u00e9rer une phrase de passe',
         },
         stats: {
           eyebrow: 'Votre progression',
