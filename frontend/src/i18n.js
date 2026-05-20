@@ -84,6 +84,7 @@ i18n.use(initReactI18next).init({
           viewSource: 'View Source',
           downloadFailed: 'Download failed',
           downloadSuccess: '\u2713 Saved to CragMaster',
+          downloaded: 'Downloaded',
           name: 'Name',
           grade: 'Grade',
           length: 'Length (m)',
@@ -309,6 +310,12 @@ i18n.use(initReactI18next).init({
           notTitle: 'Notify admins',
           notDesc: 'Found a bug, a typo, have a suggestion, an new idea, something you would like to see in the website? Use the "Notify" button in the footer to let the admin know.',
         },
+        faq: {
+          eyebrow: 'FAQ',
+          title: 'Frequently Asked Questions',
+          q1: 'I downloaded the PDF from the app, where do I access it to open it now?',
+          a1: 'In your phone\'s Documents folder, you will find a CragMaster folder. Every downloaded PDF will be found here.',
+        },
         footer: {
           oops: 'Oops',
           recommendation: 'Recommendation',
@@ -481,6 +488,7 @@ i18n.use(initReactI18next).init({
           viewSource: 'Voir la page source',
           downloadFailed: 'Échec du téléchargement',
           downloadSuccess: '\u2713 Sauvegardé dans CragMaster',
+          downloaded: 'Téléchargé',
           name: 'Nom',
           grade: 'Cotation',
           length: 'Longueur (m)',
@@ -703,6 +711,12 @@ i18n.use(initReactI18next).init({
           recDesc: 'Vous connaissez quelqu\u2019un qui devrait avoir acc\u00e8s\u00a0? Utilisez le bouton "Recommandation" dans le pied de page pour sugg\u00e9rer un·e nouvel·le utilisateurice. Indiquez simplement leur identifiant et leur email, et l\u2019admin examinera la demande. Vous pouvez envoyer une recommandation par jour.',
           notTitle: 'Notifier les admins',
           notDesc: 'Vous avez trouv\u00e9 un bug, une faute de fran\u00e7ais/de frappe, avez une suggestion, une nouvelle id\u00e9e, quelque chose que vous aimeriez voir dans le site web\u00a0? Utilisez le bouton "Notifier" dans le pied de page pour pr\u00e9venir les admins.',
+        },
+        faq: {
+          eyebrow: 'FAQ',
+          title: 'Questions fr\u00e9quentes',
+          q1: 'J\u2019ai t\u00e9l\u00e9charg\u00e9 le PDF depuis l\u2019application, o\u00f9 puis-je le retrouver pour l\u2019ouvrir maintenant ?',
+          a1: 'Dans le dossier Documents de votre t\u00e9l\u00e9phone, vous trouverez un dossier CragMaster. Chaque PDF t\u00e9l\u00e9charg\u00e9 s\u2019y trouvera.',
         },
         footer: {
           oops: 'Oops',

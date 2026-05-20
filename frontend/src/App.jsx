@@ -18,6 +18,7 @@ import Query from './pages/Query'
 import Notifications from './pages/Notifications'
 import Map from './pages/Map'
 import About from './pages/About'
+import FAQ from './pages/FAQ'
 import ComingSoon from './pages/ComingSoon'
 const PAGE_WRAPPER = {
   display: 'flex',
@@ -64,6 +65,7 @@ export default function App() {
               <Route path="/query"        element={<PrivateRoute><Query /></PrivateRoute>} />
               <Route path="/map"          element={<PrivateRoute><Map /></PrivateRoute>} />
               <Route path="/about"       element={<About />} />
+              <Route path="/faq"        element={<FAQ />} />
               <Route path="/coming-soon" element={<PrivateRoute><ComingSoon /></PrivateRoute>} />
 
               <Route path="*" element={<Navigate to="/login" replace />} />

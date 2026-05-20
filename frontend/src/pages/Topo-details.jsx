@@ -568,6 +568,7 @@ export default function TopoDetail() {
   const [hoveredRoute, setHoveredRoute] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [downloadErr, setDownloadErr] = useState('')
+  const [downloaded, setDownloaded] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
 
@@ -602,6 +603,20 @@ export default function TopoDetail() {
       }
     })()
   }, [id])
+
+  useEffect(() => {
+    if (!topo?.filename || topo.filename.startsWith('http')) return
+    ;(async () => {
+      try {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem')
+        await Filesystem.stat({
+          path: 'CragMaster/' + (topo.filename || 'topo.pdf'),
+          directory: Directory.Documents,
+        })
+        setDownloaded(true)
+      } catch {}
+    })()
+  }, [topo])
 
   const submitRouteAdd = () => {
     if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
@@ -991,14 +1006,22 @@ export default function TopoDetail() {
             </a>
           ) : (
             <button
+              disabled={downloaded}
               style={{
                 ...S.downloadBtn,
-                borderColor: hoveredBtn === "dl" ? "var(--hold)" : "var(--line)",
-                color: hoveredBtn === "dl" ? "var(--hold)" : "var(--muted)",
+                opacity: downloaded ? 0.5 : undefined,
+                cursor: downloaded ? 'default' : 'pointer',
+                borderColor: downloaded
+                  ? 'var(--hold)'
+                  : hoveredBtn === "dl" ? "var(--hold)" : "var(--line)",
+                color: downloaded
+                  ? 'var(--hold)'
+                  : hoveredBtn === "dl" ? "var(--hold)" : "var(--muted)",
               }}
-              onMouseEnter={() => setHoveredBtn("dl")}
+              onMouseEnter={() => !downloaded && setHoveredBtn("dl")}
               onMouseLeave={() => setHoveredBtn(null)}
               onClick={async () => {
+                if (downloaded) return
                 try {
                   const res = await api.get(`/topos/${id}/download`, { responseType: 'blob' })
                   if (window.Capacitor?.isNativePlatform()) {
@@ -1016,6 +1039,7 @@ export default function TopoDetail() {
                       directory: Directory.Documents,
                       recursive: true,
                     })
+                    setDownloaded(true)
                     showToast(t('topoDetail.downloadSuccess'))
                   } else {
                     const url = window.URL.createObjectURL(new Blob([res.data]))
@@ -1035,7 +1059,7 @@ export default function TopoDetail() {
                 }
               }}
             >
-              {t('topoDetail.download')}
+              {downloaded ? '\u2713 ' + t('topoDetail.downloaded') : t('topoDetail.download')}
             </button>
           )}
 

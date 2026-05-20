@@ -3,6 +3,20 @@ import { useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 
+const highlightMatch = (text, matchPos, matchLen) => {
+  if (matchPos == null || matchLen === 0) return text
+  const before = text.slice(0, matchPos)
+  const match = text.slice(matchPos, matchPos + matchLen)
+  const after = text.slice(matchPos + matchLen)
+  return (
+    <>
+      {before}
+      <span style={{ color: 'var(--hold)' }}>{match}</span>
+      {after}
+    </>
+  )
+}
+
 const getGradeColor = (grade) => {
   if (grade < 0) return 'hsl(0, 0%, 50%)'
   const stops = [
@@ -741,7 +755,7 @@ export default function Search() {
                           ...S.topoName,
                           color: hovered === `topo-${topo.id}` ? "var(--hold-lt)" : "var(--chalk)",
                         }}>
-                          {topo.title}
+                          {highlightMatch(topo.title, topo.match_pos, query.trim().length)}
                         </div>
                         {topo.location && (
                           <div style={S.topoLocation}>{topo.location}</div>
@@ -803,7 +817,7 @@ export default function Search() {
                           ...S.routeName,
                           color: hovered === `route-${route.id}` ? "var(--hold-lt)" : "var(--chalk)",
                         }}>
-                          {route.name}
+                          {highlightMatch(route.name, route.match_pos, query.trim().length)}
                         </div>
                       </div>
                       <span style={{

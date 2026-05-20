@@ -767,10 +767,10 @@ def search():
     topo_by_title = {t['title']: dict(t) for t in topo_rows}
 
     if q:
-        matched_route_names  = fuzzy_search(q, list(route_by_name.keys()))[:20]
-        matched_topo_titles  = fuzzy_search(q, list(topo_by_title.keys()))[:20]
-        routes = [route_by_name[n] for n in matched_route_names if n in route_by_name]
-        topos  = [topo_by_title[t] for t in matched_topo_titles  if t in topo_by_title]
+        matched_routes = fuzzy_search(q, list(route_by_name.keys()))[:20]
+        matched_topos  = fuzzy_search(q, list(topo_by_title.keys()))[:20]
+        routes = [dict(route_by_name[n], match_pos=p) for n, p in matched_routes if n in route_by_name]
+        topos  = [dict(topo_by_title[t], match_pos=p) for t, p in matched_topos  if t in topo_by_title]
     else:
         # When only topo-level tags (approach/exposure) are active, hide routes
         if topo_tag_ids and not route_tag_ids and grade_min_sort is None and grade_max_sort is None and not projects_only:
