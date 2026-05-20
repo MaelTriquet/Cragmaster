@@ -1001,8 +1001,32 @@ export default function TopoDetail() {
               onClick={async () => {
                 try {
                   const res = await api.get(`/topos/${id}/download`, { responseType: 'blob' })
-                  const url = window.URL.createObjectURL(new Blob([res.data]))
-                  window.open(url, '_blank')
+                  if (window.Capacitor?.isNativePlatform()) {
+                    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+                    const { Share } = await import('@capacitor/share')
+                    const reader = new FileReader()
+                    const base64 = await new Promise((resolve, reject) => {
+                      reader.onloadend = () => resolve(reader.result.split(',')[1])
+                      reader.onerror = reject
+                      reader.readAsDataURL(res.data)
+                    })
+                    const filename = topo.filename || 'topo.pdf'
+                    const saved = await Filesystem.writeFile({
+                      path: filename,
+                      data: base64,
+                      directory: Directory.Documents,
+                    })
+                    await Share.share({ url: saved.uri, title: filename })
+                  } else {
+                    const url = window.URL.createObjectURL(new Blob([res.data]))
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = topo.filename || 'topo.pdf'
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                    window.URL.revokeObjectURL(url)
+                  }
                   setDownloadErr('')
                 } catch (err) {
                   const msg = err.response?.data?.error || err.message || t('topoDetail.downloadFailed')

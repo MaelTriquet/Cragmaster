@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import PrivateRoute from './components/PrivateRoute'
+import { App as CapApp } from '@capacitor/app'
 import Login from './pages/Login'
 import Upload from './pages/Upload'
 import Topos from './pages/Topos'
@@ -28,6 +30,18 @@ const MAIN = {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (window.Capacitor?.isNativePlatform()) {
+      CapApp.addListener('backButton', ({ canGoBack }) => {
+        if (canGoBack) {
+          window.history.back()
+        } else {
+          CapApp.exitApp()
+        }
+      })
+    }
+  }, [])
+
   return (
     <AuthProvider>
       <ToastProvider>
