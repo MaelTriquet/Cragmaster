@@ -1204,6 +1204,90 @@ def delete_notification(ntype, nid):
     return ok(deleted=True)
 
 
+# ── COMING SOON ─────────────────────────────────────────────────────────────────
+@app.route('/api/coming-soon', methods=['GET'])
+@jwt_required()
+def list_coming_soon():
+    user = get_current_user()
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT cs.*, u.username AS created_by_username,
+               COALESCE(up.upvotes, 0) AS upvotes,
+               COALESCE(down.downvotes, 0) AS downvotes,
+               csv.vote AS my_vote
+        FROM coming_soon cs
+        LEFT JOIN users u ON cs.created_by = u.id
+        LEFT JOIN (SELECT feature_id, COUNT(*) AS upvotes FROM coming_soon_votes WHERE vote=1 GROUP BY feature_id) up ON up.feature_id = cs.id
+        LEFT JOIN (SELECT feature_id, COUNT(*) AS downvotes FROM coming_soon_votes WHERE vote=-1 GROUP BY feature_id) down ON down.feature_id = cs.id
+        LEFT JOIN coming_soon_votes csv ON csv.feature_id = cs.id AND csv.user_id=?
+        ORDER BY cs.created_at DESC
+    ''', (user['id'],)).fetchall()
+    conn.close()
+    return ok(items=[dict(r) for r in rows])
+
+@app.route('/api/coming-soon', methods=['POST'])
+@jwt_required()
+def create_coming_soon():
+    try: require_admin()
+    except PermissionError as e: return api_error(str(e), 403)
+    d = request.get_json() or {}
+    title = (d.get('title') or '').strip()
+    description = (d.get('description') or '').strip()
+    if not title:
+        return api_error('Title is required', 400)
+    user = get_current_user()
+    conn = get_db()
+    cur = conn.execute('INSERT INTO coming_soon (title, description, created_by) VALUES (?,?,?)',
+                       (title, description, user['id']))
+    conn.commit()
+    row = conn.execute('''
+        SELECT cs.*, u.username AS created_by_username,
+               0 AS upvotes, 0 AS downvotes, NULL AS my_vote
+        FROM coming_soon cs
+        LEFT JOIN users u ON cs.created_by = u.id
+        WHERE cs.id=?
+    ''', (cur.lastrowid,)).fetchone()
+    conn.close()
+    return ok(dict(row))
+
+@app.route('/api/coming-soon/<int:fid>/vote', methods=['POST'])
+@jwt_required()
+def vote_coming_soon(fid):
+    user = get_current_user()
+    d = request.get_json() or {}
+    vote = d.get('vote')
+    if vote not in (1, -1, 0):
+        return api_error('Vote must be 1, -1, or 0', 400)
+    conn = get_db()
+    existing = conn.execute('SELECT id, vote FROM coming_soon_votes WHERE feature_id=? AND user_id=?', (fid, user['id'])).fetchone()
+    if vote == 0:
+        if existing:
+            conn.execute('DELETE FROM coming_soon_votes WHERE id=?', (existing['id'],))
+        conn.commit()
+        conn.close()
+        return ok(vote=0)
+    if existing:
+        if existing['vote'] == vote:
+            conn.close()
+            return ok(vote=vote)
+        conn.execute('UPDATE coming_soon_votes SET vote=? WHERE id=?', (vote, existing['id']))
+    else:
+        conn.execute('INSERT INTO coming_soon_votes (feature_id, user_id, vote) VALUES (?,?,?)', (fid, user['id'], vote))
+    conn.commit()
+    conn.close()
+    return ok(vote=vote)
+
+@app.route('/api/coming-soon/<int:fid>', methods=['DELETE'])
+@jwt_required()
+def delete_coming_soon(fid):
+    try: require_admin()
+    except PermissionError as e: return api_error(str(e), 403)
+    conn = get_db()
+    conn.execute('DELETE FROM coming_soon WHERE id=?', (fid,))
+    conn.commit()
+    conn.close()
+    return ok(deleted=True)
+
 if __name__ == '__main__':
     init_db()
     seed.seed()

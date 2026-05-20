@@ -123,6 +123,22 @@ def init_db():
             resolved   INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS coming_soon (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS coming_soon_votes (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            feature_id  INTEGER REFERENCES coming_soon(id) ON DELETE CASCADE,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            vote        INTEGER NOT NULL,
+            UNIQUE(feature_id, user_id)
+        );
     ''')
 
     # Migrations
