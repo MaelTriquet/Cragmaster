@@ -214,7 +214,7 @@ export default function Topos() {
         {/* ── TOOLBAR ── */}
         <div style={S.toolbar}>
           <span style={S.countPill}>
-            {loading ? "—" : t('topos.count', { count: topos.length })}
+            {loading ? "—" : (topos.length < 2 ? t('topos.count', { count: topos.length }) : t('topos.count_plural', { count: topos.length }))}
           </span>
           <button
             style={{

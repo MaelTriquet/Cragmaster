@@ -9,11 +9,26 @@ const S = {
   footer: {
     borderTop: '1px solid var(--line)',
     display: 'flex',
-    justifyContent: 'center',
+    flexDirection: 'column',
     alignItems: 'center',
     gap: '0.5rem',
-    padding: '0.75rem 2rem',
+    padding: '0.6rem 1rem',
     background: 'rgba(26,26,24,0.92)',
+  },
+  group: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+  },
+  label: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.55rem',
+    fontWeight: 600,
+    letterSpacing: '0.18em',
+    color: 'var(--muted)',
+    textTransform: 'uppercase',
+    marginRight: '0.2rem',
+    opacity: 0.5,
   },
   btn: {
     fontFamily: 'Barlow Condensed, sans-serif',
@@ -28,11 +43,6 @@ const S = {
     padding: 'var(--footer-btn-padding, 0.3rem 0.75rem)',
     transition: 'border-color 0.15s, color 0.15s',
   },
-  divider: {
-    width: '1px',
-    height: '14px',
-    background: 'var(--line)',
-  },
 }
 
 export default function Footer() {
@@ -45,41 +55,45 @@ export default function Footer() {
   return (
     <>
       <footer style={S.footer}>
-        <button
-          style={S.btn}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
-          onClick={() => navigate('/faq')}
-        >
-          FAQ
-        </button>
-        <div style={S.divider} />
-        <button
-          style={S.btn}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
-          onClick={() => setShowOops(true)}
-        >
-          {t('footer.oops')}
-        </button>
-        <div style={S.divider} />
-        <button
-          style={S.btn}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
-          onClick={() => setShowRec(true)}
-        >
-          {t('footer.recommendation')}
-        </button>
-        <div style={S.divider} />
-        <button
-          style={S.btn}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
-          onClick={() => setShowNotify(true)}
-        >
-          {t('footer.notify')}
-        </button>
+        <div style={S.group}>
+          <span style={S.label}>{t('footer.helpLabel')}</span>
+          <button
+            style={S.btn}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
+            onClick={() => navigate('/faq')}
+          >
+            FAQ
+          </button>
+        </div>
+
+        <div style={S.group}>
+          <span style={S.label}>{t('footer.feedbackLabel')}</span>
+          <button
+            style={S.btn}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
+            onClick={() => setShowOops(true)}
+          >
+            {t('footer.oops')}
+          </button>
+          <button
+            style={S.btn}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
+            onClick={() => setShowRec(true)}
+          >
+            {t('footer.recommendation')}
+          </button>
+          <button
+            style={S.btn}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
+            onClick={() => setShowNotify(true)}
+          >
+            {t('footer.notify')}
+          </button>
+        </div>
       </footer>
 
       {showOops && <OopsModal onClose={() => setShowOops(false)} />}
