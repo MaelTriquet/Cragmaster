@@ -1014,6 +1014,7 @@ export default function TopoDetail() {
                       path: 'CragMaster/' + filename,
                       data: base64,
                       directory: Directory.Documents,
+                      recursive: true,
                     })
                     showToast(t('topoDetail.downloadSuccess'))
                   } else {
