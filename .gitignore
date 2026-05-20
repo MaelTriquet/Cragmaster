@@ -5,6 +5,7 @@ backend/__pycache__
 /frontend/.vite
 /frontend/dist
 /frontend/android
+/frontend/release
 /static
 docker-compose.yml
 AGENTS.md

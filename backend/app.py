@@ -19,10 +19,8 @@ jwt_secret = os.environ.get('JWT_SECRET')
 if not jwt_secret:
     raise RuntimeError("JWT_SECRET environment variable is required")
 
-allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
-
 app = Flask(__name__, static_folder='static', static_url_path='/static')
-CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": re.compile(r'^(https?://)?(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$|^capacitor://localhost(:\d+)?$|^https?://[a-zA-Z0-9.-]+\.home(:\d+)?$|^https?://.*\.cragmaster')}}, supports_credentials=True)
 app.config['JWT_SECRET_KEY'] = jwt_secret
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 app.config["JWT_BLOCKLIST_ENABLED"] = True
