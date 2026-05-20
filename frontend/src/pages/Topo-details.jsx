@@ -1003,7 +1003,6 @@ export default function TopoDetail() {
                   const res = await api.get(`/topos/${id}/download`, { responseType: 'blob' })
                   if (window.Capacitor?.isNativePlatform()) {
                     const { Filesystem, Directory } = await import('@capacitor/filesystem')
-                    const { Share } = await import('@capacitor/share')
                     const reader = new FileReader()
                     const base64 = await new Promise((resolve, reject) => {
                       reader.onloadend = () => resolve(reader.result.split(',')[1])
@@ -1011,12 +1010,12 @@ export default function TopoDetail() {
                       reader.readAsDataURL(res.data)
                     })
                     const filename = topo.filename || 'topo.pdf'
-                    const saved = await Filesystem.writeFile({
-                      path: filename,
+                    await Filesystem.writeFile({
+                      path: 'CragMaster/' + filename,
                       data: base64,
-                      directory: Directory.Cache,
+                      directory: Directory.Documents,
                     })
-                    await Share.share({ url: saved.uri, title: filename })
+                    showToast(t('topoDetail.downloadSuccess'))
                   } else {
                     const url = window.URL.createObjectURL(new Blob([res.data]))
                     const a = document.createElement('a')
