@@ -473,11 +473,21 @@ const S = {
 
 function StarDisplay({ value }) {
   const { t } = useTranslation()
-  const n = Math.round(parseFloat(value) || 0)
+  const v = parseFloat(value) || 0
   return (
     <span style={S.commentStars}>
-      {"★".repeat(Math.max(0, Math.min(5, n)))}{"☆".repeat(Math.max(0, 5 - Math.min(5, n)))}
-      {" "}{t('routeDetail.outOfFive', { value })}
+      {[1, 2, 3, 4, 5].map(n => {
+        if (v >= n) return <span key={n} style={{ color: "var(--hold-lt)" }}>★</span>
+        if (v >= n - 0.5) return (
+          <span key={n} style={{
+            background: "linear-gradient(90deg, var(--hold-lt) 50%, var(--line) 50%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}>★</span>
+        )
+        return <span key={n} style={{ color: "var(--line)" }}>☆</span>
+      })}
+      {" "}{t('routeDetail.outOfFive', { value: v.toFixed(1).replace(/\.0$/, '') })}
     </span>
   )
 }
@@ -688,6 +698,7 @@ export default function RouteDetail() {
   const [isProject, setIsProject] = useState(false)
 
   const [hoveredBtn, setHoveredBtn] = useState(null)
+  const [hoveredStar, setHoveredStar] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ stars: "", perceived_grade: "!", body: "", beta: "" })
 
@@ -811,6 +822,7 @@ export default function RouteDetail() {
     </div>
   )
 
+  const hasComment = user && comments.some(c => c.user_id === user.id)
   const attemptCount = attempt?.amount ?? 0
   const isSent = attempt?.sent
   const assignedTagIds = new Set(tags.map(t => t.id))
@@ -1176,7 +1188,7 @@ export default function RouteDetail() {
               onMouseLeave={() => setHoveredBtn(null)}
               onClick={toggleForm}
             >
-              {t(showForm ? 'routeDetail.cancel' : 'routeDetail.addComment')}
+              {t(showForm ? 'routeDetail.cancel' : (hasComment ? 'routeDetail.editComment' : 'routeDetail.addComment'))}
             </button>
           </div>
 
@@ -1185,15 +1197,33 @@ export default function RouteDetail() {
               <div style={S.formGrid}>
                 <div style={S.formField}>
                   <label style={S.formLabel}>{t('routeDetail.stars')}</label>
-                  <input
-                    type="number" min="0" max="5" step="0.5"
-                    style={S.formInput}
-                    placeholder={t('routeDetail.starsPlaceholder')}
-                    value={form.stars}
-                    onChange={e => setForm({ ...form, stars: e.target.value })}
-                    onFocus={e => e.target.style.borderColor = "var(--hold)"}
-                    onBlur={e => e.target.style.borderColor = "var(--line)"}
-                  />
+                  <div style={{ display: "flex", gap: "0.25rem", paddingTop: "0.2rem" }} onMouseLeave={() => setHoveredStar(null)}>
+                    {[1, 2, 3, 4, 5].map(n => {
+                      const val = hoveredStar !== null ? hoveredStar : (parseFloat(form.stars) || 0)
+                      const fillWidth = val >= n ? "100%" : val >= n - 0.5 ? "50%" : "0%"
+                      return (
+                        <div key={n} style={{ position: "relative", width: "1.3rem", height: "1.3rem", display: "inline-block" }}>
+                          <span style={{ position: "absolute", inset: 0, color: "var(--line)", fontSize: "1.3rem", lineHeight: 1 }}>★</span>
+                          <span style={{
+                            position: "absolute", inset: 0,
+                            color: "var(--hold-lt)", fontSize: "1.3rem", lineHeight: 1,
+                            width: fillWidth, overflow: "hidden",
+                            pointerEvents: "none",
+                          }}>★</span>
+                          <span
+                            style={{ position: "absolute", left: 0, top: 0, width: "50%", height: "100%", cursor: "pointer", zIndex: 1 }}
+                            onClick={() => setForm({ ...form, stars: String(n - 0.5) })}
+                            onMouseEnter={() => setHoveredStar(n - 0.5)}
+                          />
+                          <span
+                            style={{ position: "absolute", left: "50%", top: 0, width: "50%", height: "100%", cursor: "pointer", zIndex: 1 }}
+                            onClick={() => setForm({ ...form, stars: String(n) })}
+                            onMouseEnter={() => setHoveredStar(n)}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
                 <div style={S.formField}>
                   <label style={S.formLabel}>{t('routeDetail.perceivedGrade')}</label>
@@ -1239,7 +1269,7 @@ export default function RouteDetail() {
                 onMouseLeave={() => setHoveredBtn(null)}
                 onClick={submitComment}
               >
-                {t('routeDetail.submitComment')}
+                {hasComment ? t('routeDetail.editComment') : t('routeDetail.submitComment')}
               </button>
               <div style={S.divider} />
             </>
