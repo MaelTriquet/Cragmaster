@@ -10,6 +10,7 @@ export default function Login() {
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
 
@@ -18,7 +19,7 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await login(username, password)
+      await login(username, password, remember)
       navigate('/topos')
     } catch (err) {
       setError(err.response?.data?.error || t('login.loginFailed'))
@@ -70,6 +71,45 @@ export default function Login() {
               onFocus={e => e.target.style.borderColor = 'var(--hold)'}
               onBlur={e  => e.target.style.borderColor = 'var(--line)'}
             />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              cursor: 'pointer',
+              userSelect: 'none',
+              marginTop: '-0.25rem',
+            }}
+            onClick={() => setRemember(v => !v)}
+          >
+            <div style={{
+              width: '18px',
+              height: '18px',
+              flexShrink: 0,
+              border: '1px solid var(--line)',
+              background: remember ? 'var(--hold)' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.15s',
+            }}>
+              {remember && (
+                <span style={{ color: '#fff', fontSize: '11px', lineHeight: 1, fontWeight: 700 }}>✓</span>
+              )}
+            </div>
+            <span style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: remember ? 'var(--chalk)' : 'var(--muted)',
+              transition: 'color 0.15s',
+            }}>
+              {t('login.rememberMe')}
+            </span>
           </div>
 
           {error && <p style={styles.error}>{error}</p>}

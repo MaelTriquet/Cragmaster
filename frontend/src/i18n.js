@@ -33,6 +33,7 @@ i18n.use(initReactI18next).init({
           password: 'PASSWORD',
           signingIn: 'SIGNING IN\u2026',
           signIn: 'SIGN IN',
+          rememberMe: 'Remember me',
           loginFailed: 'Login failed',
           footer: 'Send it.',
         },
@@ -227,6 +228,7 @@ i18n.use(initReactI18next).init({
           newUserPlaceholder: "New user's username",
           initialPasswordPlaceholder: 'Initial password',
           generatePassphrase: 'Generate a passphrase',
+          passwordGenerated: 'Generated automatically',
         },
         stats: {
           eyebrow: 'Your Progress',
@@ -431,6 +433,7 @@ i18n.use(initReactI18next).init({
           password: 'MOT DE PASSE',
           signingIn: 'CONNEXION\u2026',
           signIn: 'SE CONNECTER',
+          rememberMe: 'Se souvenir de moi',
           loginFailed: '\u00c9chec de connexion',
           footer: 'Envoyez.',
         },
@@ -623,6 +626,7 @@ i18n.use(initReactI18next).init({
           newUserPlaceholder: 'Identifiant du nouvel utilisateur',
           initialPasswordPlaceholder: 'Mot de passe initial',
           generatePassphrase: 'G\u00e9n\u00e9rer une phrase de passe',
+          passwordGenerated: 'G\u00e9n\u00e9r\u00e9 automatiquement',
         },
         stats: {
           eyebrow: 'Votre progression',

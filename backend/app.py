@@ -68,6 +68,7 @@ def login():
     d = request.get_json() or {}
     username = (d.get('username') or '').strip()
     password = (d.get('password') or '').strip()
+    remember = d.get('remember', False)
     conn = get_db()
     user = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
     conn.close()
@@ -80,7 +81,8 @@ def login():
                 return api_error('Account is banned', 403)
         except (ValueError, TypeError):
             pass
-    token = create_access_token(identity=str(user['id']), additional_claims={"ver": user['token_version']})
+    expires = timedelta(days=30) if remember else timedelta(hours=24)
+    token = create_access_token(identity=str(user['id']), additional_claims={"ver": user['token_version']}, expires_delta=expires)
     return ok(token=token, user={'id': user['id'], 'username': user['username'], 'is_admin': bool(user['is_admin'])})
 
 @app.route('/api/auth/me', methods=['GET'])

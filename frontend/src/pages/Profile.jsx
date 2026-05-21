@@ -465,13 +465,11 @@ export default function Profile() {
                 </button>
               </div>
               <input
-                style={S.input}
+                style={{ ...S.input, color: createForm.password ? 'var(--chalk)' : 'var(--muted)', fontStyle: createForm.password ? 'normal' : 'italic' }}
                 type="text"
-                placeholder={t('profile.initialPasswordPlaceholder')}
+                readOnly
+                placeholder={t('profile.passwordGenerated')}
                 value={createForm.password}
-                onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-                onFocus={focusStyle}
-                onBlur={blurStyle}
               />
             </div>
 

@@ -21,8 +21,8 @@ api.interceptors.response.use(
 )
 
 export const authApi = {
-  login: (username, password) => api.post('/auth/login', { username, password }),
-  me:    ()                   => api.get('/auth/me'),
+  login: (username, password, remember = false) => api.post('/auth/login', { username, password, remember }),
+  me:    ()                                     => api.get('/auth/me'),
 }
 
 export default api
