@@ -106,15 +106,6 @@ def init_db():
             created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS recommendations (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
-            username    TEXT NOT NULL,
-            email       TEXT NOT NULL,
-            resolved    INTEGER DEFAULT 0,
-            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
         CREATE TABLE IF NOT EXISTS notifications (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -142,7 +133,7 @@ def init_db():
     ''')
 
     # Migrations
-    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('recommendations', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL'), ('tags', 'category', 'TEXT NOT NULL DEFAULT \'other\''), ('tags', 'name_fr', 'TEXT DEFAULT NULL'), ('routes', 'photo', 'TEXT DEFAULT NULL')]:
+    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL'), ('tags', 'category', 'TEXT NOT NULL DEFAULT \'other\''), ('tags', 'name_fr', 'TEXT DEFAULT NULL'), ('routes', 'photo', 'TEXT DEFAULT NULL')]:
         try:
             conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
         except Exception:

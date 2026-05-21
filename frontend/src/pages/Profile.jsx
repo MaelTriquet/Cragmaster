@@ -417,66 +417,66 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* ── CREATE USER CARD (admin only) ── */}
-        {user?.is_admin && (
-          <div style={S.cardAccent}>
-            <div style={S.cardTitle}>{t('profile.createUser')}</div>
+        {/* ── CREATE USER CARD ── */}
+        <div style={S.cardAccent}>
+          <div style={S.cardTitle}>{t('profile.createUser')}</div>
 
-            <div style={S.fields}>
-              <div style={S.field}>
-                <label style={S.label}>{t('profile.username')}</label>
-                <input
-                  style={S.input}
-                  type="text"
-                  placeholder={t('profile.newUserPlaceholder')}
-                  value={createForm.username}
-                  onChange={e => setCreateForm(f => ({ ...f, username: e.target.value }))}
-                  onFocus={focusStyle}
-                  onBlur={blurStyle}
-                />
+          <div style={S.fields}>
+            <div style={S.field}>
+              <label style={S.label}>{t('profile.username')}</label>
+              <input
+                style={S.input}
+                type="text"
+                placeholder={t('profile.newUserPlaceholder')}
+                value={createForm.username}
+                onChange={e => setCreateForm(f => ({ ...f, username: e.target.value }))}
+                onFocus={focusStyle}
+                onBlur={blurStyle}
+              />
+            </div>
+
+            <div style={S.field}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <label style={S.label}>{t('profile.newPassword')}</label>
+                <button
+                  style={{
+                    fontFamily: 'Barlow Condensed, sans-serif',
+                    fontSize: '0.6rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    padding: '0.2rem 0.5rem',
+                    border: '1px solid var(--line)',
+                    color: 'var(--muted)',
+                    background: 'none',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s, color 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
+                  onClick={async () => {
+                    try {
+                      const res = await api.get('/routes/generate-passphrase')
+                      if (res.data.passphrase) setCreateForm(f => ({ ...f, password: res.data.passphrase }))
+                    } catch {}
+                  }}
+                >
+                  {t('profile.generatePassphrase')}
+                </button>
               </div>
+              <input
+                style={S.input}
+                type="text"
+                placeholder={t('profile.initialPasswordPlaceholder')}
+                value={createForm.password}
+                onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                onFocus={focusStyle}
+                onBlur={blurStyle}
+              />
+            </div>
 
-              <div style={S.field}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <label style={S.label}>{t('profile.newPassword')}</label>
-                  <button
-                    style={{
-                      fontFamily: 'Barlow Condensed, sans-serif',
-                      fontSize: '0.6rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                      padding: '0.2rem 0.5rem',
-                      border: '1px solid var(--line)',
-                      color: 'var(--muted)',
-                      background: 'none',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.15s, color 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
-                    onClick={async () => {
-                      try {
-                        const res = await api.get('/routes/generate-passphrase')
-                        if (res.data.passphrase) setCreateForm(f => ({ ...f, password: res.data.passphrase }))
-                      } catch {}
-                    }}
-                  >
-                    {t('profile.generatePassphrase')}
-                  </button>
-                </div>
-                <input
-                  style={S.input}
-                  type="text"
-                  placeholder={t('profile.initialPasswordPlaceholder')}
-                  value={createForm.password}
-                  onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-                  onFocus={focusStyle}
-                  onBlur={blurStyle}
-                />
-              </div>
-
-              {/* Admin toggle */}
+            {/* Admin toggle — admins only */}
+            {user?.is_admin && (
               <div
                 style={{
                   display: 'flex',
@@ -517,7 +517,8 @@ export default function Profile() {
                   {t('profile.grantAdmin')}
                 </span>
               </div>
-            </div>
+            )}
+          </div>
 
             <div style={S.btnRow}>
               <button
@@ -567,7 +568,6 @@ export default function Profile() {
               </div>
             )}
           </div>
-        )}
 
       </div>
     </div>

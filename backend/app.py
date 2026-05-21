@@ -147,19 +147,21 @@ def list_users():
 @app.route('/api/users', methods=['POST'])
 @jwt_required()
 def create_user():
-    try: require_admin()
-    except PermissionError as e: return api_error(str(e), 403)
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
     d = request.get_json() or {}
     username = (d.get('username') or '').strip()
     password = (d.get('password') or '').strip()
     is_admin = bool(d.get('is_admin', False))
     if not username or not password: return api_error('Username and password required')
+    if is_admin and not user['is_admin']:
+        return api_error('Only admins can create admin accounts', 403)
     conn = get_db()
     try:
         conn.execute('INSERT INTO users (username, password_hash, is_admin) VALUES (?,?,?)', (username, hash_password(password), int(is_admin)))
         conn.commit()
-        user = conn.execute('SELECT id, username, is_admin FROM users WHERE username=?', (username,)).fetchone()
-        return ok(dict(user)), 201
+        u = conn.execute('SELECT id, username, is_admin FROM users WHERE username=?', (username,)).fetchone()
+        return ok(dict(u)), 201
     except Exception:
         return api_error('Username already taken', 409)
     finally: conn.close()
@@ -1130,35 +1132,6 @@ def submit_oops():
     return ok(submitted=True), 201
 
 
-# ── RECOMMENDATIONS ─────────────────────────────────────────────────────────
-@app.route('/api/recommendations', methods=['POST'])
-@jwt_required()
-def submit_recommendation():
-    user = require_user()
-    d = request.get_json() or {}
-    username = (d.get('username') or '').strip()
-    email = (d.get('email') or '').strip()
-    if not username or not email:
-        return api_error('Username and email are required')
-
-    conn = get_db()
-    row = conn.execute(
-        'SELECT id FROM recommendations WHERE user_id=? AND created_at > datetime("now", "-1 day")',
-        (user['id'],)
-    ).fetchone()
-    if row:
-        conn.close()
-        return api_error('You can only submit one recommendation per day', 429)
-
-    conn.execute(
-        'INSERT INTO recommendations (user_id, username, email) VALUES (?,?,?)',
-        (user['id'], username, email)
-    )
-    conn.commit()
-    conn.close()
-    return ok(submitted=True), 201
-
-
 @app.route('/api/notifications', methods=['POST'])
 @jwt_required()
 def submit_notification():
@@ -1204,12 +1177,6 @@ def list_notifications():
         LEFT JOIN users u ON u.id = o.user_id
         ORDER BY o.created_at DESC
     ''').fetchall()
-    recs = conn.execute('''
-        SELECT r.*, u.username as submitter_name
-        FROM recommendations r
-        LEFT JOIN users u ON u.id = r.user_id
-        ORDER BY r.created_at DESC
-    ''').fetchall()
     notifs = conn.execute('''
         SELECT n.*, u.username as submitter_name
         FROM notifications n
@@ -1222,10 +1189,6 @@ def list_notifications():
     for r in oops:
         d = dict(r)
         d['type'] = 'oops'
-        items.append(d)
-    for r in recs:
-        d = dict(r)
-        d['type'] = 'recommendation'
         items.append(d)
     for r in notifs:
         d = dict(r)
@@ -1241,7 +1204,7 @@ def resolve_notification(ntype, nid):
     try: require_admin()
     except PermissionError as e: return api_error(str(e), 403)
 
-    table = {'oops': 'oops_reports', 'recommendation': 'recommendations', 'notification': 'notifications'}.get(ntype)
+    table = {'oops': 'oops_reports', 'notification': 'notifications'}.get(ntype)
     if not table:
         return api_error('Invalid notification type', 400)
 
@@ -1257,7 +1220,7 @@ def delete_notification(ntype, nid):
     try: require_admin()
     except PermissionError as e: return api_error(str(e), 403)
 
-    table = {'oops': 'oops_reports', 'recommendation': 'recommendations', 'notification': 'notifications'}.get(ntype)
+    table = {'oops': 'oops_reports', 'notification': 'notifications'}.get(ntype)
     if not table:
         return api_error('Invalid notification type', 400)
 
