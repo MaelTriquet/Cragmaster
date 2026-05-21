@@ -142,7 +142,7 @@ def init_db():
     ''')
 
     # Migrations
-    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('recommendations', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL'), ('tags', 'category', 'TEXT NOT NULL DEFAULT \'other\''), ('tags', 'name_fr', 'TEXT DEFAULT NULL')]:
+    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('recommendations', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL'), ('tags', 'category', 'TEXT NOT NULL DEFAULT \'other\''), ('tags', 'name_fr', 'TEXT DEFAULT NULL'), ('routes', 'photo', 'TEXT DEFAULT NULL')]:
         try:
             conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
         except Exception:

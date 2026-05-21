@@ -158,6 +158,10 @@ i18n.use(initReactI18next).init({
           tagNew: 'new',
           noMatch: 'No match',
           noTagsAvailable: 'No tags',
+          addPhoto: 'Add a picture',
+          deletePhoto: 'Delete',
+          photoAdded: '\u2713 Photo added',
+          photoFailed: 'Failed to add photo',
         },
           upload: {
             eyebrow: 'Library',
@@ -562,6 +566,10 @@ i18n.use(initReactI18next).init({
           tagNew: 'nouveau',
           noMatch: 'Aucun r\u00e9sultat',
           noTagsAvailable: 'Aucun tag',
+          addPhoto: 'Ajouter une photo',
+          deletePhoto: 'Supprimer',
+          photoAdded: '\u2713 Photo ajout\u00e9e',
+          photoFailed: 'Échec de l\u2019ajout de la photo',
         },
           upload: {
             eyebrow: 'Biblioth\u00e8que',

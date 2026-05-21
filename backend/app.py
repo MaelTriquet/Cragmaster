@@ -13,6 +13,7 @@ from thecrag_parser import parse_thecrag_html, fetch_thecrag_html
 import re
 import unicodedata
 import seed
+from PIL import Image
 from fzf import fuzzy_search
 
 jwt_secret = os.environ.get('JWT_SECRET')
@@ -31,6 +32,8 @@ limiter = Limiter(app=app, key_func=get_remote_address)
 
 UPLOAD_FOLDER = Path('/app/uploads')
 UPLOAD_FOLDER.mkdir(exist_ok=True)
+PHOTO_FOLDER = UPLOAD_FOLDER / 'route_photos'
+PHOTO_FOLDER.mkdir(exist_ok=True)
 
 # ── TOKEN REVOCATION ──────────────────────────────────────────────────────────
 @jwt.token_in_blocklist_loader
@@ -544,7 +547,9 @@ def get_route(route_id):
             cd['user_status'] = None
         comments_out.append(cd)
 
-    return ok(route=dict(route), comments=comments_out, attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived, is_project=is_project, project_sent=project_sent)
+    route_dict = dict(route)
+    has_photo = bool(route_dict.get('photo'))
+    return ok(route=route_dict, comments=comments_out, attempt=dict(attempt) if attempt else None, tags=[dict(t) for t in tags], avg_perceived_grade=avg_perceived, is_project=is_project, project_sent=project_sent, has_photo=has_photo)
 
 @app.route('/api/routes/<int:route_id>', methods=['PATCH'])
 @jwt_required()
@@ -593,6 +598,67 @@ def update_route(route_id):
     ).fetchone()
     conn.close()
     return ok(route=dict(updated))
+
+# ── ROUTE PHOTOS ────────────────────────────────────────────────────────────
+ALLOWED_PHOTO_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
+
+@app.route('/api/routes/<int:route_id>/photo', methods=['POST'])
+@jwt_required()
+def upload_route_photo(route_id):
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    if 'photo' not in request.files:
+        return api_error('No photo file provided')
+    f = request.files['photo']
+    if f.content_type not in ALLOWED_PHOTO_TYPES:
+        return api_error('Only JPEG, PNG, and WebP images are allowed', 400)
+
+    conn = get_db()
+    route = conn.execute('SELECT id, photo FROM routes WHERE id=?', (route_id,)).fetchone()
+    if not route:
+        conn.close()
+        return api_error('Route not found', 404)
+
+    img = Image.open(f.stream)
+    img = img.convert('RGB')
+    img.thumbnail((1920, 1920), Image.LANCZOS)
+    out_path = PHOTO_FOLDER / f'{route_id}.jpg'
+    img.save(out_path, 'JPEG', quality=85)
+
+    conn.execute('UPDATE routes SET photo=? WHERE id=?', (f'{route_id}.jpg', route_id))
+    conn.commit()
+    conn.close()
+    return ok(photo=f'{route_id}.jpg'), 201
+
+@app.route('/api/routes/<int:route_id>/photo', methods=['GET'])
+def get_route_photo(route_id):
+    conn = get_db()
+    route = conn.execute('SELECT photo FROM routes WHERE id=?', (route_id,)).fetchone()
+    conn.close()
+    if not route or not route['photo']:
+        return api_error('No photo for this route', 404)
+    path = PHOTO_FOLDER / route['photo']
+    if not path.exists():
+        return api_error('Photo file not found', 404)
+    return send_file(path, mimetype='image/jpeg')
+
+@app.route('/api/routes/<int:route_id>/photo', methods=['DELETE'])
+@jwt_required()
+def delete_route_photo(route_id):
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    conn = get_db()
+    route = conn.execute('SELECT photo FROM routes WHERE id=?', (route_id,)).fetchone()
+    if not route or not route['photo']:
+        conn.close()
+        return api_error('No photo for this route', 404)
+    path = PHOTO_FOLDER / route['photo']
+    if path.exists():
+        path.unlink()
+    conn.execute('UPDATE routes SET photo=NULL WHERE id=?', (route_id,))
+    conn.commit()
+    conn.close()
+    return ok(deleted=True)
 
 # ── ATTEMPTS ─────────────────────────────────────────────────────────────────
 @app.route('/api/routes/<int:route_id>/add_attempt', methods=['GET'])

@@ -5,6 +5,7 @@ import api from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { getOfflineRoute, isOnline } from '../lib/offline'
 import { useToast } from '../contexts/ToastContext'
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 
 const S = {
   root: {
@@ -696,6 +697,7 @@ export default function RouteDetail() {
   const [attempt, setAttempt] = useState(null)
   const [avgPerceivedGrade, setAvgPerceivedGrade] = useState(null)
   const [isProject, setIsProject] = useState(false)
+  const [hasPhoto, setHasPhoto] = useState(false)
 
   const [hoveredBtn, setHoveredBtn] = useState(null)
   const [hoveredStar, setHoveredStar] = useState(null)
@@ -713,6 +715,7 @@ export default function RouteDetail() {
   const tagsRef = useRef(null)
   const initialTagIdsRef = useRef(null)
   const { showToast } = useToast()
+  const photoInputRef = useRef(null)
 
   const applyRouteData = useCallback((d) => {
     setRoute(d.route)
@@ -720,6 +723,7 @@ export default function RouteDetail() {
     setTags(d.tags || [])
     setAvgPerceivedGrade(d.avg_perceived_grade || null)
     setIsProject(d.is_project || false)
+    setHasPhoto(d.has_photo || false)
     setEditForm({
       name: d.route.name || "",
       grade: d.route.grade || "",
@@ -801,6 +805,20 @@ export default function RouteDetail() {
     }
     setShowForm(p => !p)
   }, [showForm, user, comments])
+
+  const uploadPhoto = async (file) => {
+    const fd = new FormData()
+    fd.append('photo', file)
+    try {
+      await api.post(`/routes/${id}/photo`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setHasPhoto(true)
+      showToast(t('routeDetail.photoAdded'))
+    } catch {
+      showToast(t('routeDetail.photoFailed'))
+    }
+  }
 
   const submitComment = () => {
     if (offlineGuard()) return
@@ -971,6 +989,101 @@ export default function RouteDetail() {
                 onClick={submitRouteEdit}
               >
                 {t('routeDetail.saveChanges')}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── PHOTO ── */}
+        <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+          {hasPhoto ? (
+            <div style={{ position: "relative" }}>
+              <img
+                src={`/api/routes/${id}/photo?t=${Date.now()}`}
+                alt={route.name}
+                style={{
+                  width: "100%",
+                  maxHeight: "80vh",
+                  objectFit: "contain",
+                  background: "rgba(0,0,0,0.35)",
+                  display: "block",
+                }}
+              />
+              <button
+                style={{
+                  position: "absolute",
+                  top: "0.5rem",
+                  right: "0.5rem",
+                  fontFamily: "Barlow Condensed, sans-serif",
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  padding: "0.3rem 0.6rem",
+                  background: "rgba(0,0,0,0.7)",
+                  color: "var(--chalk)",
+                  border: "1px solid var(--line)",
+                  cursor: "pointer",
+                  zIndex: 1,
+                }}
+                onMouseEnter={e => { e.target.style.color = "var(--hold-lt)"; e.target.style.borderColor = "var(--hold-lt)" }}
+                onMouseLeave={e => { e.target.style.color = "var(--chalk)"; e.target.style.borderColor = "var(--line)" }}
+                onClick={async () => {
+                  if (offlineGuard()) return
+                  await api.delete(`/routes/${id}/photo`)
+                  setHasPhoto(false)
+                }}
+              >
+                {t('routeDetail.deletePhoto')}
+              </button>
+            </div>
+          ) : (
+            <div style={{ padding: "1.5rem 1.75rem" }}>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                style={{ display: "none" }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  if (offlineGuard()) return
+                  await uploadPhoto(file)
+                  e.target.value = ''
+                }}
+              />
+              <button
+                style={{
+                  ...S.addTagBtn,
+                  borderColor: hoveredBtn === "addPhoto" ? "var(--hold)" : "var(--line)",
+                  color: hoveredBtn === "addPhoto" ? "var(--hold)" : "var(--muted)",
+                }}
+                onMouseEnter={() => setHoveredBtn("addPhoto")}
+                onMouseLeave={() => setHoveredBtn(null)}
+                onClick={async () => {
+                  if (offlineGuard()) return
+                  if (window.Capacitor?.isNativePlatform()) {
+                    try {
+                      const image = await Camera.getPhoto({
+                        quality: 85,
+                        allowEditing: false,
+                        resultType: CameraResultType.Base64,
+                        source: CameraSource.Prompt,
+                      })
+                      if (!image.base64String) return
+                      const blob = await (await fetch(`data:image/${image.format};base64,${image.base64String}`)).blob()
+                      const file = new File([blob], `photo.${image.format}`, { type: `image/${image.format}` })
+                      await uploadPhoto(file)
+                    } catch {
+                      showToast(t('routeDetail.photoFailed'))
+                    }
+                  } else {
+                    photoInputRef.current?.click()
+                  }
+                }}
+              >
+                + {t('routeDetail.addPhoto')}
               </button>
             </div>
           )}
