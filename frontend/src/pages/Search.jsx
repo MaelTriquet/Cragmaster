@@ -71,17 +71,6 @@ const S = {
     zIndex: 0,
   },
 
-  vertRule: {
-    position: "fixed",
-    left: "12vw",
-    top: 0,
-    bottom: 0,
-    width: "1px",
-    background: "var(--line)",
-    opacity: 0.6,
-    zIndex: 0,
-  },
-
   container: {
     width: "100%",
     maxWidth: "720px",
@@ -536,7 +525,6 @@ export default function Search() {
   return (
     <div style={S.root}>
       <div style={S.noise} />
-      <div style={S.vertRule} />
 
       <div style={S.container}>
 

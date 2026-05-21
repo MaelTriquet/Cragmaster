@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import PrivateRoute from './components/PrivateRoute'
 import { App as CapApp } from '@capacitor/app'
 import Login from './pages/Login'
+import ForgotPassword from './pages/ForgotPassword'
 import Upload from './pages/Upload'
 import Topos from './pages/Topos'
 import TopoDetail from './pages/Topo-details'
@@ -12,6 +13,7 @@ import RouteDetail from './pages/Route-details'
 import Search from './pages/Search'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import EmailPrompt from './components/EmailPrompt'
 import Profile from './pages/Profile'
 import Stats from './pages/Stats'
 import Query from './pages/Query'
@@ -30,7 +32,10 @@ const MAIN = {
   flex: 1,
 }
 
-export default function App() {
+function AppLayout() {
+  const location = useLocation()
+  const hideFooter = location.pathname === '/login'
+
   useEffect(() => {
     if (window.Capacitor?.isNativePlatform()) {
       CapApp.addListener('backButton', ({ canGoBack }) => {
@@ -44,35 +49,43 @@ export default function App() {
   }, [])
 
   return (
+    <div style={PAGE_WRAPPER}>
+      <Navbar />
+      <main style={MAIN}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+
+          <Route path="/topos"        element={<PrivateRoute><Topos /></PrivateRoute>} />
+          <Route path="/topos/:id"    element={<PrivateRoute><TopoDetail /></PrivateRoute>} />
+          <Route path="/routes/:id"   element={<PrivateRoute><RouteDetail /></PrivateRoute>} />
+          <Route path="/search"       element={<PrivateRoute><Search /></PrivateRoute>} />
+          <Route path="/upload"       element={<PrivateRoute><Upload /></PrivateRoute>} />
+          <Route path="/admin"        element={<PrivateRoute adminOnly><Notifications /></PrivateRoute>} />
+          <Route path="/profile"      element={<PrivateRoute><Profile /></PrivateRoute>} />
+          <Route path="/stats"        element={<PrivateRoute><Stats /></PrivateRoute>} />
+          <Route path="/stats/:userId" element={<PrivateRoute><Stats /></PrivateRoute>} />
+          <Route path="/query"        element={<PrivateRoute><Query /></PrivateRoute>} />
+          <Route path="/map"          element={<PrivateRoute><Map /></PrivateRoute>} />
+          <Route path="/about"       element={<PrivateRoute><About /></PrivateRoute>} />
+          <Route path="/faq"        element={<PrivateRoute><FAQ /></PrivateRoute>} />
+          <Route path="/coming-soon" element={<PrivateRoute><ComingSoon /></PrivateRoute>} />
+
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </main>
+      {!hideFooter && <Footer />}
+      <EmailPrompt />
+    </div>
+  )
+}
+
+export default function App() {
+  return (
     <AuthProvider>
       <ToastProvider>
       <BrowserRouter>
-        <div style={PAGE_WRAPPER}>
-          <Navbar />
-          <main style={MAIN}>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-
-              <Route path="/topos"        element={<PrivateRoute><Topos /></PrivateRoute>} />
-              <Route path="/topos/:id"    element={<PrivateRoute><TopoDetail /></PrivateRoute>} />
-              <Route path="/routes/:id"   element={<PrivateRoute><RouteDetail /></PrivateRoute>} />
-              <Route path="/search"       element={<PrivateRoute><Search /></PrivateRoute>} />
-              <Route path="/upload"       element={<PrivateRoute><Upload /></PrivateRoute>} />
-              <Route path="/admin"        element={<PrivateRoute adminOnly><Notifications /></PrivateRoute>} />
-              <Route path="/profile"      element={<PrivateRoute><Profile /></PrivateRoute>} />
-              <Route path="/stats"        element={<PrivateRoute><Stats /></PrivateRoute>} />
-              <Route path="/stats/:userId" element={<PrivateRoute><Stats /></PrivateRoute>} />
-              <Route path="/query"        element={<PrivateRoute><Query /></PrivateRoute>} />
-              <Route path="/map"          element={<PrivateRoute><Map /></PrivateRoute>} />
-              <Route path="/about"       element={<About />} />
-              <Route path="/faq"        element={<FAQ />} />
-              <Route path="/coming-soon" element={<PrivateRoute><ComingSoon /></PrivateRoute>} />
-
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
+        <AppLayout />
       </BrowserRouter>
       </ToastProvider>
     </AuthProvider>

@@ -1,12 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
 
 export default function Login() {
   const { t } = useTranslation()
-  const { login } = useAuth()
+  const { user, loading: authLoading, login } = useAuth()
   const navigate  = useNavigate()
+
+  // If already authenticated (e.g. token restored from storage), skip login
+  useEffect(() => {
+    if (!authLoading && user) navigate('/topos', { replace: true })
+  }, [user, authLoading, navigate])
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -34,7 +39,6 @@ export default function Login() {
       <div style={styles.noise} />
 
       {/* Decorative vertical rule */}
-      <div style={styles.vertRule} />
 
       <div style={styles.card}>
         {/* Logo / title block */}
@@ -112,6 +116,30 @@ export default function Login() {
             </span>
           </div>
 
+          <button
+            type="button"
+            style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              background: 'none',
+              border: 'none',
+              color: 'var(--muted)',
+              cursor: 'pointer',
+              padding: '0',
+              marginTop: '-0.25rem',
+              textAlign: 'left',
+              transition: 'color 0.15s',
+            }}
+            onMouseEnter={e => e.target.style.color = 'var(--hold)'}
+            onMouseLeave={e => e.target.style.color = 'var(--muted)'}
+            onClick={() => navigate('/forgot-password')}
+          >
+            {t('login.forgotPassword')}
+          </button>
+
           {error && <p style={styles.error}>{error}</p>}
 
           <button
@@ -149,15 +177,6 @@ const styles = {
     backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
     backgroundSize: '128px',
     pointerEvents: 'none',
-    opacity: 0.6,
-  },
-  vertRule: {
-    position: 'fixed',
-    left: '12vw',
-    top: 0,
-    bottom: 0,
-    width: '1px',
-    background: 'var(--line)',
     opacity: 0.6,
   },
   card: {

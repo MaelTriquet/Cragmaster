@@ -10,11 +10,15 @@ from db import get_db, init_db
 from auth import hash_password, check_password, get_current_user, require_user, require_admin
 from ocr import extract_text_from_pdf, parse_routes, grade_sort_key, GRADE_PATTERN, FRENCH_ORDER
 from thecrag_parser import parse_thecrag_html, fetch_thecrag_html
+from itsdangerous import URLSafeTimedSerializer
 import re
 import unicodedata
 import seed
 from PIL import Image
 from fzf import fuzzy_search
+import smtplib
+import ssl
+from email.message import EmailMessage
 
 jwt_secret = os.environ.get('JWT_SECRET')
 if not jwt_secret:
@@ -34,6 +38,34 @@ UPLOAD_FOLDER = Path('/app/uploads')
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 PHOTO_FOLDER = UPLOAD_FOLDER / 'route_photos'
 PHOTO_FOLDER.mkdir(exist_ok=True)
+
+# ── EMAIL CONFIG ───────────────────────────────────────────────────────────────
+SMTP_HOST = os.environ.get('SMTP_HOST', '')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_USER = os.environ.get('SMTP_USER', '')
+SMTP_PASS = os.environ.get('SMTP_PASS', '')
+MAIL_FROM = os.environ.get('MAIL_FROM', 'noreply@cragmaster')
+APP_URL   = os.environ.get('APP_URL', 'http://localhost:5173')
+
+def send_email(to, subject, text):
+    if not SMTP_HOST:
+        return False
+    msg = EmailMessage()
+    msg['From']    = MAIL_FROM
+    msg['To']      = to
+    msg['Subject'] = subject
+    msg.set_content(text)
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            if SMTP_USER and SMTP_PASS:
+                server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+        return True
+    except Exception:
+        return False
+
+reset_serializer = URLSafeTimedSerializer(jwt_secret, salt='password-reset')
 
 # ── TOKEN REVOCATION ──────────────────────────────────────────────────────────
 @jwt.token_in_blocklist_loader
@@ -83,7 +115,64 @@ def login():
             pass
     expires = timedelta(days=30) if remember else timedelta(hours=24)
     token = create_access_token(identity=str(user['id']), additional_claims={"ver": user['token_version']}, expires_delta=expires)
-    return ok(token=token, user={'id': user['id'], 'username': user['username'], 'is_admin': bool(user['is_admin'])})
+    return ok(token=token, user={'id': user['id'], 'username': user['username'], 'is_admin': bool(user['is_admin']), 'email': user['email'] or '', 'email_prompt_dismissed': bool(user['email_prompt_dismissed'])})
+
+# ── PASSWORD RESET ──────────────────────────────────────────────────────────
+@app.route('/api/auth/forgot-password', methods=['POST'])
+@limiter.limit("3 per minute")
+def forgot_password():
+    d = request.get_json() or {}
+    email = (d.get('email') or '').strip().lower()
+    if not email:
+        return api_error('Email is required')
+
+    if not SMTP_HOST:
+        return api_error('Password reset is not configured (SMTP not set up)', 501)
+
+    conn = get_db()
+    user = conn.execute('SELECT id FROM users WHERE email=?', (email,)).fetchone()
+    conn.close()
+
+    if user:
+        token = reset_serializer.dumps(str(user['id']))
+        reset_url = f"{APP_URL}/forgot-password?token={token}"
+        text = (
+            f"Hello,\n\n"
+            f"Someone requested a password reset for your CragMaster account.\n\n"
+            f"Click the link below to reset your password (valid for 15 minutes):\n{reset_url}\n\n"
+            f"If you didn't request this, you can safely ignore this email.\n\n"
+            f"— CragMaster"
+        )
+        send_email(email, 'CragMaster — Password Reset', text)
+
+    return ok(sent=True)
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def reset_password():
+    d = request.get_json() or {}
+    token   = (d.get('token') or '').strip()
+    new_pwd = (d.get('password') or '').strip()
+    if not token or not new_pwd:
+        return api_error('Token and password are required')
+
+    try:
+        user_id = reset_serializer.loads(token, max_age=900)
+    except Exception:
+        return api_error('Invalid or expired reset token', 400)
+
+    conn = get_db()
+    user = conn.execute('SELECT id FROM users WHERE id=?', (int(user_id),)).fetchone()
+    if not user:
+        conn.close()
+        return api_error('User not found', 404)
+
+    conn.execute(
+        'UPDATE users SET password_hash=?, token_version=token_version+1 WHERE id=?',
+        (hash_password(new_pwd), user['id'])
+    )
+    conn.commit()
+    conn.close()
+    return ok(reset=True)
 
 @app.route('/api/auth/me', methods=['GET'])
 @jwt_required()
@@ -100,6 +189,16 @@ def update_me():
     current_password = (d.get('current_password') or '').strip()
     new_username = (d.get('username') or '').strip()
     new_password = (d.get('password') or '').strip()
+    new_email    = (d.get('email') or '').strip().lower()
+
+    # Allow dismissing the email prompt without current password
+    if 'email_prompt_dismissed' in d:
+        conn = get_db()
+        conn.execute('UPDATE users SET email_prompt_dismissed=1 WHERE id=?', (user['id'],))
+        conn.commit()
+        updated = conn.execute('SELECT id, username, is_admin, token_version, email, email_prompt_dismissed FROM users WHERE id=?', (user['id'],)).fetchone()
+        conn.close()
+        return ok(user={'id': updated['id'], 'username': updated['username'], 'is_admin': bool(updated['is_admin']), 'email': updated['email'] or '', 'email_prompt_dismissed': bool(updated['email_prompt_dismissed'])})
 
     if not current_password:
         return api_error('Current password is required')
@@ -120,20 +219,20 @@ def update_me():
 
     if new_password:
         conn.execute(
-            'UPDATE users SET username=?, password_hash=?, token_version=token_version+1 WHERE id=?',
-            (new_username, hash_password(new_password), user['id'])
+            'UPDATE users SET username=?, password_hash=?, token_version=token_version+1, email=? WHERE id=?',
+            (new_username, hash_password(new_password), new_email or None, user['id'])
         )
     else:
         conn.execute(
-            'UPDATE users SET username=? WHERE id=?',
-            (new_username, user['id'])
+            'UPDATE users SET username=?, email=? WHERE id=?',
+            (new_username, new_email or None, user['id'])
         )
 
     conn.commit()
-    updated = conn.execute('SELECT id, username, is_admin, token_version FROM users WHERE id=?', (user['id'],)).fetchone()
+    updated = conn.execute('SELECT id, username, is_admin, token_version, email, email_prompt_dismissed FROM users WHERE id=?', (user['id'],)).fetchone()
     conn.close()
     new_token = create_access_token(identity=str(updated['id']), additional_claims={"ver": updated['token_version']})
-    return ok(user={'id': updated['id'], 'username': updated['username'], 'is_admin': bool(updated['is_admin'])}, token=new_token)
+    return ok(user={'id': updated['id'], 'username': updated['username'], 'is_admin': bool(updated['is_admin']), 'email': updated['email'] or '', 'email_prompt_dismissed': bool(updated['email_prompt_dismissed'])}, token=new_token)
 
 # ── ADMIN: USER MANAGEMENT ────────────────────────────────────────────────────
 @app.route('/api/users', methods=['GET'])
@@ -154,15 +253,16 @@ def create_user():
     d = request.get_json() or {}
     username = (d.get('username') or '').strip()
     password = (d.get('password') or '').strip()
+    email    = (d.get('email') or '').strip().lower()
     is_admin = bool(d.get('is_admin', False))
     if not username or not password: return api_error('Username and password required')
     if is_admin and not user['is_admin']:
         return api_error('Only admins can create admin accounts', 403)
     conn = get_db()
     try:
-        conn.execute('INSERT INTO users (username, password_hash, is_admin) VALUES (?,?,?)', (username, hash_password(password), int(is_admin)))
+        conn.execute('INSERT INTO users (username, password_hash, is_admin, email) VALUES (?,?,?,?)', (username, hash_password(password), int(is_admin), email or None))
         conn.commit()
-        u = conn.execute('SELECT id, username, is_admin FROM users WHERE username=?', (username,)).fetchone()
+        u = conn.execute('SELECT id, username, is_admin, email FROM users WHERE username=?', (username,)).fetchone()
         return ok(dict(u)), 201
     except Exception:
         return api_error('Username already taken', 409)
@@ -474,7 +574,6 @@ def set_location_routes(topo_id):
 
 # ── ROUTES ────────────────────────────────────────────────────────────────────
 @app.route('/api/routes/generate-passphrase')
-@jwt_required()
 def generate_passphrase():
     conn = get_db()
     def strip_accents(s):

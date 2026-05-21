@@ -255,19 +255,19 @@ export default function Profile() {
   const navigate = useNavigate()
 
   // ── Edit profile state ──
-  const [profileForm, setProfileForm] = useState({ username: user?.username ?? '', current_password: '', password: '', confirm: '' })
+  const [profileForm, setProfileForm] = useState({ username: user?.username ?? '', email: user?.email ?? '', current_password: '', password: '', confirm: '' })
   const [profileStatus, setProfileStatus] = useState(null) // { type: 'success'|'error', msg }
   const [profileLoading, setProfileLoading] = useState(false)
   const [hoveredBtn, setHoveredBtn] = useState(null)
 
   // ── Create user state (admin only) ──
-  const [createForm, setCreateForm] = useState({ username: '', password: '', is_admin: false })
+  const [createForm, setCreateForm] = useState({ username: '', password: '', email: '', is_admin: false })
   const [createStatus, setCreateStatus] = useState(null)
   const [createLoading, setCreateLoading] = useState(false)
   const [createdUser, setCreatedUser] = useState(null)
 
   const handleProfileSave = async () => {
-    const { username, current_password, password, confirm } = profileForm
+    const { username, email, current_password, password, confirm } = profileForm
     if (!username.trim()) {
       setProfileStatus({ type: 'error', msg: t('profile.usernameEmpty') }); return
     }
@@ -280,7 +280,7 @@ export default function Profile() {
     setProfileLoading(true)
     setProfileStatus(null)
     try {
-      const payload = { username: username.trim(), current_password }
+      const payload = { username: username.trim(), email: email.trim(), current_password }
       if (password) payload.password = password
       const res = await api.patch('/auth/me', payload)
       setProfileStatus({ type: 'success', msg: t('profile.profileUpdated') })
@@ -301,7 +301,7 @@ export default function Profile() {
   }
 
   const handleCreateUser = async () => {
-    const { username, password, is_admin } = createForm
+    const { username, password, email, is_admin } = createForm
     if (!username.trim() || !password) {
       setCreateStatus({ type: 'error', msg: t('profile.usernameRequired') }); return
     }
@@ -309,10 +309,10 @@ export default function Profile() {
     setCreateStatus(null)
     setCreatedUser(null)
     try {
-      const res = await api.post('/users', { username: username.trim(), password, is_admin })
+      const res = await api.post('/users', { username: username.trim(), password, email: email.trim(), is_admin })
       setCreatedUser(res.data)
       setCreateStatus({ type: 'success', msg: t('profile.userCreated') })
-      setCreateForm({ username: '', password: '', is_admin: false })
+      setCreateForm({ username: '', password: '', email: '', is_admin: false })
     } catch (err) {
       setCreateStatus({ type: 'error', msg: err.response?.data?.error || t('profile.creationFailed') })
     } finally {
@@ -345,6 +345,19 @@ export default function Profile() {
                 type="text"
                 value={profileForm.username}
                 onChange={e => setProfileForm(f => ({ ...f, username: e.target.value }))}
+                onFocus={focusStyle}
+                onBlur={blurStyle}
+              />
+            </div>
+
+            <div style={S.field}>
+              <label style={S.label}>{t('profile.email')}</label>
+              <input
+                style={S.input}
+                type="email"
+                placeholder={t('profile.emailPlaceholder')}
+                value={profileForm.email}
+                onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))}
                 onFocus={focusStyle}
                 onBlur={blurStyle}
               />
@@ -470,6 +483,19 @@ export default function Profile() {
                 readOnly
                 placeholder={t('profile.passwordGenerated')}
                 value={createForm.password}
+              />
+            </div>
+
+            <div style={S.field}>
+              <label style={S.label}>{t('profile.email')}</label>
+              <input
+                style={S.input}
+                type="email"
+                placeholder={t('profile.emailPlaceholderCreate')}
+                value={createForm.email}
+                onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                onFocus={focusStyle}
+                onBlur={blurStyle}
               />
             </div>
 
