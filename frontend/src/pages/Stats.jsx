@@ -275,10 +275,13 @@ function FlashPie({ data, title }) {
   const total = pieData.reduce((s, d) => s + d.value, 0)
   const flashRate = total > 0 ? Math.round((pieData[0]?.value || 0) / total * 100) : 0
 
+  // Filter out zero-value entries
+  const nonZero = pieData.filter(d => d.value > 0)
+
   // SVG pie helpers
   const cx = 100, cy = 100, r = 80
   let currentAngle = -Math.PI / 2
-  const slices = pieData.map(d => {
+  const slices = nonZero.map(d => {
     const sliceAngle = total > 0 ? (d.value / total) * Math.PI * 2 : 0
     const startAngle = currentAngle
     const endAngle = currentAngle + sliceAngle
@@ -288,13 +291,9 @@ function FlashPie({ data, title }) {
     const x2 = cx + r * Math.cos(endAngle)
     const y2 = cy + r * Math.sin(endAngle)
     const largeArc = sliceAngle > Math.PI ? 1 : 0
-    const path = sliceAngle >= Math.PI * 2
-      ? `M${cx},${cy - r} A${r},${r} 0 1,1 ${cx - 0.01},${cy - r} A${r},${r} 0 1,1 ${cx},${cy - r}`
-      : sliceAngle > 0
-        ? `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`
-        : null
+    const path = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`
     return { ...d, path, startAngle, endAngle }
-  }).filter(s => s.path)
+  })
 
   return (
     <div>
@@ -339,26 +338,39 @@ function FlashPie({ data, title }) {
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', justifyContent: 'center' }}>
           <svg width="200" height="200" viewBox="0 0 200 200">
-            {slices.map((s, i) => {
-              const isHov = hoveredSlice === i
-              const midAngle = (s.startAngle + s.endAngle) / 2
-              const explodeOffset = isHov ? 6 : 0
-              const dx = explodeOffset * Math.cos(midAngle)
-              const dy = explodeOffset * Math.sin(midAngle)
-              const transform = dx || dy ? `translate(${dx},${dy})` : undefined
-              return (
-                <path
-                  key={i}
-                  d={s.path}
-                  fill={s.color}
-                  opacity={isHov ? 1 : 0.85}
-                  transform={transform}
-                  style={{ transition: 'opacity 0.15s, transform 0.2s', cursor: 'pointer' }}
-                  onMouseEnter={() => setHoveredSlice(i)}
-                  onMouseLeave={() => setHoveredSlice(null)}
-                />
-              )
-            })}
+            {slices.length === 1 ? (
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill={slices[0].color}
+                opacity={hoveredSlice === 0 ? 1 : 0.85}
+                style={{ transition: 'opacity 0.15s', cursor: 'pointer' }}
+                onMouseEnter={() => setHoveredSlice(0)}
+                onMouseLeave={() => setHoveredSlice(null)}
+              />
+            ) : (
+              slices.map((s, i) => {
+                const isHov = hoveredSlice === i
+                const midAngle = (s.startAngle + s.endAngle) / 2
+                const explodeOffset = isHov ? 6 : 0
+                const dx = explodeOffset * Math.cos(midAngle)
+                const dy = explodeOffset * Math.sin(midAngle)
+                const transform = dx || dy ? `translate(${dx},${dy})` : undefined
+                return (
+                  <path
+                    key={i}
+                    d={s.path}
+                    fill={s.color}
+                    opacity={isHov ? 1 : 0.85}
+                    transform={transform}
+                    style={{ transition: 'opacity 0.15s, transform 0.2s', cursor: 'pointer' }}
+                    onMouseEnter={() => setHoveredSlice(i)}
+                    onMouseLeave={() => setHoveredSlice(null)}
+                  />
+                )
+              })
+            )}
             {total > 0 && (
               <text x={cx} y={cy - 6} textAnchor="middle" fontFamily="Barlow Condensed, sans-serif" fontSize="28" fontWeight="800" fill="var(--chalk)">
                 {total}
@@ -371,7 +383,7 @@ function FlashPie({ data, title }) {
             )}
           </svg>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {pieData.map((d, i) => {
+            {nonZero.map((d, i) => {
               const isHov = hoveredSlice === i
               return (
                 <div
