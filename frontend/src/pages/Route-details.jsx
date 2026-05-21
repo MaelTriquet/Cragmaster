@@ -716,6 +716,7 @@ export default function RouteDetail() {
   const initialTagIdsRef = useRef(null)
   const { showToast } = useToast()
   const photoInputRef = useRef(null)
+  const apiBase = import.meta.env.VITE_API_URL || ''
 
   const applyRouteData = useCallback((d) => {
     setRoute(d.route)
@@ -999,7 +1000,7 @@ export default function RouteDetail() {
           {hasPhoto ? (
             <div style={{ position: "relative" }}>
               <img
-                src={`/api/routes/${id}/photo?t=${Date.now()}`}
+                src={`${apiBase}/api/routes/${id}/photo?t=${Date.now()}`}
                 alt={route.name}
                 style={{
                   width: "100%",
