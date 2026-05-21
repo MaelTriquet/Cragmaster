@@ -33,7 +33,6 @@ i18n.use(initReactI18next).init({
           saveEmail: 'Save email',
           saving: 'Saving...',
           trustMyself: 'I trust myself',
-          passwordRequired: 'Enter your current password to save:',
         },
         login: {
           eyebrow: 'CLIMBING TOPO MANAGER',
@@ -248,7 +247,6 @@ i18n.use(initReactI18next).init({
           passwordsDoNotMatch: 'Passwords do not match',
           email: 'Email',
           emailPlaceholder: 'your@email.com (optional)',
-          emailPlaceholderCreate: 'your@email.com (optional)',
           createUser: 'Create New User',
           createUserBtn: 'Create User',
           creating: 'Creating\u2026',
@@ -466,7 +464,6 @@ i18n.use(initReactI18next).init({
           saveEmail: 'Enregistrer',
           saving: 'Enregistrement...',
           trustMyself: 'Je me fais confiance',
-          passwordRequired: 'Entrez votre mot de passe actuel pour enregistrer :',
         },
         login: {
           eyebrow: 'GESTIONNAIRE DE TOPOS D\u2019ESCALADE',
@@ -679,7 +676,6 @@ i18n.use(initReactI18next).init({
           passwordsDoNotMatch: 'Les mots de passe ne correspondent pas',
           email: 'E-mail',
           emailPlaceholder: 'votre@email.com (optionnel)',
-          emailPlaceholderCreate: 'votre@email.com (optionnel)',
           createUser: 'Cr\u00e9er un utilisateur',
           createUserBtn: 'Cr\u00e9er',
           creating: 'Cr\u00e9ation\u2026',

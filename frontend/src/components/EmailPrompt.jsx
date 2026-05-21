@@ -99,7 +99,7 @@ const S = {
 
 export default function EmailPrompt() {
   const { t } = useTranslation()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [email, setEmail] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -112,6 +112,7 @@ export default function EmailPrompt() {
   const dismiss = async () => {
     try {
       await api.patch('/auth/me', { email_prompt_dismissed: true })
+      await refreshUser()
     } catch {}
     setDismissed(true)
   }
@@ -120,9 +121,8 @@ export default function EmailPrompt() {
     if (!email.trim()) return
     setSaving(true)
     try {
-      const currentPassword = prompt(t('emailPrompt.passwordRequired'))
-      if (!currentPassword) { setSaving(false); return }
-      await api.patch('/auth/me', { username: user.username, email: email.trim(), current_password: currentPassword })
+      await api.patch('/auth/me', { username: user.username, email: email.trim() })
+      await refreshUser()
       setSaved(true)
       setDismissed(true)
     } catch {

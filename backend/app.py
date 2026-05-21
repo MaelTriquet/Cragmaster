@@ -200,6 +200,15 @@ def update_me():
         conn.close()
         return ok(user={'id': updated['id'], 'username': updated['username'], 'is_admin': bool(updated['is_admin']), 'email': updated['email'] or '', 'email_prompt_dismissed': bool(updated['email_prompt_dismissed'])})
 
+    # Allow setting email without current password (user just logged in)
+    if 'email' in d and new_username == user['username'] and not new_password:
+        conn = get_db()
+        conn.execute('UPDATE users SET email=? WHERE id=?', (new_email or None, user['id']))
+        conn.commit()
+        updated = conn.execute('SELECT id, username, is_admin, token_version, email, email_prompt_dismissed FROM users WHERE id=?', (user['id'],)).fetchone()
+        conn.close()
+        return ok(user={'id': updated['id'], 'username': updated['username'], 'is_admin': bool(updated['is_admin']), 'email': updated['email'] or '', 'email_prompt_dismissed': bool(updated['email_prompt_dismissed'])})
+
     if not current_password:
         return api_error('Current password is required')
     if not check_password(current_password, user['password_hash']):

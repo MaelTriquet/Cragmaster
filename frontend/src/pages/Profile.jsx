@@ -261,7 +261,7 @@ export default function Profile() {
   const [hoveredBtn, setHoveredBtn] = useState(null)
 
   // ── Create user state (admin only) ──
-  const [createForm, setCreateForm] = useState({ username: '', password: '', email: '', is_admin: false })
+  const [createForm, setCreateForm] = useState({ username: '', password: '', is_admin: false })
   const [createStatus, setCreateStatus] = useState(null)
   const [createLoading, setCreateLoading] = useState(false)
   const [createdUser, setCreatedUser] = useState(null)
@@ -301,7 +301,7 @@ export default function Profile() {
   }
 
   const handleCreateUser = async () => {
-    const { username, password, email, is_admin } = createForm
+    const { username, password, is_admin } = createForm
     if (!username.trim() || !password) {
       setCreateStatus({ type: 'error', msg: t('profile.usernameRequired') }); return
     }
@@ -309,10 +309,10 @@ export default function Profile() {
     setCreateStatus(null)
     setCreatedUser(null)
     try {
-      const res = await api.post('/users', { username: username.trim(), password, email: email.trim(), is_admin })
+      const res = await api.post('/users', { username: username.trim(), password, is_admin })
       setCreatedUser(res.data)
       setCreateStatus({ type: 'success', msg: t('profile.userCreated') })
-      setCreateForm({ username: '', password: '', email: '', is_admin: false })
+      setCreateForm({ username: '', password: '', is_admin: false })
     } catch (err) {
       setCreateStatus({ type: 'error', msg: err.response?.data?.error || t('profile.creationFailed') })
     } finally {
@@ -483,19 +483,6 @@ export default function Profile() {
                 readOnly
                 placeholder={t('profile.passwordGenerated')}
                 value={createForm.password}
-              />
-            </div>
-
-            <div style={S.field}>
-              <label style={S.label}>{t('profile.email')}</label>
-              <input
-                style={S.input}
-                type="email"
-                placeholder={t('profile.emailPlaceholderCreate')}
-                value={createForm.email}
-                onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-                onFocus={focusStyle}
-                onBlur={blurStyle}
               />
             </div>
 
