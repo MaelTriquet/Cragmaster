@@ -137,6 +137,19 @@ def init_db():
             vote        INTEGER NOT NULL,
             UNIQUE(feature_id, user_id)
         );
+
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            table_name TEXT NOT NULL,
+            row_id     INTEGER,
+            action     TEXT NOT NULL,
+            field_name TEXT,
+            old_value  TEXT,
+            new_value  TEXT,
+            summary    TEXT,
+            user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            timestamp  DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     ''')
 
     # Migrations

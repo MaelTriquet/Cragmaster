@@ -22,6 +22,7 @@ import Map from './pages/Map'
 import About from './pages/About'
 import FAQ from './pages/FAQ'
 import ComingSoon from './pages/ComingSoon'
+import AuditLog from './pages/AuditLog'
 const PAGE_WRAPPER = {
   display: 'flex',
   flexDirection: 'column',
@@ -70,6 +71,7 @@ function AppLayout() {
           <Route path="/about"       element={<PrivateRoute><About /></PrivateRoute>} />
           <Route path="/faq"        element={<PrivateRoute><FAQ /></PrivateRoute>} />
           <Route path="/coming-soon" element={<PrivateRoute><ComingSoon /></PrivateRoute>} />
+          <Route path="/audit-log" element={<PrivateRoute adminOnly><AuditLog /></PrivateRoute>} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

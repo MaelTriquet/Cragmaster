@@ -373,6 +373,27 @@ export default function Navbar() {
                   {t('nav.notifications', { count: unresolvedCount })}
                 </button>
               )}
+              {user?.is_admin && (
+                <button
+                  style={{
+                    fontFamily: 'Barlow Condensed, sans-serif',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: 'var(--hold)',
+                    background: 'rgba(200,80,42,0.1)',
+                    border: '1px solid var(--hold)',
+                    padding: '0.65rem 1rem',
+                    cursor: 'pointer',
+                    marginTop: '0.5rem',
+                    textAlign: 'center',
+                  }}
+                  onClick={() => navigate('/audit-log')}
+                >
+                  {t('nav.auditLog')}
+                </button>
+              )}
               {user && (
                 <button
                   style={{
@@ -474,6 +495,20 @@ export default function Navbar() {
             onClick={() => navigate('/admin')}
           >
             {t('nav.notifications', { count: unresolvedCount })}
+          </button>
+        )}
+        {user?.is_admin && (
+          <button
+            style={{
+              ...S.langBtn,
+              color: location.pathname === '/audit-log' ? 'var(--chalk)' : 'var(--muted)',
+              borderColor: location.pathname === '/audit-log' ? 'var(--hold)' : 'var(--line)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
+            onMouseLeave={e => { if (location.pathname !== '/audit-log') { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' } }}
+            onClick={() => navigate('/audit-log')}
+          >
+            {t('nav.auditLog')}
           </button>
         )}
         {user && (
