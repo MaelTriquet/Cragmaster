@@ -20,7 +20,7 @@ const S = {
     position: 'sticky',
     top: 0,
     zIndex: 100,
-    background: 'rgba(26,26,24,0.92)',
+    background: 'var(--granite)',
     backdropFilter: 'blur(10px)',
     borderBottom: '1px solid var(--line)',
     display: 'flex',
@@ -74,11 +74,11 @@ const S = {
     textTransform: 'uppercase',
     color: active ? 'var(--chalk)' : 'var(--muted)',
     cursor: 'pointer',
-    background: 'none',
+    background: active ? 'rgba(255,255,255,0.06)' : 'none',
     border: 'none',
     borderBottom: active ? '2px solid var(--hold)' : '2px solid transparent',
     padding: '0 1rem',
-    transition: 'color 0.15s, border-color 0.15s',
+    transition: 'color 0.15s, border-color 0.15s, background 0.15s',
     display: 'flex',
     alignItems: 'center',
   }),
@@ -107,11 +107,11 @@ const S = {
     letterSpacing: '0.12em',
     textTransform: 'uppercase',
     color: 'var(--muted)',
-    background: 'none',
+    background: 'rgba(255,255,255,0.04)',
     border: '1px solid var(--line)',
     padding: '0.3rem 0.75rem',
     cursor: 'pointer',
-    transition: 'border-color 0.15s, color 0.15s',
+    transition: 'border-color 0.15s, color 0.15s, background 0.15s',
   },
 
   notifBtn: {
@@ -149,11 +149,11 @@ const S = {
     fontWeight: 700,
     letterSpacing: '0.12em',
     color: 'var(--muted)',
-    background: 'none',
+    background: 'rgba(255,255,255,0.04)',
     border: '1px solid var(--line)',
     padding: '0.3rem 0.6rem',
     cursor: 'pointer',
-    transition: 'border-color 0.15s, color 0.15s',
+    transition: 'border-color 0.15s, color 0.15s, background 0.15s',
   },
 
   hamburger: {
@@ -471,10 +471,10 @@ export default function Navbar() {
               key={item.path}
               style={S.link(active)}
               onMouseEnter={e => {
-                if (!active) e.currentTarget.style.color = 'var(--chalk)'
+                if (!active) { e.currentTarget.style.color = 'var(--chalk)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }
               }}
               onMouseLeave={e => {
-                if (!active) e.currentTarget.style.color = 'var(--muted)'
+                if (!active) { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'none' }
               }}
               onClick={() => navigate(item.path)}
             >
@@ -491,10 +491,12 @@ export default function Navbar() {
           onMouseEnter={e => {
             e.currentTarget.style.borderColor = 'var(--hold)'
             e.currentTarget.style.color = 'var(--hold)'
+            e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
           }}
           onMouseLeave={e => {
             e.currentTarget.style.borderColor = 'var(--line)'
             e.currentTarget.style.color = 'var(--muted)'
+            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
           }}
           onClick={toggleLang}
         >
@@ -526,8 +528,8 @@ export default function Navbar() {
               color: location.pathname === '/audit-log' ? 'var(--chalk)' : 'var(--muted)',
               borderColor: location.pathname === '/audit-log' ? 'var(--hold)' : 'var(--line)',
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
-            onMouseLeave={e => { if (location.pathname !== '/audit-log') { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' } }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+            onMouseLeave={e => { if (location.pathname !== '/audit-log') { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' } }}
             onClick={() => navigate('/audit-log')}
           >
             {user.is_admin ? t('nav.auditLog') : t('nav.myChanges')}
@@ -546,10 +548,12 @@ export default function Navbar() {
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--hold)'
                 e.currentTarget.style.color = 'var(--hold)'
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.borderColor = 'var(--line)'
                 e.currentTarget.style.color = 'var(--muted)'
+                e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
               }}
               onClick={handleLogout}
             >

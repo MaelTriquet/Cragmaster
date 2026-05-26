@@ -11,7 +11,7 @@ const S = {
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.6rem 1rem',
-    background: 'rgba(26,26,24,0.92)',
+    background: '#121210',
   },
   group: {
     display: 'flex',

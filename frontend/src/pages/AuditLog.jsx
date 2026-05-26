@@ -135,9 +135,9 @@ const S = {
     textTransform: 'uppercase',
     padding: '0.15rem 0.4rem',
     display: 'inline-block',
-    background: action === 'delete' ? 'rgba(200,80,42,0.15)' : 'rgba(74,143,168,0.15)',
-    color: action === 'delete' ? 'var(--hold-lt)' : '#4a8fa8',
-    border: `1px solid ${action === 'delete' ? 'var(--hold)' : '#4a8fa8'}`,
+    background: action === 'delete' ? 'rgba(200,80,42,0.15)' : action === 'insert' ? 'rgba(120,180,80,0.15)' : 'rgba(74,143,168,0.15)',
+    color: action === 'delete' ? 'var(--hold-lt)' : action === 'insert' ? '#78b450' : '#4a8fa8',
+    border: `1px solid ${action === 'delete' ? 'var(--hold)' : action === 'insert' ? '#78b450' : '#4a8fa8'}`,
   }),
   expandedRow: {
     background: 'var(--granite)',
@@ -425,6 +425,7 @@ export default function AuditLog() {
                                     </>
                                   )}
                                 </div>
+                                {log.action !== 'insert' && (
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid var(--line)', paddingTop: '0.75rem' }}>
                                   <button
                                     style={S.restoreBtn}
@@ -444,6 +445,7 @@ export default function AuditLog() {
                                     </span>
                                   )}
                                 </div>
+                              )}
                               </td>
                             </tr>
                           )}
