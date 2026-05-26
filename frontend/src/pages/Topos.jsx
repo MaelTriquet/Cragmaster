@@ -176,6 +176,25 @@ export default function Topos() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    if (!isOnline()) {
+      getOfflineTopoIds().then(async ids => {
+        if (ids.length > 0) {
+          const cached = []
+          for (const id of ids) {
+            const data = await getOfflineTopo(id)
+            if (data?.topo) cached.push(data.topo)
+          }
+          cached.sort((a, b) =>
+            a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+          )
+          setTopos(cached)
+          setOfflineMode(true)
+        }
+        setLoading(false)
+      })
+      return
+    }
+
     api.get("/topos")
       .then(res => {
         const list = res.data || []

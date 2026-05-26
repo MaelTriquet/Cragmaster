@@ -737,6 +737,11 @@ export default function RouteDetail() {
   }, [])
 
   const loadRoute = useCallback(async () => {
+    if (!isOnline()) {
+      const offline = await getOfflineRoute(id)
+      if (offline) applyRouteData(offline)
+      return
+    }
     try {
       const res = await api.get(`/routes/${id}`)
       applyRouteData(res.data)
@@ -769,9 +774,10 @@ export default function RouteDetail() {
         attempt: data.attempt
           ? { ...data.attempt, amount: (data.attempt.amount || 0) + 1 }
           : { id: null, user_id: null, route_id: Number(id), sent: 0, amount: 1, sent_at: null },
-      }))
+      })).catch(() => {})
       setAttempt(prev => prev ? { ...prev, amount: (prev.amount || 0) + 1 } : { id: null, user_id: null, route_id: Number(id), sent: 0, amount: 1, sent_at: null })
       addPendingAction({ endpoint: `/routes/${id}/add_attempt`, method: 'get', type: 'user', summary: `Add attempt on route "${route.name}"` })
+      showToast(t('routeDetail.offlineSaved'))
       return
     }
     api.get(`/routes/${id}/add_attempt`)
@@ -785,9 +791,10 @@ export default function RouteDetail() {
         attempt: data.attempt
           ? { ...data.attempt, sent: 1, amount: (data.attempt.amount || 0) + 1 }
           : { id: null, user_id: null, route_id: Number(id), sent: 1, amount: 1, sent_at: null },
-      }))
+      })).catch(() => {})
       setAttempt(prev => prev ? { ...prev, sent: 1, amount: (prev.amount || 0) + 1 } : { id: null, user_id: null, route_id: Number(id), sent: 1, amount: 1, sent_at: null })
       addPendingAction({ endpoint: `/routes/${id}/sent_attempt`, method: 'get', type: 'user', summary: `Send route "${route.name}"` })
+      showToast(t('routeDetail.offlineSaved'))
       return
     }
     api.get(`/routes/${id}/sent_attempt`)
@@ -805,9 +812,10 @@ export default function RouteDetail() {
   const toggleProject = () => {
     if (!isOnline()) {
       const newVal = !isProject
-      updateCachedRoute(id, data => ({ ...data, is_project: newVal }))
+      updateCachedRoute(id, data => ({ ...data, is_project: newVal })).catch(() => {})
       setIsProject(newVal)
       addPendingAction({ endpoint: `/routes/${id}/project`, method: 'post', type: 'user', summary: `${newVal ? 'Add' : 'Remove'} project on route "${route.name}"` })
+      showToast(t('routeDetail.offlineSaved'))
       return
     }
     api.post(`/routes/${id}/project`)
@@ -852,6 +860,7 @@ export default function RouteDetail() {
       addPendingAction({ endpoint: `/routes/${id}/comments`, method: 'post', body: { ...form, perceived_grade: form.perceived_grade === "!" ? route.grade : form.perceived_grade }, type: 'user', summary: `Comment on route "${route.name}"` })
       setShowForm(false)
       setForm({ stars: "", perceived_grade: "!", body: "", beta: "" })
+      showToast(t('routeDetail.offlineSaved'))
       return
     }
     const payload = { ...form }

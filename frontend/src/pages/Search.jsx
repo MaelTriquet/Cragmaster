@@ -490,8 +490,17 @@ export default function Search() {
       return
     }
 
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(async () => {
       setLoading(true)
+
+      if (!isOnline()) {
+        const offlineRes = await searchOffline(query, { grade_min_sort: GRADE_OPTIONS.find(g => g.label === gradeMin)?.sort, grade_max_sort: GRADE_OPTIONS.find(g => g.label === gradeMax)?.sort })
+        setResults(offlineRes)
+        setOfflineMode(true)
+        setLoading(false)
+        return
+      }
+
       const params = new URLSearchParams()
       if (query) params.set("q", query)
       if (projectsOnly) params.set("projects_only", "1")

@@ -1057,6 +1057,18 @@ export default function TopoDetail() {
 
   useEffect(() => {
     (async () => {
+      if (!isOnline()) {
+        const cached = await getOfflineTopo(id)
+        if (cached) {
+          setTopo(cached.topo)
+          setRoutes(cached.routes)
+          setTags(cached.tags || [])
+          setRouteTagStats(cached.route_tag_stats || [])
+          setParkingLocation(cached.parking_location)
+          setRoutesLocation(cached.routes_location)
+        }
+        return
+      }
       try {
         const res = await api.get(`/topos/${id}`)
         setTopo(res.data.topo)

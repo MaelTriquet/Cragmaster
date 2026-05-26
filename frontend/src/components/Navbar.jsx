@@ -273,7 +273,10 @@ export default function Navbar() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
 
   useEffect(() => {
-    getPendingCount().then(setPendingSyncCount)
+    getPendingCount().then(count => {
+      setPendingSyncCount(count)
+      if (count > 0 && isOnline()) processSyncQueue().then(r => getPendingCount().then(setPendingSyncCount))
+    })
     const unsub = onSyncChange(setPendingSyncCount)
     return unsub
   }, [])
