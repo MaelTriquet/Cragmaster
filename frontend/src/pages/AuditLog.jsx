@@ -298,9 +298,9 @@ export default function AuditLog() {
   return (
     <div style={S.root}>
       <div style={S.header}>
-        <span style={S.eyebrow}>{t('auditLog.eyebrow')}</span>
+        <span style={S.eyebrow}>{user.is_admin ? t('auditLog.eyebrow') : t('auditLog.myChangesEyebrow')}</span>
         <div style={S.titleRow}>
-          <h1 style={S.title}>{t('auditLog.title')}</h1>
+          <h1 style={S.title}>{user.is_admin ? t('auditLog.title') : t('auditLog.myChangesTitle')}</h1>
           <span style={S.count}>{t('auditLog.count', { total: logs.length, shown: filtered.length })}</span>
         </div>
       </div>

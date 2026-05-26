@@ -180,7 +180,7 @@ def reset_password():
 def me():
     user = get_current_user()
     if not user: return api_error('Not found', 404)
-    return ok(user=dict(user))
+    return ok(user={'id': user['id'], 'username': user['username'], 'is_admin': bool(user['is_admin']), 'email': user['email'] or '', 'email_prompt_dismissed': bool(user['email_prompt_dismissed'])})
 
 @app.route('/api/auth/me', methods=['PATCH'])
 @jwt_required()

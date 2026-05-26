@@ -405,7 +405,7 @@ export default function Navbar() {
                   }}
                   onClick={() => navigate('/audit-log')}
                 >
-                  {t('nav.auditLog')}
+                  {user.is_admin ? t('nav.auditLog') : t('nav.myChanges')}
                 </button>
               )}
               {user && (
@@ -530,7 +530,7 @@ export default function Navbar() {
             onMouseLeave={e => { if (location.pathname !== '/audit-log') { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' } }}
             onClick={() => navigate('/audit-log')}
           >
-            {t('nav.auditLog')}
+            {user.is_admin ? t('nav.auditLog') : t('nav.myChanges')}
           </button>
         )}
         {user && (

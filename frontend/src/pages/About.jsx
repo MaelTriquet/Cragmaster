@@ -155,13 +155,13 @@ export default function About() {
         </div>
 
         <div style={S.section}>
-          <div style={S.sectionTitle}>{t('about.recTitle')}</div>
-          <p style={S.bodyText}>{t('about.recDesc')}</p>
+          <div style={S.sectionTitle}>{t('about.notTitle')}</div>
+          <p style={S.bodyText}>{t('about.notDesc')}</p>
         </div>
 
         <div style={S.section}>
-          <div style={S.sectionTitle}>{t('about.notTitle')}</div>
-          <p style={S.bodyText}>{t('about.notDesc')}</p>
+          <div style={S.sectionTitle}>{t('about.undoTitle')}</div>
+          <p style={S.bodyText}>{t('about.undoDesc')}</p>
         </div>
 
         <div style={S.section}>

@@ -884,7 +884,7 @@ export default function RouteDetail() {
                 <span style={S.metaText}>{route.topo_location}</span>
               </>
             )}
-            {route.length && route.length > 0 && (
+            {route.length > 0 && (
               <>
                 <span style={{ color: "var(--line)" }}>·</span>
                 <span style={S.metaText}>{route.length}m</span>
