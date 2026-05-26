@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
+import { getOfflineTopoIds, getOfflineTopo, isOnline } from '../lib/offline'
 
 const S = {
   root: {
@@ -170,6 +171,7 @@ export default function Topos() {
   const [topos, setTopos] = useState([])
   const [loading, setLoading] = useState(true)
   const [hovered, setHovered] = useState(null)
+  const [offlineMode, setOfflineMode] = useState(false)
   const { t } = useTranslation()
   const navigate = useNavigate()
 
@@ -181,8 +183,23 @@ export default function Topos() {
           a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
         )
         setTopos(list)
+        setOfflineMode(false)
       })
-      .catch(err => console.error("Error fetching topos:", err))
+      .catch(async () => {
+        const ids = await getOfflineTopoIds()
+        if (ids.length > 0) {
+          const cached = []
+          for (const id of ids) {
+            const data = await getOfflineTopo(id)
+            if (data?.topo) cached.push(data.topo)
+          }
+          cached.sort((a, b) =>
+            a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+          )
+          setTopos(cached)
+          setOfflineMode(true)
+        }
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -216,6 +233,24 @@ export default function Topos() {
             {t('topos.upload')}
           </button>
         </div>
+
+        {offlineMode && (
+          <div style={{
+            textAlign: 'center',
+            padding: '0.75rem 1rem',
+            marginBottom: '1rem',
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'var(--good)',
+            border: '1px solid var(--good)',
+            background: 'rgba(120,180,80,0.08)',
+          }}>
+            {t('topos.offlineBanner')}
+          </div>
+        )}
 
         {/* ── LIST ── */}
         <div style={S.list}>

@@ -99,6 +99,7 @@ i18n.use(initReactI18next).init({
           empty: 'No topos yet \u2014 upload one to get started.',
           count: '{{count}} topo',
           count_plural: '{{count}} topos',
+          offlineBanner: 'Showing your saved topos',
         },
         topoDetail: {
           back: '\u2190 All Topos',
@@ -570,6 +571,7 @@ i18n.use(initReactI18next).init({
           empty: 'Pas encore de topos \u2014 importez-en un pour commencer.',
           count: '{{count}} topo',
           count_plural: '{{count}} topos',
+          offlineBanner: 'Affichage de vos topos sauvegard\u00e9s',
         },
         topoDetail: {
           back: '\u2190 Tous les Topos',
