@@ -86,6 +86,13 @@ def init_db():
             UNIQUE(route_id, tag_id)
         );
 
+        CREATE TABLE IF NOT EXISTS tag_topos (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            topo_id    INTEGER REFERENCES topos(id) ON DELETE CASCADE,
+            tag_id     INTEGER REFERENCES tags(id) ON DELETE CASCADE,
+            UNIQUE(topo_id, tag_id)
+        );
+
         CREATE TABLE IF NOT EXISTS projects (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,

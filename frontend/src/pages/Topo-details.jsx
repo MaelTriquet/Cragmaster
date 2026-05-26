@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 import axios from 'axios'
 import { saveTopoForOffline, getOfflineTopo, isOnline } from '../lib/offline'
+import { loadLeaflet } from '../lib/leaflet'
 import { useToast } from '../contexts/ToastContext'
 
 const getGradeColor = (grade) => {
@@ -553,13 +554,468 @@ const S = {
   },
 }
 
+const TOPO_TAG_CATEGORIES = ['approach', 'exposure']
+const ROUTE_TAG_CATEGORIES = ['route_style', 'hold', 'style']
+const CATEGORY_COLORS = {
+  route_style: 'hsl(200, 60%, 50%)',
+  hold:        'hsl(140, 50%, 45%)',
+  style:       'hsl(350, 60%, 50%)',
+}
+
+// ── Topo tag management panel (approach + exposure only) ─────────────────────────
+function TopoTagManager({ topoId, tags, onTagsChange }) {
+  const [allTags, setAllTags] = useState([])
+  const [showPicker, setShowPicker] = useState(false)
+  const [hovered, setHovered] = useState(null)
+  const { t, i18n } = useTranslation()
+  const { showToast } = useToast()
+
+  const tagName = (tag) => (i18n.language === 'fr' && tag.name_fr ? tag.name_fr : tag.name)
+
+  useEffect(() => {
+    api.get("/tags").then(res => setAllTags(res.data.tags || [])).catch(() => {})
+  }, [])
+
+  const allByCategory = {}
+  for (const tag of allTags) {
+    const cat = tag.category || 'other'
+    if (!allByCategory[cat]) allByCategory[cat] = []
+    allByCategory[cat].push(tag)
+  }
+
+  const assignedByCategory = {}
+  for (const tag of tags) {
+    const cat = tag.category || 'other'
+    if (!assignedByCategory[cat]) assignedByCategory[cat] = []
+    assignedByCategory[cat].push(tag)
+  }
+  const assignedIds = new Set(tags.map(t => t.id))
+
+  const handleAssign = async (tagId) => {
+    if (assignedIds.has(tagId)) return
+    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+    const res = await api.post(`/topos/${topoId}/tags`, { tag_id: tagId })
+    onTagsChange(res.data.tags)
+  }
+
+  const handleRemove = async (tagId) => {
+    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+    const res = await api.delete(`/topos/${topoId}/tags/${tagId}`)
+    onTagsChange(res.data.tags)
+  }
+
+  const tagS = {
+    section: {
+      marginTop: "1.5rem",
+      borderTop: "1px solid var(--line)",
+      paddingTop: "1.25rem",
+    },
+    title: {
+      fontFamily: "Barlow Condensed, sans-serif",
+      fontSize: "0.65rem",
+      fontWeight: 700,
+      letterSpacing: "0.2em",
+      textTransform: "uppercase",
+      color: "var(--muted)",
+      marginBottom: "1rem",
+    },
+    categoryRow: {
+      display: "flex",
+      alignItems: "baseline",
+      gap: "0.5rem",
+      padding: "0.3rem 0",
+      borderBottom: "1px solid rgba(255,255,255,0.03)",
+    },
+    categoryLabel: {
+      fontFamily: "Barlow Condensed, sans-serif",
+      fontSize: "0.68rem",
+      fontWeight: 700,
+      letterSpacing: "0.15em",
+      textTransform: "uppercase",
+      color: "var(--hold)",
+      minWidth: "6.5rem",
+      flexShrink: 0,
+    },
+    categoryTags: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "0.3rem",
+      alignItems: "center",
+      flex: 1,
+    },
+    tagChip: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "0.25rem",
+      fontFamily: "Barlow Condensed, sans-serif",
+      fontSize: "0.7rem",
+      fontWeight: 600,
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      padding: "0.1rem 0.45rem",
+      border: "1px solid var(--line)",
+      color: "var(--chalk)",
+      background: "rgba(255,255,255,0.04)",
+    },
+    tagRemoveChip: {
+      background: "none",
+      border: "none",
+      color: "var(--muted)",
+      cursor: "pointer",
+      fontSize: "0.65rem",
+      padding: "0",
+      lineHeight: 1,
+      display: "inline-flex",
+      transition: "color 0.15s",
+    },
+    noTagText: {
+      fontFamily: "Barlow, sans-serif",
+      fontSize: "0.8rem",
+      fontStyle: "italic",
+      color: "var(--line)",
+    },
+    addTagBtn: {
+      fontFamily: "Barlow Condensed, sans-serif",
+      fontSize: "0.78rem",
+      fontWeight: 700,
+      letterSpacing: "0.15em",
+      textTransform: "uppercase",
+      padding: "0.55rem 1.2rem",
+      border: "1px dashed var(--line)",
+      color: "var(--muted)",
+      background: "none",
+      cursor: "pointer",
+      width: "100%",
+      marginTop: "0.75rem",
+      transition: "border-color 0.15s, color 0.15s",
+    },
+  }
+
+  return (
+    <div style={tagS.section}>
+      <div style={tagS.title}>{t('tags.title')}</div>
+      {TOPO_TAG_CATEGORIES.map(cat => {
+        const assigned = assignedByCategory[cat] || []
+        return (
+          <div key={cat} style={tagS.categoryRow}>
+            <span style={tagS.categoryLabel}>{t(`tags.category_${cat}`)}</span>
+            <div style={tagS.categoryTags}>
+              {assigned.length > 0 ? assigned.map(tg => (
+                <span key={tg.id} style={tagS.tagChip}>
+                  {tagName(tg)}
+                  <button
+                    style={{
+                      ...tagS.tagRemoveChip,
+                      color: hovered === `rm-${tg.id}` ? "var(--hold-lt)" : "var(--muted)",
+                    }}
+                    onMouseEnter={() => setHovered(`rm-${tg.id}`)}
+                    onMouseLeave={() => setHovered(null)}
+                    onClick={() => handleRemove(tg.id)}
+                  >
+                    ✕
+                  </button>
+                </span>
+              )) : (
+                <span style={tagS.noTagText}>{t('tags.noTag')}</span>
+              )}
+            </div>
+          </div>
+        )
+      })}
+
+      <button
+        style={{
+          ...tagS.addTagBtn,
+          borderColor: showPicker ? "var(--hold)" : "var(--line)",
+          color: showPicker ? "var(--hold)" : "var(--muted)",
+        }}
+        onMouseEnter={() => setHovered("addTags")}
+        onMouseLeave={() => setHovered(null)}
+        onClick={() => setShowPicker(true)}
+      >
+        + {t('tags.addTag')}
+      </button>
+
+      {showPicker && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem',
+        }} onClick={() => setShowPicker(false)}>
+          <div style={{
+            background: 'var(--granite)',
+            border: '1px solid var(--line)',
+            width: '100%', maxWidth: '520px',
+            maxHeight: '80vh',
+            display: 'flex', flexDirection: 'column',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1rem 1.25rem', borderBottom: '1px solid var(--line)',
+              flexShrink: 0,
+            }}>
+              <span style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontSize: '1.1rem', fontWeight: 700, color: 'var(--chalk)',
+              }}>
+                {t('tags.title')}
+              </span>
+              <button
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--muted)', fontSize: '1.2rem', padding: '0.25rem',
+                  lineHeight: 1,
+                }}
+                onMouseEnter={e => e.target.style.color = 'var(--chalk)'}
+                onMouseLeave={e => e.target.style.color = 'var(--muted)'}
+                onClick={() => setShowPicker(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{
+              flex: 1, overflow: 'auto', padding: '1.25rem',
+            }}>
+              {TOPO_TAG_CATEGORIES.map(cat => {
+                const available = allByCategory[cat] || []
+                if (available.length === 0) return null
+                return (
+                  <div key={cat} style={{ marginBottom: '1rem' }}>
+                    <div style={{
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontSize: '0.72rem', fontWeight: 700,
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      color: 'var(--hold)', marginBottom: '0.4rem',
+                    }}>
+                      {t(`tags.category_${cat}`)}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {available.map(tg => {
+                        const as = assignedIds.has(tg.id)
+                        return (
+                          <button
+                            key={tg.id}
+                            style={{
+                              fontFamily: 'Barlow Condensed, sans-serif',
+                              fontSize: '0.68rem', fontWeight: 600,
+                              letterSpacing: '0.05em', textTransform: 'uppercase',
+                              padding: '0.3rem 0.6rem', borderRadius: '3px',
+                              cursor: as ? 'default' : 'pointer', border: '1px solid',
+                              background: as ? 'var(--hold)' : 'transparent',
+                              borderColor: as ? 'var(--hold)' : 'var(--line)',
+                              color: as ? '#fff' : hovered === `pick-${tg.id}` ? 'var(--chalk)' : 'var(--muted)',
+                            }}
+                            onMouseEnter={() => !as && setHovered(`pick-${tg.id}`)}
+                            onMouseLeave={() => setHovered(null)}
+                            onClick={() => !as && handleAssign(tg.id)}
+                          >
+                            {tagName(tg)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+              {allTags.length === 0 && (
+                <div style={{
+                  fontFamily: 'Barlow, sans-serif', fontSize: '0.8rem',
+                  color: 'var(--muted)', fontStyle: 'italic',
+                }}>
+                  {t('tags.loading')}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Static minimap (500m x 500m OSM square centered on routes) ─────────────────
+function MiniMap({ lat, lon }) {
+  const containerRef = useRef(null)
+  const mapRef = useRef(null)
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+    let cancelled = false
+
+    loadLeaflet().then(L => {
+      if (cancelled || !containerRef.current || mapRef.current) return
+
+      const map = L.map(containerRef.current, {
+        center: [lat, lon],
+        zoom: 18,
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        touchZoom: false,
+        keyboard: false,
+        boxZoom: false,
+      })
+
+      L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Style: &copy; OpenTopoMap',
+        maxZoom: 17,
+        subdomains: 'abc',
+      }).addTo(map)
+
+      L.circleMarker([lat, lon], {
+        radius: 6,
+        color: '#c8502a',
+        fillColor: '#c8502a',
+        fillOpacity: 0.8,
+        weight: 2,
+      }).addTo(map)
+
+      mapRef.current = map
+    })
+
+    return () => {
+      cancelled = true
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
+    }
+  }, [lat, lon])
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: "200px",
+        height: "200px",
+        borderRadius: "4px",
+        border: "1px solid var(--line)",
+        overflow: "hidden",
+        maxWidth: "100%",
+      }}
+    />
+  )
+}
+
+// ── Route tag style breakdown graph ──────────────────────────────────────────────
+function RouteTagBreakdown({ stats, t, tagName }) {
+  if (!stats || stats.length === 0) return null
+
+  const byCategory = {}
+  for (const d of stats) {
+    const cat = d.category
+    if (!ROUTE_TAG_CATEGORIES.includes(cat)) continue
+    if (!byCategory[cat]) byCategory[cat] = []
+    byCategory[cat].push(d)
+  }
+
+  const catsWithData = ROUTE_TAG_CATEGORIES.filter(c => byCategory[c]?.length > 0)
+  if (catsWithData.length === 0) return null
+
+  return (
+    <div style={{
+      marginTop: "1.5rem",
+      borderTop: "1px solid var(--line)",
+      paddingTop: "1.25rem",
+    }}>
+      <div style={{
+        fontFamily: "Barlow Condensed, sans-serif",
+        fontSize: "0.65rem",
+        fontWeight: 700,
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+        color: "var(--muted)",
+        marginBottom: "1rem",
+      }}>
+        {t('topoDetail.routeStyleBreakdown')}
+      </div>
+
+      {catsWithData.map(cat => {
+        const items = byCategory[cat]
+        const max = Math.max(...items.map(i => i.count), 1)
+        const color = CATEGORY_COLORS[cat] || 'var(--muted)'
+        return (
+          <div key={cat} style={{ marginBottom: "1rem" }}>
+            <div style={{
+              fontFamily: "Barlow Condensed, sans-serif",
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              color,
+              marginBottom: "0.4rem",
+            }}>
+              {t(`tags.category_${cat}`)}
+            </div>
+            {items.map(d => {
+              const pct = (d.count / max) * 100
+              return (
+                <div key={d.name} style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.2rem 0",
+                }}>
+                  <span style={{
+                    fontFamily: "Barlow Condensed, sans-serif",
+                    fontSize: "0.68rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.05em",
+                    color: "var(--chalk)",
+                    width: "5.5rem",
+                    flexShrink: 0,
+                    textAlign: "right",
+                  }}>
+                    {tagName(d)}
+                  </span>
+                  <div style={{
+                    flex: 1,
+                    height: "10px",
+                    background: "rgba(255,255,255,0.04)",
+                    position: "relative",
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${Math.max(pct, 2)}%`,
+                      background: color,
+                      opacity: 0.7,
+                      transition: "width 0.4s ease",
+                    }} />
+                  </div>
+                  <span style={{
+                    fontFamily: "Barlow Condensed, sans-serif",
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    color: "var(--muted)",
+                    width: "1.5rem",
+                    textAlign: "right",
+                  }}>
+                    {d.count}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function TopoDetail() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const tagName = (tag) => (i18n.language === 'fr' && tag.name_fr ? tag.name_fr : tag.name)
   const { id } = useParams()
   const navigate = useNavigate()
 
   const [topo, setTopo] = useState(null)
   const [routes, setRoutes] = useState([])
+  const [tags, setTags] = useState([])
+  const [routeTagStats, setRouteTagStats] = useState([])
   const [parkingLocation, setParkingLocation] = useState(null)
   const [routesLocation, setRoutesLocation] = useState(null)
   const [view, setView] = useState("grades")
@@ -590,6 +1046,8 @@ export default function TopoDetail() {
         const res = await api.get(`/topos/${id}`)
         setTopo(res.data.topo)
         setRoutes(res.data.routes)
+        setTags(res.data.tags || [])
+        setRouteTagStats(res.data.route_tag_stats || [])
         setParkingLocation(res.data.parking_location)
         setRoutesLocation(res.data.routes_location)
       } catch {
@@ -597,6 +1055,8 @@ export default function TopoDetail() {
         if (cached) {
           setTopo(cached.topo)
           setRoutes(cached.routes)
+          setTags(cached.tags || [])
+          setRouteTagStats(cached.route_tag_stats || [])
           setParkingLocation(cached.parking_location)
           setRoutesLocation(cached.routes_location)
         }
@@ -914,6 +1374,12 @@ export default function TopoDetail() {
 
         </div>
 
+        {/* ── TOPO TAGS ── */}
+        <TopoTagManager topoId={id} tags={tags} onTagsChange={setTags} />
+
+        {/* ── ROUTE TAG BREAKDOWN ── */}
+        <RouteTagBreakdown stats={routeTagStats} t={t} tagName={tagName} />
+
 		{ parkingLocation?.lat != null ? (<button
 		  style={{
 				  	  ...S.btnGhost,
@@ -969,6 +1435,38 @@ export default function TopoDetail() {
 		</button>)}
 
 
+        {/* ── MINIMAP ── */}
+        {routesLocation?.lat != null ? (
+          <div style={{
+            marginBottom: "1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.4rem",
+          }}>
+            <span style={{
+              fontFamily: "Barlow Condensed, sans-serif",
+              fontSize: "0.65rem",
+              fontWeight: 700,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "var(--muted)",
+            }}>
+              {t('topoDetail.location')}
+            </span>
+            <MiniMap lat={routesLocation.lat} lon={routesLocation.lon} />
+          </div>
+        ) : (
+          <div style={{
+            marginBottom: "1.5rem",
+            fontFamily: "Barlow, sans-serif",
+            fontSize: "0.8rem",
+            fontStyle: "italic",
+            color: "var(--line)",
+          }}>
+            {t('topoDetail.noLocation')}
+          </div>
+        )}
+
         {/* ── TOOLBAR ── */}
         <div style={S.toolbar}>
           <div style={S.toggleGroup}>
@@ -986,7 +1484,7 @@ export default function TopoDetail() {
             </button>
           </div>
 
-          {topo.filename?.startsWith('http') ? (
+          {!topo.filename ? null : topo.filename?.startsWith('http') ? (
             <a
               href={topo.filename}
               target="_blank"

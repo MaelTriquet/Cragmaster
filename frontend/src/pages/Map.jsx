@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
+import { loadLeaflet } from '../lib/leaflet'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
@@ -328,13 +329,17 @@ function popupHtml(topo, type, viewTopoLabel, parkingLabel, routesLabel) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function MapPage() {
   const { t } = useTranslation()
-  const mapRef     = useRef(null)
-  const leafletRef = useRef(null)
+  const mapRef             = useRef(null)
+  const leafletRef         = useRef(null)
+  const parkingGroupRef    = useRef(null)
+  const routesGroupRef     = useRef(null)
   // Live ref so the Leaflet event handler always sees the latest topo data
-  const toposRef   = useRef([])
+  const toposRef           = useRef([])
 
   const [loading, setLoading]         = useState(true)
   const [markerCount, setMarkerCount] = useState(0)
+  const [showParking, setShowParking] = useState(true)
+  const [showRoutes, setShowRoutes]   = useState(true)
 
   // Context menu
   const [ctxMenu, setCtxMenu]     = useState(null)
@@ -349,6 +354,26 @@ export default function MapPage() {
     setToast({ visible: true, msg })
     toastTimer.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 2800)
   }, [])
+
+  const toggleParking = useCallback(() => {
+    const next = !showParking
+    setShowParking(next)
+    const g = parkingGroupRef.current
+    if (g) {
+      if (next) g.addTo(leafletRef.current)
+      else g.remove()
+    }
+  }, [showParking])
+
+  const toggleRoutes = useCallback(() => {
+    const next = !showRoutes
+    setShowRoutes(next)
+    const g = routesGroupRef.current
+    if (g) {
+      if (next) g.addTo(leafletRef.current)
+      else g.remove()
+    }
+  }, [showRoutes])
 
   // Close context menu on outside click or Escape
   useEffect(() => {
@@ -383,11 +408,12 @@ export default function MapPage() {
 
       // Drop the new marker on the live map immediately
       const L = window.L
+      const group = type === 'parking' ? parkingGroupRef.current : routesGroupRef.current
       if (L && leafletRef.current) {
         const icon = L.icon(makeIcon(type === 'parking' ? '#4a8fa8' : '#c8502a', type === 'parking' ? 'P' : 'R'))
         L.marker([latlng.lat, latlng.lng], { icon })
           .bindPopup(popupHtml(topo, type, t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 })
-          .addTo(leafletRef.current)
+          .addTo(group || leafletRef.current)
         setMarkerCount(n => n + 1)
       }
 
@@ -401,22 +427,6 @@ export default function MapPage() {
 
   // ── Map initialisation (runs once) ─────────────────────────────────────────
   useEffect(() => {
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link')
-      link.id = 'leaflet-css'
-      link.rel = 'stylesheet'
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-      document.head.appendChild(link)
-    }
-
-    const loadLeaflet = () => new Promise(resolve => {
-      if (window.L) { resolve(); return }
-      const script = document.createElement('script')
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-      script.onload = resolve
-      document.head.appendChild(script)
-    })
-
     const init = async () => {
       await loadLeaflet()
       const L = window.L
@@ -470,6 +480,12 @@ export default function MapPage() {
         document.head.appendChild(style)
       }
 
+      // Create layer groups for parking and routes
+      const parkingGroup = L.layerGroup().addTo(map)
+      const routesGroup = L.layerGroup().addTo(map)
+      parkingGroupRef.current = parkingGroup
+      routesGroupRef.current = routesGroup
+
       // Fetch topos and render existing markers
       try {
         const res = await api.get('/topos')
@@ -485,13 +501,13 @@ export default function MapPage() {
           if (topo.parking_lat != null && topo.parking_lon != null) {
             const ll = [topo.parking_lat, topo.parking_lon]
             bounds.push(ll)
-            L.marker(ll, { icon: parkingIcon }).bindPopup(popupHtml(topo, 'parking', t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 }).addTo(map)
+            L.marker(ll, { icon: parkingIcon }).bindPopup(popupHtml(topo, 'parking', t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 }).addTo(parkingGroup)
             count++
           }
           if (topo.routes_lat != null && topo.routes_lon != null) {
             const ll = [topo.routes_lat, topo.routes_lon]
             bounds.push(ll)
-            L.marker(ll, { icon: routesIcon }).bindPopup(popupHtml(topo, 'routes', t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 }).addTo(map)
+            L.marker(ll, { icon: routesIcon }).bindPopup(popupHtml(topo, 'routes', t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 }).addTo(routesGroup)
             count++
           }
         })
@@ -570,15 +586,27 @@ export default function MapPage() {
         </div>
 
         <div style={S.legend}>
-          <div style={S.legendItem}>
+          <label style={S.legendItem}>
+            <input
+              type="checkbox"
+              checked={showParking}
+              onChange={toggleParking}
+              style={{ accentColor: '#4a8fa8', width: '14px', height: '14px', cursor: 'pointer' }}
+            />
             <div style={S.legendDot('#4a8fa8')} />
             {t('map.parking')}
-          </div>
-          <div style={S.legendItem}>
+          </label>
+          <label style={S.legendItem}>
+            <input
+              type="checkbox"
+              checked={showRoutes}
+              onChange={toggleRoutes}
+              style={{ accentColor: '#c8502a', width: '14px', height: '14px', cursor: 'pointer' }}
+            />
             <div style={S.legendDot('#c8502a')} />
             {t('map.routes')}
-          </div>
-          <div style={{ ...S.legendItem, opacity: 0.45, fontSize: '0.65rem' }}>
+          </label>
+          <div style={{ ...S.legendItem, opacity: 0.45, fontSize: '0.65rem', cursor: 'default' }}>
             {t('map.hint')}
           </div>
         </div>

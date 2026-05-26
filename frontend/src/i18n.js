@@ -135,6 +135,9 @@ i18n.use(initReactI18next).init({
           savedOffline: '\u2713 Saved for offline',
           offlineMessage: 'You are offline',
           editTopo: 'Edit',
+          routeStyleBreakdown: 'Route style breakdown',
+          location: 'Location',
+          noLocation: 'Location has not been set yet',
         },
         routeDetail: {
           back: '\u2190 {{name}}',
@@ -225,6 +228,11 @@ i18n.use(initReactI18next).init({
           pdfOnly: 'PDF only',
           orImport: 'or import from web',
           sectionUrl: 'theCrag URL',
+          sectionEmpty: 'Blank topo',
+          emptyPlaceholder: 'Topo name',
+          emptyCreate: 'Create',
+          creatingTopo: 'Creating\u2026',
+          createdTopo: '\u2713 Created',
           ocr: 'OCR',
           },
         profile: {
@@ -566,6 +574,9 @@ i18n.use(initReactI18next).init({
           savedOffline: '\u2713 Enregistr\u00e9 pour hors-ligne',
           offlineMessage: 'Vous \u00eates hors-ligne',
           editTopo: 'Modifier',
+          routeStyleBreakdown: 'Répartition des profils de voies',
+          location: 'Emplacement',
+          noLocation: 'Emplacement pas encore défini',
         },
         routeDetail: {
           back: '\u2190 {{name}}',
@@ -654,6 +665,11 @@ i18n.use(initReactI18next).init({
             pdfOnly: 'PDF uniquement',
             orImport: 'ou importer depuis le web',
             sectionUrl: 'URL theCrag',
+            sectionEmpty: 'Topo vierge',
+            emptyPlaceholder: 'Nom du topo',
+            emptyCreate: 'Cr\u00e9er',
+            creatingTopo: 'Cr\u00e9ation\u2026',
+            createdTopo: '\u2713 Cr\u00e9\u00e9',
             ocr: 'OCR',
           },
         profile: {

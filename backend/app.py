@@ -341,8 +341,21 @@ def get_topo(topo_id):
     routes = conn.execute('''SELECT * FROM routes WHERE topo_id=? ORDER BY route_index''', (topo_id,)).fetchall()
     parking_location = conn.execute('SELECT parking_lat as lat, parking_lon as lon FROM topos WHERE id=?', (topo_id,)).fetchone()
     routes_location = conn.execute('SELECT routes_lat as lat, routes_lon as lon FROM topos WHERE id=?', (topo_id,)).fetchone()
+    tags = conn.execute('SELECT t.id, t.name, t.name_fr, t.category FROM tag_topos tt JOIN tags t ON tt.tag_id=t.id WHERE tt.topo_id=?', (topo_id,)).fetchall()
+
+    # Aggregate route tags for style breakdown (route_style, hold, style categories)
+    route_tag_stats = conn.execute('''
+        SELECT t.category, t.name, t.name_fr, COUNT(*) as count
+        FROM tag_routes tr
+        JOIN tags t ON t.id = tr.tag_id
+        JOIN routes r ON r.id = tr.route_id
+        WHERE r.topo_id = ?
+        GROUP BY t.id
+        ORDER BY t.category, count DESC
+    ''', (topo_id,)).fetchall()
+
     conn.close()
-    return ok(topo=dict(topo), routes=[dict(r) for r in routes], parking_location=dict(parking_location), routes_location=dict(routes_location))
+    return ok(topo=dict(topo), routes=[dict(r) for r in routes], tags=[dict(t) for t in tags], route_tag_stats=[dict(r) for r in route_tag_stats], parking_location=dict(parking_location), routes_location=dict(routes_location))
 
 @app.route('/api/topos/<int:topo_id>/download')
 @jwt_required()
@@ -483,6 +496,29 @@ def import_thecrag_url():
     conn.close()
 
     return ok(topo_id=topo_id, topo_name=title, routes_parsed=len(parsed['routes'])), 201
+
+
+@app.route('/api/topos/create', methods=['POST'])
+@jwt_required()
+def create_topo():
+    """Create an empty topo with just a title (no PDF)."""
+    user = get_current_user()
+    if not user:
+        return api_error('Authentication required', 401)
+    d = request.get_json() or {}
+    title = (d.get('title') or '').strip()
+    if not title:
+        return api_error('Title is required', 400)
+    conn = get_db()
+    cursor = conn.execute(
+        'INSERT INTO topos (filename, title, uploaded_by) VALUES (?,?,?)',
+        ('', title, user['id'])
+    )
+    topo_id = cursor.lastrowid
+    conn.commit()
+    topo = conn.execute('SELECT * FROM topos WHERE id=?', (topo_id,)).fetchone()
+    conn.close()
+    return ok(topo=dict(topo)), 201
 
 
 @app.route('/api/topos/<int:topo_id>', methods=['PATCH'])
@@ -805,12 +841,12 @@ def sent_attempt(route_id):
     # If this route was a project, mark it sent too
     conn.execute('UPDATE projects SET sent=1 WHERE user_id=? AND route_id=?', (user_id, route_id))
 
-    # Check for tag categories that have never been used on any route
+    # Check for route-relevant tag categories that have never been used on any route
     empty_categories = [
         r['category'] for r in conn.execute('''
             SELECT t.category FROM tags t
             LEFT JOIN tag_routes tr ON tr.tag_id = t.id
-            WHERE t.category != 'other'
+            WHERE t.category NOT IN ('other', 'approach', 'exposure')
             GROUP BY t.category
             HAVING COUNT(tr.id) = 0
         ''').fetchall()
@@ -895,11 +931,11 @@ def search():
     route_conditions = []
     route_params = []
 
-    # Include ALL tag_ids in the route filter (topo-level tags cascade to all sibling routes)
-    if tag_ids:
-        placeholders = ','.join('?' * len(tag_ids))
+    # Only route-level tags filter routes (approach/exposure are topo-level, in tag_topos)
+    if route_tag_ids:
+        placeholders = ','.join('?' * len(route_tag_ids))
         route_conditions.append(f'r.id IN (SELECT route_id FROM tag_routes WHERE tag_id IN ({placeholders}))')
-        route_params.extend(tag_ids)
+        route_params.extend(route_tag_ids)
 
     if grade_min_sort is not None:
         route_conditions.append('r.sorting_grade >= ?')
@@ -929,9 +965,13 @@ def search():
 
     if topo_tag_ids:
         placeholders = ','.join('?' * len(topo_tag_ids))
+        # Check both tag_topos (new) and cascaded tag_routes (legacy) for backward compat
         topo_conditions.append(
-            f't.id IN (SELECT r.topo_id FROM routes r JOIN tag_routes tr ON tr.route_id=r.id WHERE tr.tag_id IN ({placeholders}))'
+            f't.id IN (SELECT topo_id FROM tag_topos WHERE tag_id IN ({placeholders})'
+            f' UNION '
+            f'SELECT r.topo_id FROM routes r JOIN tag_routes tr ON tr.route_id=r.id WHERE tr.tag_id IN ({placeholders}))'
         )
+        topo_params.extend(topo_tag_ids)
         topo_params.extend(topo_tag_ids)
 
     if topo_conditions:
@@ -964,23 +1004,29 @@ def search():
 @app.route('/api/tags', methods=['GET'])
 @jwt_required()
 def list_tags():
-    """Return all tags, optionally filtered by category, each with route count."""
+    """Return all tags, optionally filtered by category, each with route and topo counts."""
     category = request.args.get('category')
     conn = get_db()
     if category:
         tags = conn.execute('''
-            SELECT t.id, t.name, t.name_fr, t.category, COUNT(tr.route_id) as route_count
+            SELECT t.id, t.name, t.name_fr, t.category,
+                   COUNT(DISTINCT tr.route_id) as route_count,
+                   COUNT(DISTINCT tt.topo_id) as topo_count
             FROM tags t
             LEFT JOIN tag_routes tr ON tr.tag_id = t.id
+            LEFT JOIN tag_topos tt ON tt.tag_id = t.id
             WHERE t.category=?
             GROUP BY t.id
             ORDER BY t.name
         ''', (category,)).fetchall()
     else:
         tags = conn.execute('''
-            SELECT t.id, t.name, t.name_fr, t.category, COUNT(tr.route_id) as route_count
+            SELECT t.id, t.name, t.name_fr, t.category,
+                   COUNT(DISTINCT tr.route_id) as route_count,
+                   COUNT(DISTINCT tt.topo_id) as topo_count
             FROM tags t
             LEFT JOIN tag_routes tr ON tr.tag_id = t.id
+            LEFT JOIN tag_topos tt ON tt.tag_id = t.id
             GROUP BY t.id
             ORDER BY t.category, t.name
         ''').fetchall()
@@ -1001,25 +1047,13 @@ def assign_tag(route_id):
     if not conn.execute('SELECT id FROM routes WHERE id=?', (route_id,)).fetchone():
         conn.close(); return api_error('Route not found', 404)
     # Verify tag exists
-    tag = conn.execute('SELECT * FROM tags WHERE id=?', (tag_id,)).fetchone()
-    if not tag:
+    if not conn.execute('SELECT id FROM tags WHERE id=?', (tag_id,)).fetchone():
         conn.close(); return api_error('Tag not found', 404)
     # Upsert (ignore if already assigned)
     conn.execute(
         'INSERT OR IGNORE INTO tag_routes (route_id, tag_id) VALUES (?,?)',
         (route_id, tag_id)
     )
-    # Cascade approach/exposure tags to all routes in the same topo
-    if tag['category'] in ('approach', 'exposure'):
-        topo_id = conn.execute('SELECT topo_id FROM routes WHERE id=?', (route_id,)).fetchone()['topo_id']
-        sibling_ids = conn.execute(
-            'SELECT id FROM routes WHERE topo_id=? AND id!=?', (topo_id, route_id)
-        ).fetchall()
-        for row in sibling_ids:
-            conn.execute(
-                'INSERT OR IGNORE INTO tag_routes (route_id, tag_id) VALUES (?,?)',
-                (row['id'], tag_id)
-            )
     conn.commit()
     tags = conn.execute(
         'SELECT t.id, t.name, t.name_fr, t.category FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
@@ -1043,6 +1077,63 @@ def unassign_tag(route_id, tag_id):
     tags = conn.execute(
         'SELECT t.id, t.name, t.name_fr, t.category FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
         (route_id,)
+    ).fetchall()
+    conn.close()
+    return ok(tags=[dict(t) for t in tags])
+
+@app.route('/api/topos/<int:topo_id>/tags', methods=['GET'])
+@jwt_required()
+def list_topo_tags(topo_id):
+    """Return all tags assigned to a topo."""
+    conn = get_db()
+    tags = conn.execute(
+        'SELECT t.id, t.name, t.name_fr, t.category FROM tag_topos tt JOIN tags t ON tt.tag_id=t.id WHERE tt.topo_id=?',
+        (topo_id,)
+    ).fetchall()
+    conn.close()
+    return ok(tags=[dict(t) for t in tags])
+
+@app.route('/api/topos/<int:topo_id>/tags', methods=['POST'])
+@jwt_required()
+def assign_topo_tag(topo_id):
+    """Assign an existing tag to a topo."""
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    d = request.get_json() or {}
+    tag_id = d.get('tag_id')
+    if not tag_id: return api_error('tag_id required')
+    conn = get_db()
+    if not conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone():
+        conn.close(); return api_error('Topo not found', 404)
+    if not conn.execute('SELECT id FROM tags WHERE id=?', (tag_id,)).fetchone():
+        conn.close(); return api_error('Tag not found', 404)
+    conn.execute(
+        'INSERT OR IGNORE INTO tag_topos (topo_id, tag_id) VALUES (?,?)',
+        (topo_id, tag_id)
+    )
+    conn.commit()
+    tags = conn.execute(
+        'SELECT t.id, t.name, t.name_fr, t.category FROM tag_topos tt JOIN tags t ON tt.tag_id=t.id WHERE tt.topo_id=?',
+        (topo_id,)
+    ).fetchall()
+    conn.close()
+    return ok(tags=[dict(t) for t in tags])
+
+@app.route('/api/topos/<int:topo_id>/tags/<int:tag_id>', methods=['DELETE'])
+@jwt_required()
+def unassign_topo_tag(topo_id, tag_id):
+    """Remove a tag from a topo."""
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    conn = get_db()
+    conn.execute(
+        'DELETE FROM tag_topos WHERE topo_id=? AND tag_id=?',
+        (topo_id, tag_id)
+    )
+    conn.commit()
+    tags = conn.execute(
+        'SELECT t.id, t.name, t.name_fr, t.category FROM tag_topos tt JOIN tags t ON tt.tag_id=t.id WHERE tt.topo_id=?',
+        (topo_id,)
     ).fetchall()
     conn.close()
     return ok(tags=[dict(t) for t in tags])

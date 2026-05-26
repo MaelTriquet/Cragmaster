@@ -387,6 +387,9 @@ export default function Upload() {
   const [busy,     setBusy]     = useState(false)
   const [allDone,  setAllDone]  = useState(false)
   const [url,      setUrl]      = useState('')
+  const [emptyName, setEmptyName] = useState('')
+  const [creatingEmpty, setCreatingEmpty] = useState(false)
+  const [createdTopoId, setCreatedTopoId] = useState(null)
   const [fileStates, setFileStates] = useState([])
 
   const pickFiles = (selected) => {
@@ -489,6 +492,21 @@ export default function Upload() {
 
     setBusy(false)
     setAllDone(true)
+  }
+
+  const createEmptyTopo = async () => {
+    const title = emptyName.trim()
+    if (!title || creatingEmpty) return
+    setCreatingEmpty(true)
+    setCreatedTopoId(null)
+    try {
+      const res = await api.post('/topos/create', { title })
+      setCreatedTopoId(res.data.topo.id)
+      setEmptyName('')
+    } catch (err) {
+      alert(err.response?.data?.error || err.message || 'Failed to create topo')
+    }
+    setCreatingEmpty(false)
   }
 
   const hasFiles = files.length > 0
@@ -655,6 +673,50 @@ export default function Upload() {
             >
               {t('upload.importUrl')}
             </button>
+          </div>
+        </div>
+
+        {/* ── Empty topo section ── */}
+        <div>
+          <p style={S.sectionLabel}>{t('upload.sectionEmpty')}</p>
+
+          <div style={S.urlRow}>
+            <span style={S.urlIcon}>📋</span>
+            <input
+              type="text"
+              value={emptyName}
+              onChange={e => setEmptyName(e.target.value)}
+              placeholder={t('upload.emptyPlaceholder')}
+              disabled={busy || creatingEmpty}
+              style={S.urlInput}
+              onFocus={e => { e.target.style.borderColor = 'var(--hold)' }}
+              onBlur={e => { e.target.style.borderColor = 'var(--line)' }}
+              onKeyDown={e => e.key === 'Enter' && createEmptyTopo()}
+            />
+            {createdTopoId ? (
+              <button
+                style={{
+                  ...S.urlBtn(false),
+                  background: '#5a9e6f',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { e.target.style.background = '#6db87e' }}
+                onMouseLeave={e => { e.target.style.background = '#5a9e6f' }}
+                onClick={() => navigate(`/topos/${createdTopoId}`)}
+              >
+                {t('upload.createdTopo')} →
+              </button>
+            ) : (
+              <button
+                disabled={busy || creatingEmpty || !emptyName.trim()}
+                onClick={createEmptyTopo}
+                style={S.urlBtn(busy || creatingEmpty || !emptyName.trim())}
+                onMouseEnter={e => { if (!busy && !creatingEmpty && emptyName.trim()) e.target.style.background = 'var(--hold-lt)' }}
+                onMouseLeave={e => { if (!busy && !creatingEmpty && emptyName.trim()) e.target.style.background = 'var(--hold)' }}
+              >
+                {creatingEmpty ? t('upload.creatingTopo') : t('upload.emptyCreate')}
+              </button>
+            )}
           </div>
         </div>
 

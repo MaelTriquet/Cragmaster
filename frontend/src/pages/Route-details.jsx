@@ -493,7 +493,7 @@ function StarDisplay({ value }) {
   )
 }
 
-const CATEGORY_ORDER = ['route_style', 'hold', 'approach', 'exposure', 'style', 'other']
+const CATEGORY_ORDER = ['route_style', 'hold', 'style', 'other']
 
 // ── Tag management panel ───────────────────────────────────────────────────────
 function TagManager({ routeId, tags, onTagsChange }) {
