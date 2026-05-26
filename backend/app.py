@@ -407,6 +407,7 @@ def upload_topo():
     parsed = parse_routes(ocr_text, topo_id)
     for r in parsed:
         conn.execute('INSERT INTO routes (topo_id, name, grade, sorting_grade, route_index, length) VALUES (?,?,?,?,?,?)', (topo_id, r['name'], r['grade'], r['sorting_grade'], r['index'], r['length']))
+    log_change(conn, 'topos', topo_id, 'insert', user['id'], summary=f'Uploaded topo "{title}" ({len(parsed)} routes)')
     conn.commit()
     conn.close()
     return ok(routes_parsed=len(parsed)), 201
@@ -452,6 +453,7 @@ def import_thecrag():
             'INSERT INTO routes (topo_id, name, grade, sorting_grade, route_index, length) VALUES (?,?,?,?,?,?)',
             (topo_id, r['name'], r['grade'], r['sorting_grade'], r['route_index'], r['length'])
         )
+    log_change(conn, 'topos', topo_id, 'insert', user['id'], summary=f'Imported topo "{title}" from theCrag ({len(parsed["routes"])} routes)')
     conn.commit()
     conn.close()
 
@@ -493,6 +495,7 @@ def import_thecrag_url():
             'INSERT INTO routes (topo_id, name, grade, sorting_grade, route_index, length) VALUES (?,?,?,?,?,?)',
             (topo_id, r['name'], r['grade'], r['sorting_grade'], r['route_index'], r['length'])
         )
+    log_change(conn, 'topos', topo_id, 'insert', user['id'], summary=f'Imported topo "{title}" from theCrag URL ({len(parsed["routes"])} routes)')
     conn.commit()
     conn.close()
 
@@ -516,6 +519,7 @@ def create_topo():
         ('', title, user['id'])
     )
     topo_id = cursor.lastrowid
+    log_change(conn, 'topos', topo_id, 'insert', user['id'], summary=f'Created blank topo "{title}"')
     conn.commit()
     topo = conn.execute('SELECT * FROM topos WHERE id=?', (topo_id,)).fetchone()
     conn.close()
@@ -578,7 +582,9 @@ def add_route(topo_id):
     cursor = conn.execute('SELECT id FROM routes WHERE topo_id=? AND route_index=? AND name=?', (topo_id, route_index, name)).fetchone()
     if cursor:
         return api_error('Route already exists', 409)
-    conn.execute('INSERT INTO routes (topo_id, name, grade, sorting_grade, length, route_index) VALUES (?,?,?,?,?,?)', (topo_id, name, grade, grade_sort_key(grade), length, route_index))
+    cur = conn.execute('INSERT INTO routes (topo_id, name, grade, sorting_grade, length, route_index) VALUES (?,?,?,?,?,?)', (topo_id, name, grade, grade_sort_key(grade), length, route_index))
+    route_id = cur.lastrowid
+    log_change(conn, 'routes', route_id, 'insert', int(get_jwt_identity()), summary=f'Added route "{name}" ({grade}) to topo #{topo_id}')
     conn.commit()
     routes = conn.execute('''SELECT * FROM routes WHERE topo_id=? ORDER BY route_index''', (topo_id,)).fetchall()
     conn.close()
@@ -841,7 +847,8 @@ def add_attempt(route_id):
     conn = get_db()
     attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
     if not attempt:
-        conn.execute('INSERT INTO attempts (user_id, route_id, amount) VALUES (?,?,1)', (user_id, route_id))
+        cur = conn.execute('INSERT INTO attempts (user_id, route_id, amount) VALUES (?,?,1)', (user_id, route_id))
+        log_change(conn, 'attempts', cur.lastrowid, 'insert', user_id, summary=f'Started attempts on route {route_id}')
     else:
         if not attempt['sent']:
             conn.execute('UPDATE attempts SET amount=amount+1 WHERE user_id=? AND route_id=?', (user_id, route_id))
@@ -858,7 +865,8 @@ def sent_attempt(route_id):
     conn = get_db()
     attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
     if not attempt:
-        conn.execute('INSERT INTO attempts (user_id, route_id, amount, sent, sent_at) VALUES (?,?,1,1,CURRENT_TIMESTAMP)', (user_id, route_id))
+        cur = conn.execute('INSERT INTO attempts (user_id, route_id, amount, sent, sent_at) VALUES (?,?,1,1,CURRENT_TIMESTAMP)', (user_id, route_id))
+        log_change(conn, 'attempts', cur.lastrowid, 'insert', user_id, summary=f'Sent route {route_id} (first attempt)')
     else:
         if not attempt['sent']:
             log_change(conn, 'attempts', attempt['id'], 'update', user_id, 'amount', str(attempt['amount']), str(attempt['amount'] + 1))
@@ -915,7 +923,8 @@ def upsert_comment(route_id):
             log_change(conn, 'comments', existing['id'], 'update', uid, 'beta', existing['beta'], beta)
         conn.execute('UPDATE comments SET stars=?, perceived_grade=?, body=?, beta=? WHERE user_id=? AND route_id=?', (stars, perceived_grade, body, beta, uid, route_id))
     else:
-        conn.execute('INSERT INTO comments (user_id, route_id, stars, perceived_grade, body, beta) VALUES (?,?,?,?,?,?)', (uid, route_id, stars, perceived_grade, body, beta))
+        cur = conn.execute('INSERT INTO comments (user_id, route_id, stars, perceived_grade, body, beta) VALUES (?,?,?,?,?,?)', (uid, route_id, stars, perceived_grade, body, beta))
+        log_change(conn, 'comments', cur.lastrowid, 'insert', uid, summary=f'Comment on route {route_id}')
     conn.commit()
     c = conn.execute('SELECT c.*, u.username FROM comments c JOIN users u ON u.id=c.user_id WHERE c.user_id=? AND c.route_id=?', (uid, route_id)).fetchone()
     conn.close(); return ok(dict(c))
@@ -1087,10 +1096,13 @@ def assign_tag(route_id):
     if not conn.execute('SELECT id FROM tags WHERE id=?', (tag_id,)).fetchone():
         conn.close(); return api_error('Tag not found', 404)
     # Upsert (ignore if already assigned)
+    tag = conn.execute('SELECT name FROM tags WHERE id=?', (tag_id,)).fetchone()
+    tag_name = tag['name'] if tag else 'unknown'
     conn.execute(
         'INSERT OR IGNORE INTO tag_routes (route_id, tag_id) VALUES (?,?)',
         (route_id, tag_id)
     )
+    log_change(conn, 'tag_routes', 0, 'insert', user['id'], summary=f'Assigned tag "{tag_name}" to route {route_id}')
     conn.commit()
     tags = conn.execute(
         'SELECT t.id, t.name, t.name_fr, t.category FROM tag_routes tr JOIN tags t ON tr.tag_id=t.id WHERE tr.route_id=?',
@@ -1147,10 +1159,13 @@ def assign_topo_tag(topo_id):
         conn.close(); return api_error('Topo not found', 404)
     if not conn.execute('SELECT id FROM tags WHERE id=?', (tag_id,)).fetchone():
         conn.close(); return api_error('Tag not found', 404)
+    tag = conn.execute('SELECT name FROM tags WHERE id=?', (tag_id,)).fetchone()
+    tag_name = tag['name'] if tag else 'unknown'
     conn.execute(
         'INSERT OR IGNORE INTO tag_topos (topo_id, tag_id) VALUES (?,?)',
         (topo_id, tag_id)
     )
+    log_change(conn, 'tag_topos', 0, 'insert', user['id'], summary=f'Assigned tag "{tag_name}" to topo {topo_id}')
     conn.commit()
     tags = conn.execute(
         'SELECT t.id, t.name, t.name_fr, t.category FROM tag_topos tt JOIN tags t ON tt.tag_id=t.id WHERE tt.topo_id=?',
@@ -1194,6 +1209,7 @@ def toggle_project(route_id):
         is_project = False
     else:
         conn.execute('INSERT INTO projects (user_id, route_id) VALUES (?,?)', (user_id, route_id))
+        log_change(conn, 'projects', 0, 'insert', user_id, summary=f'Added route {route_id} to projects')
         is_project = True
     conn.commit()
     conn.close()
@@ -1368,10 +1384,11 @@ def submit_oops():
     topo_name = (d.get('topo_name') or '').strip() or None
     concerned_user = (d.get('concerned_user') or '').strip() or None
 
-    conn.execute(
+    cur = conn.execute(
         'INSERT INTO oops_reports (user_id, explanation, route_name, topo_name, concerned_user) VALUES (?,?,?,?,?)',
         (user['id'], explanation, route_name, topo_name, concerned_user)
     )
+    log_change(conn, 'oops_reports', cur.lastrowid, 'insert', user['id'], summary=f'Oops report: {explanation[:80]}')
     conn.commit()
     conn.close()
     return ok(submitted=True), 201
@@ -1399,10 +1416,11 @@ def submit_notification():
         conn.close()
         return api_error('You can only submit one notification per day', 429)
 
-    conn.execute(
+    cur = conn.execute(
         'INSERT INTO notifications (user_id, body, category) VALUES (?,?,?)',
         (user['id'], body, category)
     )
+    log_change(conn, 'notifications', cur.lastrowid, 'insert', user['id'], summary=f'Notification ({category}): {body[:80]}')
     conn.commit()
     conn.close()
     return ok(submitted=True), 201
@@ -1518,6 +1536,7 @@ def create_coming_soon():
     conn = get_db()
     cur = conn.execute('INSERT INTO coming_soon (title, description, created_by) VALUES (?,?,?)',
                        (title, description, user['id']))
+    log_change(conn, 'coming_soon', cur.lastrowid, 'insert', user['id'], summary=f'Created feature request "{title}"')
     conn.commit()
     row = conn.execute('''
         SELECT cs.*, u.username AS created_by_username,
@@ -1554,6 +1573,7 @@ def vote_coming_soon(fid):
         conn.execute('UPDATE coming_soon_votes SET vote=? WHERE id=?', (vote, existing['id']))
     else:
         conn.execute('INSERT INTO coming_soon_votes (feature_id, user_id, vote) VALUES (?,?,?)', (fid, user['id'], vote))
+        log_change(conn, 'coming_soon_votes', 0, 'insert', user['id'], summary=f'Voted {vote} on feature {fid}')
     conn.commit()
     conn.close()
     return ok(vote=vote)
@@ -1576,26 +1596,75 @@ def delete_coming_soon(fid):
 @app.route('/api/admin/audit-log', methods=['GET'])
 @jwt_required()
 def get_audit_log():
-    try: require_admin()
-    except PermissionError as e: return api_error(str(e), 403)
+    user = require_user()
     conn = get_db()
-    rows = conn.execute('''
-        SELECT al.*, u.username
-        FROM audit_log al
-        LEFT JOIN users u ON u.id = al.user_id
-        ORDER BY al.timestamp DESC
-        LIMIT 200
-    ''').fetchall()
+    if user['is_admin']:
+        rows = conn.execute('''
+            SELECT al.*, u.username
+            FROM audit_log al
+            LEFT JOIN users u ON u.id = al.user_id
+            ORDER BY al.timestamp DESC
+            LIMIT 200
+        ''').fetchall()
+    else:
+        rows = conn.execute('''
+            SELECT al.*, u.username
+            FROM audit_log al
+            LEFT JOIN users u ON u.id = al.user_id
+            WHERE al.user_id = ?
+            ORDER BY al.timestamp DESC
+            LIMIT 200
+        ''', (user['id'],)).fetchall()
     conn.close()
     return ok(logs=[dict(r) for r in rows])
+
+# ── CONTRIBUTIONS ─────────────────────────────────────────────────────────────
+@app.route('/api/contributions', methods=['GET'])
+@jwt_required()
+def get_contributions():
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT
+          scored.user_id,
+          u.username,
+          SUM(scored.score) AS score,
+          COUNT(*) AS actions
+        FROM (
+          SELECT DISTINCT
+            al.user_id,
+            al.table_name,
+            al.row_id,
+            COALESCE(al.field_name, '') AS field_name_eff,
+            CASE
+              WHEN al.table_name = 'topos' AND al.action = 'insert' THEN 10
+              WHEN al.table_name = 'routes' AND al.action = 'insert' THEN 3
+              WHEN al.table_name = 'routes' AND al.action = 'update' AND al.field_name IN ('name','grade','length','route_index') THEN 2
+              WHEN al.table_name = 'routes' AND al.action = 'update' AND al.field_name = 'photo' THEN 2
+              WHEN al.table_name = 'topos' AND al.action = 'update' AND al.field_name IN ('parking_location','routes_location') THEN 3
+              WHEN al.table_name = 'topos' AND al.action = 'update' AND al.field_name = 'title' THEN 2
+              WHEN al.table_name IN ('tag_routes','tag_topos') AND al.action IN ('insert','delete') THEN 1
+              WHEN al.table_name = 'comments' AND al.action = 'insert' THEN 2
+              WHEN al.table_name = 'comments' AND al.action = 'update' THEN 1
+              ELSE 0
+            END AS score
+          FROM audit_log al
+        ) scored
+        JOIN users u ON u.id = scored.user_id
+        WHERE scored.score > 0
+        GROUP BY scored.user_id
+        ORDER BY score DESC
+        LIMIT 50
+    ''').fetchall()
+    conn.close()
+    return ok(contributions=[dict(r) for r in rows])
 
 RESTORE_ALLOWED_TABLES = {'topos', 'routes', 'attempts', 'comments', 'projects', 'tag_routes', 'tag_topos', 'coming_soon', 'coming_soon_votes', 'oops_reports', 'notifications'}
 
 @app.route('/api/admin/audit-log/<int:log_id>/restore', methods=['POST'])
 @jwt_required()
 def restore_audit_log(log_id):
-    try: require_admin()
-    except PermissionError as e: return api_error(str(e), 403)
+    user = require_user()
+    is_admin = user['is_admin']
 
     conn = get_db()
     entry = conn.execute('SELECT * FROM audit_log WHERE id=?', (log_id,)).fetchone()
@@ -1603,6 +1672,8 @@ def restore_audit_log(log_id):
         conn.close(); return api_error('Log entry not found', 404)
 
     uid = int(get_jwt_identity())
+    if not is_admin and entry['user_id'] != uid:
+        conn.close(); return api_error('You can only restore your own changes', 403)
     table = entry['table_name']
 
     if table not in RESTORE_ALLOWED_TABLES:
@@ -1619,6 +1690,7 @@ def restore_audit_log(log_id):
         if not row:
             conn.close(); return api_error('Target row no longer exists', 404)
         conn.execute(f'UPDATE {table} SET "{field}"=? WHERE id=?', (old_val, row_id))
+        conn.execute('DELETE FROM audit_log WHERE id=?', (log_id,))
         log_change(conn, table, row_id, 'update', uid, field, new_val, old_val, f'Restored via audit #{log_id}')
         conn.commit(); conn.close()
         return ok(restored=True, message=f'Restored {table}.{field} from "{new_val}" to "{old_val}"')
@@ -1643,6 +1715,7 @@ def restore_audit_log(log_id):
                 conn.execute('INSERT OR IGNORE INTO tag_routes (route_id, tag_id) VALUES (?,?)', (parent_id, tag['id']))
             else:
                 conn.execute('INSERT OR IGNORE INTO tag_topos (topo_id, tag_id) VALUES (?,?)', (parent_id, tag['id']))
+            conn.execute('DELETE FROM audit_log WHERE id=?', (log_id,))
             log_change(conn, table, 0, 'insert', uid, summary=f'Restored tag "{tag_name}" on {parent} {parent_id} via audit #{log_id}')
             conn.commit(); conn.close()
             return ok(restored=True, message=f'Restored tag "{tag_name}" on {parent} {parent_id}')
@@ -1657,6 +1730,7 @@ def restore_audit_log(log_id):
             if not route:
                 conn.close(); return api_error('Route no longer exists', 404)
             conn.execute('INSERT OR IGNORE INTO projects (user_id, route_id) VALUES (?,?)', (project_uid, route_id))
+            conn.execute('DELETE FROM audit_log WHERE id=?', (log_id,))
             log_change(conn, 'projects', 0, 'insert', uid, summary=f'Restored project route {route_id} via audit #{log_id}')
             conn.commit(); conn.close()
             return ok(restored=True, message=f'Restored route {route_id} to projects')
@@ -1676,6 +1750,7 @@ def restore_audit_log(log_id):
                 'INSERT OR IGNORE INTO comments (user_id, route_id, body, created_at) VALUES (?,?,?,CURRENT_TIMESTAMP)',
                 (comment_uid, route_id, body_text)
             )
+            conn.execute('DELETE FROM audit_log WHERE id=?', (log_id,))
             log_change(conn, 'comments', 0, 'insert', uid, summary=f'Restored comment on route {route_id} via audit #{log_id}')
             conn.commit(); conn.close()
             return ok(restored=True, message=f'Restored comment on route {route_id}')
@@ -1685,6 +1760,7 @@ def restore_audit_log(log_id):
             title = m.group(1) if m else 'Restored feature'
             conn.execute('INSERT INTO coming_soon (title, description, created_by, created_at) VALUES (?,?,?,CURRENT_TIMESTAMP)',
                          (title, f'Auto-restored from audit log #{log_id}', uid))
+            conn.execute('DELETE FROM audit_log WHERE id=?', (log_id,))
             log_change(conn, 'coming_soon', 0, 'insert', uid, summary=f'Restored feature request via audit #{log_id}')
             conn.commit(); conn.close()
             return ok(restored=True, message=f'Restored feature request "{title}"')

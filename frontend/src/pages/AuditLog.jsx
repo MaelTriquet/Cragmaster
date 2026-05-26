@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 
 const S = {
   root: {
@@ -212,6 +213,7 @@ const S = {
 
 export default function AuditLog() {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -317,13 +319,16 @@ export default function AuditLog() {
         </select>
         <select value={filterAction} onChange={e => setFilterAction(e.target.value)} style={S.select}>
           <option value="">{t('auditLog.allActions')}</option>
+          <option value="insert">{t('auditLog.actionInsert')}</option>
           <option value="update">{t('auditLog.actionUpdate')}</option>
           <option value="delete">{t('auditLog.actionDelete')}</option>
         </select>
-        <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={S.select}>
-          <option value="">{t('auditLog.allUsers')}</option>
-          {users.map(u => <option key={u} value={u}>{u}</option>)}
-        </select>
+        {user?.is_admin && (
+          <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={S.select}>
+            <option value="">{t('auditLog.allUsers')}</option>
+            {users.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        )}
         {(search || filterTable || filterAction || filterUser) && (
           <button style={S.clearBtn} onClick={clearFilters}>{t('auditLog.clear')}</button>
         )}
@@ -347,15 +352,12 @@ export default function AuditLog() {
               return (
                 <tr key={log.id}>
                   <td colSpan={4} style={{ padding: 0 }}>
-                    <div
-                      onClick={() => setExpandedId(expanded ? null : log.id)}
-                      style={{
-                        display: 'contents',
-                      }}
-                    >
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <tbody>
-                          <tr style={S.tr(expanded)}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <tbody>
+                        <tr
+                          style={S.tr(expanded)}
+                          onClick={() => setExpandedId(expanded ? null : log.id)}
+                        >
                             <td style={S.timestamp}>{fmtTime(log.timestamp)}</td>
                             <td style={S.tdMuted}>{log.username || '—'}</td>
                             <td style={S.td}>
@@ -387,7 +389,7 @@ export default function AuditLog() {
                             </td>
                           </tr>
                           {expanded && (
-                            <tr>
+                            <tr onClick={e => e.stopPropagation()}>
                               <td colSpan={4} style={S.expandedCell}>
                                 <div style={S.detailGrid}>
                                   <span style={S.detailLabel}>{t('auditLog.detailTimestamp')}</span>
@@ -447,7 +449,6 @@ export default function AuditLog() {
                           )}
                         </tbody>
                       </table>
-                    </div>
                   </td>
                 </tr>
               )

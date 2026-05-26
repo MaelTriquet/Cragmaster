@@ -373,7 +373,7 @@ export default function Navbar() {
                   {t('nav.notifications', { count: unresolvedCount })}
                 </button>
               )}
-              {user?.is_admin && (
+              {user && (
                 <button
                   style={{
                     fontFamily: 'Barlow Condensed, sans-serif',
@@ -497,7 +497,7 @@ export default function Navbar() {
             {t('nav.notifications', { count: unresolvedCount })}
           </button>
         )}
-        {user?.is_admin && (
+        {user && (
           <button
             style={{
               ...S.langBtn,

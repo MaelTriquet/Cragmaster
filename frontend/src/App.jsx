@@ -71,7 +71,7 @@ function AppLayout() {
           <Route path="/about"       element={<PrivateRoute><About /></PrivateRoute>} />
           <Route path="/faq"        element={<PrivateRoute><FAQ /></PrivateRoute>} />
           <Route path="/coming-soon" element={<PrivateRoute><ComingSoon /></PrivateRoute>} />
-          <Route path="/audit-log" element={<PrivateRoute adminOnly><AuditLog /></PrivateRoute>} />
+          <Route path="/audit-log" element={<PrivateRoute><AuditLog /></PrivateRoute>} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

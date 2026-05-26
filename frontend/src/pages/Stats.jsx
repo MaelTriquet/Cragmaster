@@ -251,7 +251,6 @@ function TagFingerprint({ data, title }) {
   )
 }
 
-// ── Flash rate pie chart ─────────────────────────────────────────────────────
 function FlashPie({ data, title }) {
   const { t } = useTranslation()
   const [selectedGrade, setSelectedGrade] = useState('')
