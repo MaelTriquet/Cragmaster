@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 import axios from 'axios'
-import { saveTopoForOffline, getOfflineTopo, isOnline } from '../lib/offline'
+import { saveTopoForOffline, getOfflineTopo, getOfflineTopoIds, removeOfflineTopo, addPendingAction, isOnline } from '../lib/offline'
 import { loadLeaflet } from '../lib/leaflet'
 import { useToast } from '../contexts/ToastContext'
 
@@ -593,13 +593,23 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
 
   const handleAssign = async (tagId) => {
     if (assignedIds.has(tagId)) return
-    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+    if (!isOnline()) {
+      const tag = allTags.find(t => t.id === tagId)
+      await addPendingAction({ endpoint: `/topos/${topoId}/tags`, method: 'post', body: { tag_id: tagId }, type: 'community', summary: `Assign tag "${tag?.name || tagId}" to topo` })
+      showToast(t('topoDetail.offlineQueued'))
+      return
+    }
     const res = await api.post(`/topos/${topoId}/tags`, { tag_id: tagId })
     onTagsChange(res.data.tags)
   }
 
   const handleRemove = async (tagId) => {
-    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+    if (!isOnline()) {
+      const tag = tags.find(t => t.id === tagId)
+      await addPendingAction({ endpoint: `/topos/${topoId}/tags/${tagId}`, method: 'delete', type: 'community', summary: `Remove tag "${tag?.name || tagId}" from topo` })
+      showToast(t('topoDetail.offlineQueued'))
+      return
+    }
     const res = await api.delete(`/topos/${topoId}/tags/${tagId}`)
     onTagsChange(res.data.tags)
   }
@@ -1041,6 +1051,11 @@ export default function TopoDetail() {
   const { showToast } = useToast()
 
   useEffect(() => {
+    if (!id) return
+    getOfflineTopoIds().then(ids => setOfflineSaved(ids.includes(Number(id))))
+  }, [id])
+
+  useEffect(() => {
     (async () => {
       try {
         const res = await api.get(`/topos/${id}`)
@@ -1078,8 +1093,13 @@ export default function TopoDetail() {
     })()
   }, [topo])
 
-  const submitRouteAdd = () => {
-    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+  const submitRouteAdd = async () => {
+    if (!isOnline()) {
+      await addPendingAction({ endpoint: `/topos/${id}/add_route`, method: 'post', body: addForm, type: 'community', summary: `Add route "${addForm.name}" to topo` })
+      showToast(t('topoDetail.offlineQueued'))
+      setShowAddForm(false)
+      return
+    }
     api.post(`/topos/${id}/add_route`, addForm)
       .then(res => {
         setRoutes(res.data.routes)
@@ -1087,19 +1107,25 @@ export default function TopoDetail() {
         setAddForm({ name: "", grade: "", length: "", route_index: "" })
       })
   }
-
   const handleSaveOffline = async () => {
     if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
     setSavingOffline(true)
-    setOfflineSaved(false)
     try {
       await saveTopoForOffline(id)
       setOfflineSaved(true)
-      setTimeout(() => setOfflineSaved(false), 3000)
     } catch {
       showToast(t('topoDetail.downloadFailed'))
     } finally {
       setSavingOffline(false)
+    }
+  }
+
+  const handleRemoveOffline = async () => {
+    try {
+      await removeOfflineTopo(id)
+      setOfflineSaved(false)
+    } catch {
+      showToast(t('topoDetail.downloadFailed'))
     }
   }
 
@@ -1131,7 +1157,6 @@ export default function TopoDetail() {
   }
 
   const doGeoLocation = (type) => {
-    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
     if (!navigator.geolocation) {
       alert(t('topoDetail.geoNotSupported'));
       return;
@@ -1141,17 +1166,25 @@ export default function TopoDetail() {
       ? `/topos/${id}/set_location_parking`
       : `/topos/${id}/set_location_routes`
     const setter = type === 'parking' ? setParkingLocation : setRoutesLocation
+    const label = type === 'parking' ? 'parking' : 'routes'
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const latitude = position.coords.latitude;
         const longitude = position.coords.longitude;
 
+        if (!isOnline()) {
+          await addPendingAction({ endpoint, method: 'post', body: { lat: latitude, lon: longitude }, type: 'community', summary: `Set ${label} location` })
+          showToast(t('topoDetail.offlineQueuedLocation'))
+          return
+        }
+
         try {
           await api.post(endpoint, { lat: latitude, lon: longitude });
           setter({ lat: latitude, lon: longitude });
         } catch (error) {
           console.error("Error sending location:", error);
+          showToast(t('topoDetail.geoFailed'))
         }
       },
       (error) => {
@@ -1223,6 +1256,13 @@ export default function TopoDetail() {
                 onChange={e => setTitleDraft(e.target.value)}
                 onKeyDown={async e => {
                   if (e.key === "Enter" && titleDraft.trim()) {
+                    if (!isOnline()) {
+                      await addPendingAction({ endpoint: `/topos/${id}`, method: 'patch', body: { title: titleDraft.trim() }, type: 'community', summary: `Rename topo to "${titleDraft.trim()}"` })
+                      setTopo({ ...topo, title: titleDraft.trim() })
+                      setEditingTitle(false)
+                      showToast(t('topoDetail.offlineQueued'))
+                      return
+                    }
                     await api.patch(`/topos/${id}`, { title: titleDraft.trim() })
                     setTopo({ ...topo, title: titleDraft.trim() })
                     setEditingTitle(false)
@@ -1231,6 +1271,13 @@ export default function TopoDetail() {
                 }}
                 onBlur={async () => {
                   if (titleDraft.trim() && titleDraft.trim() !== topo.title) {
+                    if (!isOnline()) {
+                      await addPendingAction({ endpoint: `/topos/${id}`, method: 'patch', body: { title: titleDraft.trim() }, type: 'community', summary: `Rename topo to "${titleDraft.trim()}"` })
+                      setTopo({ ...topo, title: titleDraft.trim() })
+                      setEditingTitle(false)
+                      showToast(t('topoDetail.offlineQueued'))
+                      return
+                    }
                     await api.patch(`/topos/${id}`, { title: titleDraft.trim() })
                     setTopo({ ...topo, title: titleDraft.trim() })
                   }
@@ -1561,19 +1608,34 @@ export default function TopoDetail() {
             </button>
           )}
 
-          <button
-            style={{
-              ...S.downloadBtn,
-              borderColor: offlineSaved ? "var(--good)" : hoveredBtn === "offline" ? "var(--hold)" : "var(--line)",
-              color: offlineSaved ? "var(--good)" : hoveredBtn === "offline" ? "var(--hold)" : "var(--muted)",
-            }}
-            onMouseEnter={() => setHoveredBtn("offline")}
-            onMouseLeave={() => setHoveredBtn(null)}
-            onClick={handleSaveOffline}
-            disabled={savingOffline}
-          >
-            {savingOffline ? t('topoDetail.savingOffline') : offlineSaved ? t('topoDetail.savedOffline') : t('topoDetail.downloadOffline')}
-          </button>
+          {offlineSaved ? (
+            <button
+              style={{
+                ...S.downloadBtn,
+                borderColor: hoveredBtn === "offline" ? "var(--hold-lt)" : "var(--line)",
+                color: hoveredBtn === "offline" ? "var(--hold-lt)" : "var(--muted)",
+              }}
+              onMouseEnter={() => setHoveredBtn("offline")}
+              onMouseLeave={() => setHoveredBtn(null)}
+              onClick={handleRemoveOffline}
+            >
+              {t('topoDetail.removeOffline')}
+            </button>
+          ) : (
+            <button
+              style={{
+                ...S.downloadBtn,
+                borderColor: hoveredBtn === "offline" ? "var(--hold)" : "var(--line)",
+                color: hoveredBtn === "offline" ? "var(--hold)" : "var(--muted)",
+              }}
+              onMouseEnter={() => setHoveredBtn("offline")}
+              onMouseLeave={() => setHoveredBtn(null)}
+              onClick={handleSaveOffline}
+              disabled={savingOffline}
+            >
+              {savingOffline ? t('topoDetail.savingOffline') : t('topoDetail.downloadOffline')}
+            </button>
+          )}
         </div>
 
         {/* ── Download error ── */}

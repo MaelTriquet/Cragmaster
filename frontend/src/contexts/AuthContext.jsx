@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { authApi } from '../api/client'
+import { isOnline } from '../lib/offline'
 
 const AuthContext = createContext(null)
 
@@ -11,12 +12,25 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) { setLoading(false); return }
+
+    if (!isOnline()) {
+      const cached = localStorage.getItem('user')
+      if (cached) {
+        try { setUser(JSON.parse(cached)) } catch {}
+      }
+      setLoading(false)
+      return
+    }
+
     authApi.me()
-      .then(res => setUser(res.data.user))
+      .then(res => {
+        setUser(res.data.user)
+        localStorage.setItem('user', JSON.stringify(res.data.user))
+      })
       .catch(err => {
-        // Only wipe the token on explicit auth failures, not network errors
         if (err.response?.status === 401) {
           localStorage.removeItem('token')
+          localStorage.removeItem('user')
         }
       })
       .finally(() => setLoading(false))
@@ -25,12 +39,14 @@ export function AuthProvider({ children }) {
   const login = async (username, password, remember = false) => {
     const res = await authApi.login(username, password, remember)
     localStorage.setItem('token', res.data.token)
+    localStorage.setItem('user', JSON.stringify(res.data.user))
     setUser(res.data.user)
     return res.data.user
   }
 
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
     setUser(null)
   }
 
@@ -38,6 +54,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await authApi.me()
       setUser(res.data.user)
+      localStorage.setItem('user', JSON.stringify(res.data.user))
     } catch {}
   }
 

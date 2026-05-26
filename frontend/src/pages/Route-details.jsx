@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from "react-router-dom"
 import api from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
-import { getOfflineRoute, isOnline } from '../lib/offline'
+import { getOfflineRoute, isOnline, addPendingAction, updateCachedRoute } from '../lib/offline'
 import { useToast } from '../contexts/ToastContext'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 
@@ -528,13 +528,13 @@ function TagManager({ routeId, tags, onTagsChange }) {
 
   const handleAssign = async (tagId) => {
     if (assignedIds.has(tagId)) return
-    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+    if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${routeId}/tags`, method: 'post', body: { tag_id: tagId }, type: 'community', summary: `Assign tag to route` }); return }
     const res = await api.post(`/routes/${routeId}/tags`, { tag_id: tagId })
     onTagsChange(res.data.tags)
   }
 
   const handleRemove = async (tagId) => {
-    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+    if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${routeId}/tags/${tagId}`, method: 'delete', type: 'community', summary: `Remove tag from route` }); return }
     const res = await api.delete(`/routes/${routeId}/tags/${tagId}`)
     onTagsChange(res.data.tags)
   }
@@ -748,13 +748,13 @@ export default function RouteDetail() {
 
   useEffect(() => { loadRoute() }, [loadRoute])
 
-  const offlineGuard = () => {
-    if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return true }
-    return false
-  }
-
   const submitRouteEdit = () => {
-    if (offlineGuard()) return
+    if (!isOnline()) {
+      addPendingAction({ endpoint: `/routes/${id}`, method: 'patch', body: editForm, type: 'community', summary: `Edit route "${route.name}"` })
+      showToast(t('topoDetail.offlineQueued'))
+      setShowEditForm(false)
+      return
+    }
     api.patch(`/routes/${id}`, editForm)
       .then(res => {
         setRoute(res.data.route)
@@ -763,13 +763,33 @@ export default function RouteDetail() {
   }
 
   const addAttempt = () => {
-    if (offlineGuard()) return
+    if (!isOnline()) {
+      updateCachedRoute(id, data => ({
+        ...data,
+        attempt: data.attempt
+          ? { ...data.attempt, amount: (data.attempt.amount || 0) + 1 }
+          : { id: null, user_id: null, route_id: Number(id), sent: 0, amount: 1, sent_at: null },
+      }))
+      setAttempt(prev => prev ? { ...prev, amount: (prev.amount || 0) + 1 } : { id: null, user_id: null, route_id: Number(id), sent: 0, amount: 1, sent_at: null })
+      addPendingAction({ endpoint: `/routes/${id}/add_attempt`, method: 'get', type: 'user', summary: `Add attempt on route "${route.name}"` })
+      return
+    }
     api.get(`/routes/${id}/add_attempt`)
       .then(res => setAttempt(res.data.attempt))
   }
 
   const sendAttempt = () => {
-    if (offlineGuard()) return
+    if (!isOnline()) {
+      updateCachedRoute(id, data => ({
+        ...data,
+        attempt: data.attempt
+          ? { ...data.attempt, sent: 1, amount: (data.attempt.amount || 0) + 1 }
+          : { id: null, user_id: null, route_id: Number(id), sent: 1, amount: 1, sent_at: null },
+      }))
+      setAttempt(prev => prev ? { ...prev, sent: 1, amount: (prev.amount || 0) + 1 } : { id: null, user_id: null, route_id: Number(id), sent: 1, amount: 1, sent_at: null })
+      addPendingAction({ endpoint: `/routes/${id}/sent_attempt`, method: 'get', type: 'user', summary: `Send route "${route.name}"` })
+      return
+    }
     api.get(`/routes/${id}/sent_attempt`)
       .then(res => {
         setAttempt(res.data.attempt)
@@ -783,7 +803,13 @@ export default function RouteDetail() {
   }
 
   const toggleProject = () => {
-    if (offlineGuard()) return
+    if (!isOnline()) {
+      const newVal = !isProject
+      updateCachedRoute(id, data => ({ ...data, is_project: newVal }))
+      setIsProject(newVal)
+      addPendingAction({ endpoint: `/routes/${id}/project`, method: 'post', type: 'user', summary: `${newVal ? 'Add' : 'Remove'} project on route "${route.name}"` })
+      return
+    }
     api.post(`/routes/${id}/project`)
       .then(res => setIsProject(res.data.is_project))
   }
@@ -822,7 +848,12 @@ export default function RouteDetail() {
   }
 
   const submitComment = () => {
-    if (offlineGuard()) return
+    if (!isOnline()) {
+      addPendingAction({ endpoint: `/routes/${id}/comments`, method: 'post', body: { ...form, perceived_grade: form.perceived_grade === "!" ? route.grade : form.perceived_grade }, type: 'user', summary: `Comment on route "${route.name}"` })
+      setShowForm(false)
+      setForm({ stars: "", perceived_grade: "!", body: "", beta: "" })
+      return
+    }
     const payload = { ...form }
     if (payload.perceived_grade === "!") payload.perceived_grade = route.grade
     api.post(`/routes/${id}/comments`, payload)
@@ -1030,7 +1061,7 @@ export default function RouteDetail() {
                 onMouseEnter={e => { e.target.style.color = "var(--hold-lt)"; e.target.style.borderColor = "var(--hold-lt)" }}
                 onMouseLeave={e => { e.target.style.color = "var(--chalk)"; e.target.style.borderColor = "var(--line)" }}
                 onClick={async () => {
-                  if (offlineGuard()) return
+                  if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${id}/photo`, method: 'delete', type: 'community', summary: `Delete photo of route "${route.name}"` }); return }
                   await api.delete(`/routes/${id}/photo`)
                   setHasPhoto(false)
                 }}
@@ -1049,7 +1080,7 @@ export default function RouteDetail() {
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (!file) return
-                  if (offlineGuard()) return
+                  if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${id}/photo`, method: 'post', type: 'community', summary: `Upload photo for route "${route.name}"` }); e.target.value = ''; return }
                   await uploadPhoto(file)
                   e.target.value = ''
                 }}
@@ -1063,7 +1094,7 @@ export default function RouteDetail() {
                 onMouseEnter={() => setHoveredBtn("addPhoto")}
                 onMouseLeave={() => setHoveredBtn(null)}
                 onClick={async () => {
-                  if (offlineGuard()) return
+                  if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${id}/photo`, method: 'post', type: 'community', summary: `Upload photo for route "${route.name}"` }); return }
                   if (window.Capacitor?.isNativePlatform()) {
                     try {
                       const image = await Camera.getPhoto({
@@ -1223,7 +1254,7 @@ export default function RouteDetail() {
                             onMouseEnter={() => setPopupHovered(key)}
                             onMouseLeave={() => setPopupHovered(null)}
                             onClick={async () => {
-                              if (!isOnline()) { showToast(t('topoDetail.offlineMessage')); return }
+                              if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${id}/tags${assigned ? '/' + tg.id : ''}`, method: assigned ? 'delete' : 'post', body: assigned ? undefined : { tag_id: tg.id }, type: 'community', summary: `${assigned ? 'Remove' : 'Assign'} tag "${tg.name}" on route` }); return }
                               if (assigned) {
                                 const res = await api.delete(`/routes/${id}/tags/${tg.id}`)
                                 setTags(res.data.tags)

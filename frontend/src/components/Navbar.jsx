@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api/client'
+import { getPendingCount, onSyncChange, processSyncQueue, isOnline } from '../lib/offline'
 
 
 const NAV_ITEM_KEYS = [
@@ -269,6 +270,19 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [unresolvedCount, setUnresolvedCount] = useState(0)
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+
+  useEffect(() => {
+    getPendingCount().then(setPendingSyncCount)
+    const unsub = onSyncChange(setPendingSyncCount)
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    const handleOnline = () => { processSyncQueue().then(r => { if (r.synced > 0) getPendingCount().then(setPendingSyncCount) }) }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [])
 
   useEffect(() => {
     if (user?.is_admin) {
@@ -370,6 +384,30 @@ export default function Navbar() {
                     onClick={() => navigate('/profile')}
                   >
                     {user.username}
+                  </button>
+                </div>
+              )}
+
+              {pendingSyncCount > 0 && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button
+                    style={{
+                      flex: 1,
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      color: 'var(--good)',
+                      background: 'rgba(120,180,80,0.1)',
+                      border: '1px solid var(--good)',
+                      padding: '0.65rem 1rem',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                    onClick={() => { if (isOnline()) { processSyncQueue().then(r => getPendingCount().then(setPendingSyncCount)) } }}
+                  >
+                    {t('nav.syncPending', { count: pendingSyncCount })}
                   </button>
                 </div>
               )}
@@ -502,6 +540,21 @@ export default function Navbar() {
         >
           {currentLang === 'en' ? '\ud83c\uddeb\ud83c\uddf7' : '\ud83c\uddec\ud83c\udde7'}
         </button>
+
+        {pendingSyncCount > 0 && (
+          <button
+            style={{
+              ...S.langBtn,
+              color: 'var(--good)',
+              borderColor: 'var(--good)',
+              background: 'rgba(120,180,80,0.1)',
+              cursor: isOnline() ? 'pointer' : 'default',
+            }}
+            onClick={() => { if (isOnline()) { processSyncQueue().then(r => getPendingCount().then(setPendingSyncCount)) } }}
+          >
+            {t('nav.syncPending', { count: pendingSyncCount })}
+          </button>
+        )}
 
         {user?.is_admin && (
           <button

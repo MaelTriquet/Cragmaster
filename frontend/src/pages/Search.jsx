@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
+import { searchOffline, isOnline } from '../lib/offline'
 
 const highlightMatch = (text, matchPos, matchLen) => {
   if (matchPos == null || matchLen === 0) return text
@@ -450,6 +451,7 @@ export default function Search() {
   const [tagSearch, setTagSearch]       = useState("")
   const [gradeMin, setGradeMin]         = useState("")
   const [gradeMax, setGradeMax]         = useState("")
+  const [offlineMode, setOfflineMode]   = useState(false)
 
   const inputRef = useRef()
   const menuRef = useRef()
@@ -498,8 +500,17 @@ export default function Search() {
       if (gradeMax !== "") params.set("grade_max_sort", GRADE_OPTIONS.find(g => g.label === gradeMax)?.sort ?? "")
 
       api.get(`/search?${params.toString()}`)
-        .then(res => setResults(res.data))
-        .catch(err => console.error(err))
+        .then(res => { setResults(res.data); setOfflineMode(false) })
+        .catch(async () => {
+          if (query || gradeMin !== "" || gradeMax !== "") {
+            const offlineRes = await searchOffline(query, { grade_min_sort: GRADE_OPTIONS.find(g => g.label === gradeMin)?.sort, grade_max_sort: GRADE_OPTIONS.find(g => g.label === gradeMax)?.sort })
+            setResults(offlineRes)
+            setOfflineMode(true)
+          } else {
+            setResults({ routes: [], topos: [] })
+            setOfflineMode(false)
+          }
+        })
         .finally(() => setLoading(false))
     }, 180)
 
@@ -715,6 +726,24 @@ export default function Search() {
                 {hasTags && t('search.noResultsTags')}
               </span>
               <span style={S.emptyHint}>{t('search.tryDifferent')}</span>
+            </div>
+          )}
+
+          {offlineMode && (
+            <div style={{
+              textAlign: 'center',
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'var(--good)',
+              border: '1px solid var(--good)',
+              background: 'rgba(120,180,80,0.08)',
+            }}>
+              {t('search.offlineBanner')}
             </div>
           )}
 
