@@ -4,6 +4,14 @@ import { isOnline } from '../lib/offline'
 
 const AuthContext = createContext(null)
 
+function decodeToken(token) {
+  try {
+    const payload = token.split('.')[1]
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+    return JSON.parse(json)
+  } catch { return null }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
@@ -16,7 +24,11 @@ export function AuthProvider({ children }) {
     if (!isOnline()) {
       const cached = localStorage.getItem('user')
       if (cached) {
-        try { setUser(JSON.parse(cached)) } catch {}
+        try { setUser(JSON.parse(cached)); setLoading(false); return } catch {}
+      }
+      const decoded = decodeToken(token)
+      if (decoded?.sub) {
+        setUser({ id: Number(decoded.sub), username: '...', is_admin: false })
       }
       setLoading(false)
       return
@@ -31,6 +43,11 @@ export function AuthProvider({ children }) {
         if (err.response?.status === 401) {
           localStorage.removeItem('token')
           localStorage.removeItem('user')
+        } else {
+          const cached = localStorage.getItem('user')
+          if (cached) {
+            try { setUser(JSON.parse(cached)) } catch {}
+          }
         }
       })
       .finally(() => setLoading(false))
