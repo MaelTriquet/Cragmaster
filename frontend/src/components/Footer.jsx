@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import OopsModal from './OopsModal'
 import NotifyModal from './NotifyModal'
 
 const S = {
@@ -47,7 +46,6 @@ const S = {
 export default function Footer() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [showOops, setShowOops] = useState(false)
   const [showNotify, setShowNotify] = useState(false)
 
   return (
@@ -71,14 +69,6 @@ export default function Footer() {
             style={S.btn}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
-            onClick={() => setShowOops(true)}
-          >
-            {t('footer.oops')}
-          </button>
-          <button
-            style={S.btn}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' }}
             onClick={() => setShowNotify(true)}
           >
             {t('footer.notify')}
@@ -86,7 +76,6 @@ export default function Footer() {
         </div>
       </footer>
 
-      {showOops && <OopsModal onClose={() => setShowOops(false)} />}
       {showNotify && <NotifyModal onClose={() => setShowNotify(false)} />}
     </>
   )

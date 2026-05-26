@@ -102,17 +102,6 @@ def init_db():
             UNIQUE(user_id, route_id)
         );
 
-        CREATE TABLE IF NOT EXISTS oops_reports (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id         INTEGER REFERENCES users(id) ON DELETE SET NULL,
-            explanation     TEXT NOT NULL,
-            route_name      TEXT DEFAULT NULL,
-            topo_name       TEXT DEFAULT NULL,
-            concerned_user  TEXT DEFAULT NULL,
-            resolved        INTEGER DEFAULT 0,
-            created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
         CREATE TABLE IF NOT EXISTS notifications (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -153,7 +142,7 @@ def init_db():
     ''')
 
     # Migrations
-    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('oops_reports', 'resolved', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL'), ('tags', 'category', 'TEXT NOT NULL DEFAULT \'other\''), ('tags', 'name_fr', 'TEXT DEFAULT NULL'), ('routes', 'photo', 'TEXT DEFAULT NULL'), ('users', 'email', 'TEXT DEFAULT NULL'), ('users', 'email_prompt_dismissed', 'INTEGER DEFAULT 0')]:
+    for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL'), ('tags', 'category', 'TEXT NOT NULL DEFAULT \'other\''), ('tags', 'name_fr', 'TEXT DEFAULT NULL'), ('routes', 'photo', 'TEXT DEFAULT NULL'), ('users', 'email', 'TEXT DEFAULT NULL'), ('users', 'email_prompt_dismissed', 'INTEGER DEFAULT 0')]:
         try:
             conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
         except Exception:

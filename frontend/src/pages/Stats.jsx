@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 
 // ── Grade colour (same palette as the rest of the app) ──────────────────────
 const getGradeColor = (sorting_grade) => {
@@ -742,10 +743,33 @@ const S = {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Stats() {
   const { userId } = useParams()
+  const { user } = useAuth()
   const { t } = useTranslation()
   const [stats, setStats]   = useState(null)
   const [hovered, setHovered] = useState(null)
+  const [reportSent, setReportSent] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const [reportError, setReportError] = useState(null)
+  const [showReportForm, setShowReportForm] = useState(false)
+  const [reportReason, setReportReason] = useState('')
   const navigate = useNavigate()
+
+  const isOtherUser = userId && String(userId) !== String(user?.id)
+
+  const handleReport = async () => {
+    if (!reportReason.trim()) return
+    setReporting(true)
+    setReportError(null)
+    try {
+      await api.post(`/report/user/${userId}`, { reason: reportReason.trim() })
+      setReportSent(true)
+      setShowReportForm(false)
+    } catch (err) {
+      setReportError(err.response?.data?.error || t('profile.reportFailed'))
+    } finally {
+      setReporting(false)
+    }
+  }
 
   useEffect(() => {
     const url = userId ? `/stats?user_id=${userId}` : '/stats'
@@ -771,6 +795,83 @@ export default function Stats() {
           <span style={S.eyebrow}>{username ? `${username} — ${t('stats.title')}` : t('stats.eyebrow')}</span>
           <h1 style={S.title}>{t('stats.title')}</h1>
         </div>
+
+        {isOtherUser && reportSent && (
+          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--good)', padding: '0.4rem 0.75rem', borderLeft: '2px solid #5a9e6f', background: 'rgba(90,158,111,0.08)', display: 'inline-block' }}>
+            {t('profile.reportSent')}
+          </span>
+        )}
+        {isOtherUser && !reportSent && !showReportForm && (
+          <button
+            onClick={() => setShowReportForm(true)}
+            style={{
+              fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.7rem', fontWeight: 700,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              padding: '0.35rem 0.75rem', cursor: 'pointer',
+              border: '1px solid var(--hold)',
+              color: 'var(--hold-lt)',
+              background: 'rgba(200,80,42,0.08)',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(200,80,42,0.2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(200,80,42,0.08)'}
+          >
+            {t('profile.reportUser')}
+          </button>
+        )}
+        {isOtherUser && !reportSent && showReportForm && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', background: 'var(--granite)', border: '1px solid var(--line)' }}>
+            <textarea
+              value={reportReason}
+              onChange={e => setReportReason(e.target.value)}
+              placeholder={t('profile.reportPlaceholder')}
+              rows={3}
+              style={{
+                background: 'var(--rock)', border: '1px solid var(--line)',
+                color: 'var(--chalk)', fontFamily: 'Barlow, sans-serif',
+                fontSize: '0.85rem', padding: '0.5rem 0.75rem',
+                outline: 'none', resize: 'vertical',
+              }}
+              onFocus={e => e.target.style.borderColor = 'var(--hold)'}
+              onBlur={e => e.target.style.borderColor = 'var(--line)'}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                onClick={handleReport}
+                disabled={reporting || !reportReason.trim()}
+                style={{
+                  fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', fontWeight: 700,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  padding: '0.4rem 0.85rem', cursor: 'pointer',
+                  border: '1px solid var(--hold)',
+                  color: 'var(--hold-lt)',
+                  background: 'rgba(200,80,42,0.08)',
+                  opacity: (!reportReason.trim() || reporting) ? 0.5 : 1,
+                }}
+                onMouseEnter={e => { if (reportReason.trim() && !reporting) e.currentTarget.style.background = 'rgba(200,80,42,0.2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(200,80,42,0.08)' }}
+              >
+                {reporting ? t('profile.reporting') : t('profile.reportUser')}
+              </button>
+              <button
+                onClick={() => { setShowReportForm(false); setReportReason(''); setReportError(null) }}
+                style={{
+                  fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', fontWeight: 700,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  padding: '0.4rem 0.85rem', cursor: 'pointer', border: 'none',
+                  color: 'var(--muted)', background: 'none',
+                }}
+              >
+                {t('profile.reportCancel')}
+              </button>
+              {reportError && (
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', color: 'var(--hold-lt)' }}>
+                  {reportError}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── SUMMARY NUMBERS ── */}
         <div style={S.summaryRow}>

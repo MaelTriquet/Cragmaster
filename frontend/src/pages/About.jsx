@@ -155,11 +155,6 @@ export default function About() {
         </div>
 
         <div style={S.section}>
-          <div style={S.sectionTitle}>{t('about.oopsTitle')}</div>
-          <p style={S.bodyText}>{t('about.oopsDesc')}</p>
-        </div>
-
-        <div style={S.section}>
           <div style={S.sectionTitle}>{t('about.recTitle')}</div>
           <p style={S.bodyText}>{t('about.recDesc')}</p>
         </div>

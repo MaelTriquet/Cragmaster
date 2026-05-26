@@ -11,13 +11,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) { setLoading(false); return }
-    // If user chose not to be remembered, clear the token on fresh start
-    if (localStorage.getItem('rememberMe') === 'false') {
-      localStorage.removeItem('token')
-      localStorage.removeItem('rememberMe')
-      setLoading(false)
-      return
-    }
     authApi.me()
       .then(res => setUser(res.data.user))
       .catch(err => {
@@ -32,14 +25,12 @@ export function AuthProvider({ children }) {
   const login = async (username, password, remember = false) => {
     const res = await authApi.login(username, password, remember)
     localStorage.setItem('token', res.data.token)
-    localStorage.setItem('rememberMe', remember ? 'true' : 'false')
     setUser(res.data.user)
     return res.data.user
   }
 
   const logout = () => {
     localStorage.removeItem('token')
-    localStorage.removeItem('rememberMe')
     setUser(null)
   }
 

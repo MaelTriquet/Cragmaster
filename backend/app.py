@@ -324,6 +324,42 @@ def delete_user(uid):
     conn.close()
     return ok(deleted=True)
 
+# ── PUBLIC USER PROFILE ──────────────────────────────────────────────────────
+@app.route('/api/users/<int:uid>/public', methods=['GET'])
+@jwt_required()
+def get_public_user(uid):
+    conn = get_db()
+    user = conn.execute('SELECT id, username, is_admin FROM users WHERE id=?', (uid,)).fetchone()
+    conn.close()
+    if not user: return api_error('User not found', 404)
+    return ok(id=user['id'], username=user['username'], is_admin=bool(user['is_admin']))
+
+# ── USER REPORT ───────────────────────────────────────────────────────────────
+@app.route('/api/report/user/<int:uid>', methods=['POST'])
+@jwt_required()
+def report_user(uid):
+    reporter = require_user()
+    d = request.get_json() or {}
+    reason = (d.get('reason') or '').strip()
+    if not reason:
+        return api_error('Reason is required', 400)
+    conn = get_db()
+    target = conn.execute('SELECT id, username FROM users WHERE id=?', (uid,)).fetchone()
+    if not target:
+        conn.close(); return api_error('User not found', 404)
+    if target['id'] == reporter['id']:
+        conn.close(); return api_error('Cannot report yourself', 400)
+
+    cur = conn.execute(
+        'INSERT INTO oops_reports (user_id, explanation, concerned_user) VALUES (?,?,?)',
+        (reporter['id'], f'Reported user @{target["username"]} (ID #{target["id"]}): {reason}', target['username'])
+    )
+    log_change(conn, 'oops_reports', cur.lastrowid, 'insert', reporter['id'],
+               summary=f'User report: @{target["username"]}: {reason[:80]}')
+    conn.commit()
+    conn.close()
+    return ok(submitted=True), 201
+
 # ── TOPOS ─────────────────────────────────────────────────────────────────────
 @app.route('/api/topos', methods=['get'])
 @jwt_required()
@@ -1361,39 +1397,7 @@ def get_stats():
         username=target_username,
     )
 
-# ── OOPS REPORTS ────────────────────────────────────────────────────────────
-@app.route('/api/oops', methods=['POST'])
-@jwt_required()
-def submit_oops():
-    user = require_user()
-    d = request.get_json() or {}
-    explanation = (d.get('explanation') or '').strip()
-    if not explanation:
-        return api_error('Explanation is required')
-
-    conn = get_db()
-    row = conn.execute(
-        'SELECT id FROM oops_reports WHERE user_id=? AND created_at > datetime("now", "-1 day")',
-        (user['id'],)
-    ).fetchone()
-    if row:
-        conn.close()
-        return api_error('You can only submit one Oops report per day', 429)
-
-    route_name = (d.get('route_name') or '').strip() or None
-    topo_name = (d.get('topo_name') or '').strip() or None
-    concerned_user = (d.get('concerned_user') or '').strip() or None
-
-    cur = conn.execute(
-        'INSERT INTO oops_reports (user_id, explanation, route_name, topo_name, concerned_user) VALUES (?,?,?,?,?)',
-        (user['id'], explanation, route_name, topo_name, concerned_user)
-    )
-    log_change(conn, 'oops_reports', cur.lastrowid, 'insert', user['id'], summary=f'Oops report: {explanation[:80]}')
-    conn.commit()
-    conn.close()
-    return ok(submitted=True), 201
-
-
+# ── NOTIFICATIONS ────────────────────────────────────────────────────────────
 @app.route('/api/notifications', methods=['POST'])
 @jwt_required()
 def submit_notification():
@@ -1434,7 +1438,7 @@ def list_notifications():
     except PermissionError as e: return api_error(str(e), 403)
 
     conn = get_db()
-    oops = conn.execute('''
+    reports = conn.execute('''
         SELECT o.*, u.username as submitter_name
         FROM oops_reports o
         LEFT JOIN users u ON u.id = o.user_id
@@ -1449,9 +1453,9 @@ def list_notifications():
     conn.close()
 
     items = []
-    for r in oops:
+    for r in reports:
         d = dict(r)
-        d['type'] = 'oops'
+        d['type'] = 'report'
         items.append(d)
     for r in notifs:
         d = dict(r)
@@ -1467,7 +1471,7 @@ def resolve_notification(ntype, nid):
     try: require_admin()
     except PermissionError as e: return api_error(str(e), 403)
 
-    table = {'oops': 'oops_reports', 'notification': 'notifications'}.get(ntype)
+    table = {'report': 'oops_reports', 'notification': 'notifications'}.get(ntype)
     if not table:
         return api_error('Invalid notification type', 400)
 
@@ -1484,14 +1488,14 @@ def delete_notification(ntype, nid):
     try: require_admin()
     except PermissionError as e: return api_error(str(e), 403)
 
-    table = {'oops': 'oops_reports', 'notification': 'notifications'}.get(ntype)
+    table = {'report': 'oops_reports', 'notification': 'notifications'}.get(ntype)
     if not table:
         return api_error('Invalid notification type', 400)
 
     conn = get_db()
     row = conn.execute(f'SELECT * FROM {table} WHERE id=?', (nid,)).fetchone()
     if table == 'oops_reports':
-        summary_text = f'Deleted oops report #{nid}: {(row["explanation"][:80] if row else "?")}'
+        summary_text = f'Deleted report #{nid}: {(row["explanation"][:80] if row else "?")}'
     else:
         summary_text = f'Deleted notification #{nid}: {(row["body"][:80] if row else "?")}'
     conn.execute(f'DELETE FROM {table} WHERE id=?', (nid,))
@@ -1658,7 +1662,7 @@ def get_contributions():
     conn.close()
     return ok(contributions=[dict(r) for r in rows])
 
-RESTORE_ALLOWED_TABLES = {'topos', 'routes', 'attempts', 'comments', 'projects', 'tag_routes', 'tag_topos', 'coming_soon', 'coming_soon_votes', 'oops_reports', 'notifications'}
+RESTORE_ALLOWED_TABLES = {'topos', 'routes', 'attempts', 'comments', 'projects', 'tag_routes', 'tag_topos', 'coming_soon', 'coming_soon_votes', 'notifications'}
 
 @app.route('/api/admin/audit-log/<int:log_id>/restore', methods=['POST'])
 @jwt_required()

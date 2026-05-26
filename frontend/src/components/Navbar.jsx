@@ -128,6 +128,20 @@ const S = {
     transition: 'background 0.15s',
     whiteSpace: 'nowrap',
   },
+  notifBtnMuted: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.72rem',
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid var(--line)',
+    padding: '0.3rem 0.75rem',
+    cursor: 'pointer',
+    transition: 'background 0.15s',
+    whiteSpace: 'nowrap',
+  },
 
   langBtn: {
     fontFamily: 'Barlow Condensed, sans-serif',
@@ -360,10 +374,10 @@ export default function Navbar() {
                 </div>
               )}
 
-              {user?.is_admin && unresolvedCount > 0 && (
+              {user?.is_admin && (
                 <button
                   style={{
-                    ...S.notifBtn,
+                    ...(unresolvedCount > 0 ? S.notifBtn : S.notifBtnMuted),
                     fontSize: '0.85rem',
                     padding: '0.65rem 1rem',
                     marginTop: '0.5rem',
@@ -487,11 +501,19 @@ export default function Navbar() {
           {currentLang === 'en' ? '\ud83c\uddeb\ud83c\uddf7' : '\ud83c\uddec\ud83c\udde7'}
         </button>
 
-        {user?.is_admin && unresolvedCount > 0 && (
+        {user?.is_admin && (
           <button
-            style={S.notifBtn}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(200,80,42,0.2)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(200,80,42,0.1)'}
+            style={unresolvedCount > 0 ? S.notifBtn : S.notifBtnMuted}
+            onMouseEnter={e => {
+              if (unresolvedCount > 0) {
+                e.currentTarget.style.background = 'rgba(200,80,42,0.2)'
+              }
+            }}
+            onMouseLeave={e => {
+              if (unresolvedCount > 0) {
+                e.currentTarget.style.background = 'rgba(200,80,42,0.1)'
+              }
+            }}
             onClick={() => navigate('/admin')}
           >
             {t('nav.notifications', { count: unresolvedCount })}

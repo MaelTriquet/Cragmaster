@@ -135,37 +135,27 @@ const S = {
 
 function NotificationCard({ item, onResolve, onDelete }) {
   const { t } = useTranslation()
-  const isOops = item.type === 'oops'
-  const isNotif = item.type === 'notification'
-  const badgeStyle = {
-    ...S.typeBadge,
-    background: isOops ? 'rgba(200,80,42,0.2)' : 'rgba(160,200,80,0.2)',
-    color: isOops ? 'var(--hold-lt)' : '#80c850',
-  }
+  const isReport = item.type === 'report'
 
   return (
     <div style={{ ...S.card, ...(item.resolved ? S.cardResolved : {}) }}>
-      <div style={badgeStyle}>
-        {isOops ? t('notifications.oopsLabel') : t('notifications.notifLabel')}
+      <div style={{
+        ...S.typeBadge,
+        background: isReport ? 'rgba(200,80,42,0.2)' : 'rgba(160,200,80,0.2)',
+        color: isReport ? 'var(--hold-lt)' : '#80c850',
+      }}>
+        {isReport ? t('notifications.reportLabel') : t('notifications.notifLabel')}
       </div>
       <div style={S.body}>
-        {isOops ? (
+        {isReport ? (
           <>
             <div style={S.bodyText}>{item.explanation}</div>
-            {(item.route_name || item.topo_name || item.concerned_user) && (
-              <div style={S.meta}>
-                {item.route_name && <>{t('notifications.routeLabel', { name: item.route_name })}</>}
-                {item.topo_name && <>{t('notifications.topoLabel', { name: item.topo_name })}</>}
-                {item.concerned_user && <>{t('notifications.userLabel', { name: item.concerned_user })}</>}
-              </div>
-            )}
+            {item.concerned_user && <div style={S.meta}>User: {item.concerned_user}</div>}
           </>
         ) : (
           <>
             <div style={S.bodyText}>{item.body}</div>
-            <div style={S.meta}>
-              {t(`footer.category_${item.category}`)}
-            </div>
+            {item.category && <div style={S.meta}>{t(`footer.category_${item.category}`)}</div>}
           </>
         )}
         <div style={{ ...S.meta, marginTop: '0.3rem' }}>
@@ -232,8 +222,8 @@ export default function Notifications() {
     .filter(item => {
       if (filter === 'unresolved') return !item.resolved
       if (filter === 'resolved') return item.resolved
-      if (filter === 'oops') return item.type === 'oops'
       if (filter === 'notification') return item.type === 'notification'
+      if (filter === 'report') return item.type === 'report'
       return true
     })
     .sort((a, b) => {
@@ -258,7 +248,7 @@ export default function Notifications() {
       </div>
 
       <div style={S.filterRow}>
-        {['unresolved', 'resolved', 'oops', 'notification'].map(f => (
+        {['unresolved', 'resolved', 'report'].map(f => (
           <button
             key={f}
             style={S.filterBtn(filter === f)}
