@@ -149,9 +149,6 @@ export default function About() {
 
         <div style={S.sectionAccent}>
           <p style={S.bodyText}>{t('about.pitch')}</p>
-          <ul style={S.list}>
-            <li style={S.listItem}>{t('about.items')}</li>
-          </ul>
         </div>
 
         <div style={S.section}>
