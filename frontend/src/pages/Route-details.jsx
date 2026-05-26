@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from "react-router-dom"
 import api from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
-import { getOfflineRoute, isOnline, addPendingAction, updateCachedRoute } from '../lib/offline'
+import { getOfflineRoute, isOnline, addPendingAction, updateCachedRoute, ping } from '../lib/offline'
 import { useToast } from '../contexts/ToastContext'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 
@@ -737,6 +737,7 @@ export default function RouteDetail() {
   }, [])
 
   const loadRoute = useCallback(async () => {
+    await ping()
     if (!isOnline()) {
       const offline = await getOfflineRoute(id)
       if (offline) applyRouteData(offline)

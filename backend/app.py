@@ -95,6 +95,16 @@ def spa(path):
     return send_from_directory('static', 'index.html')
 
 # ── AUTH ──────────────────────────────────────────────────────────────────────
+
+# ── PING ──────────────────────────────────────────────────────────────────────
+@app.route('/api/ping')
+def ping():
+    conn = get_db()
+    row = conn.execute('SELECT online FROM online WHERE id=1').fetchone()
+    conn.close()
+    return ok(online=bool(row['online']) if row else True)
+# ───────────────────────────────────────────────────────────────────────────────
+
 @app.route('/api/auth/login', methods=['POST'])
 @limiter.limit("10 per minute")
 def login():

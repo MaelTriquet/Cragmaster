@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { authApi } from '../api/client'
-import { isOnline } from '../lib/offline'
+import { isOnline, ping } from '../lib/offline'
 
 const AuthContext = createContext(null)
 
@@ -18,28 +18,29 @@ export function AuthProvider({ children }) {
 
   // On mount, rehydrate user from stored token
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) { setLoading(false); return }
+    (async () => {
+      await ping()
+      const token = localStorage.getItem('token')
+      if (!token) { setLoading(false); return }
 
-    if (!isOnline()) {
-      const cached = localStorage.getItem('user')
-      if (cached) {
-        try { setUser(JSON.parse(cached)); setLoading(false); return } catch {}
+      if (!isOnline()) {
+        const cached = localStorage.getItem('user')
+        if (cached) {
+          try { setUser(JSON.parse(cached)); setLoading(false); return } catch {}
+        }
+        const decoded = decodeToken(token)
+        if (decoded?.sub) {
+          setUser({ id: Number(decoded.sub), username: '...', is_admin: false })
+        }
+        setLoading(false)
+        return
       }
-      const decoded = decodeToken(token)
-      if (decoded?.sub) {
-        setUser({ id: Number(decoded.sub), username: '...', is_admin: false })
-      }
-      setLoading(false)
-      return
-    }
 
-    authApi.me()
-      .then(res => {
+      try {
+        const res = await authApi.me()
         setUser(res.data.user)
         localStorage.setItem('user', JSON.stringify(res.data.user))
-      })
-      .catch(err => {
+      } catch (err) {
         if (err.response?.status === 401) {
           localStorage.removeItem('token')
           localStorage.removeItem('user')
@@ -49,8 +50,9 @@ export function AuthProvider({ children }) {
             try { setUser(JSON.parse(cached)) } catch {}
           }
         }
-      })
-      .finally(() => setLoading(false))
+      }
+      setLoading(false)
+    })()
   }, [])
 
   const login = async (username, password, remember = false) => {

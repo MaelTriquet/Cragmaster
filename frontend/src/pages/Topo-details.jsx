@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
 import axios from 'axios'
-import { saveTopoForOffline, getOfflineTopo, getOfflineTopoIds, removeOfflineTopo, addPendingAction, isOnline } from '../lib/offline'
+import { saveTopoForOffline, getOfflineTopo, getOfflineTopoIds, removeOfflineTopo, addPendingAction, isOnline, ping } from '../lib/offline'
 import { loadLeaflet } from '../lib/leaflet'
 import { useToast } from '../contexts/ToastContext'
 
@@ -1057,6 +1057,7 @@ export default function TopoDetail() {
 
   useEffect(() => {
     (async () => {
+      await ping()
       if (!isOnline()) {
         const cached = await getOfflineTopo(id)
         if (cached) {

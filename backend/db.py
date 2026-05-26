@@ -139,7 +139,13 @@ def init_db():
             user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
             timestamp  DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS online (
+            id     INTEGER PRIMARY KEY CHECK (id = 1),
+            online INTEGER NOT NULL DEFAULT 1
+        );
     ''')
+    conn.execute('INSERT OR IGNORE INTO online (id, online) VALUES (1, 1)')
 
     # Migrations
     for table, col, col_type in [('users', 'token_version', 'INTEGER DEFAULT 0'), ('comments', 'beta', 'TEXT DEFAULT ""'), ('projects', 'sent', 'INTEGER DEFAULT 0'), ('users', 'banned_until', 'DATETIME DEFAULT NULL'), ('tags', 'category', 'TEXT NOT NULL DEFAULT \'other\''), ('tags', 'name_fr', 'TEXT DEFAULT NULL'), ('routes', 'photo', 'TEXT DEFAULT NULL'), ('users', 'email', 'TEXT DEFAULT NULL'), ('users', 'email_prompt_dismissed', 'INTEGER DEFAULT 0')]:

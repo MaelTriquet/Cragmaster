@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api/client'
-import { getPendingCount, onSyncChange, processSyncQueue, isOnline } from '../lib/offline'
+import { getPendingCount, onSyncChange, processSyncQueue, isOnline, ping } from '../lib/offline'
 
 
 const NAV_ITEM_KEYS = [
@@ -271,11 +271,14 @@ export default function Navbar() {
   const [isMobile, setIsMobile] = useState(false)
   const [unresolvedCount, setUnresolvedCount] = useState(0)
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [pingState, setPingState] = useState(null) // null | 'checking' | 'online' | 'offline'
 
   useEffect(() => {
-    getPendingCount().then(count => {
-      setPendingSyncCount(count)
-      if (count > 0 && isOnline()) processSyncQueue().then(r => getPendingCount().then(setPendingSyncCount))
+    ping().then(() => {
+      getPendingCount().then(count => {
+        setPendingSyncCount(count)
+        if (count > 0 && isOnline()) processSyncQueue().then(r => getPendingCount().then(setPendingSyncCount))
+      })
     })
     const unsub = onSyncChange(setPendingSyncCount)
     return unsub
@@ -366,6 +369,33 @@ export default function Navbar() {
                   onClick={toggleLang}
                 >
                   {currentLang === 'en' ? '\ud83c\uddeb\ud83c\uddf7' : '\ud83c\uddec\ud83c\udde7'}
+                </button>
+              </div>
+
+              <div style={S.drawerRow}>
+                <button
+                  style={{
+                    ...S.langBtn,
+                    fontSize: '0.85rem',
+                    padding: '0.45rem 0.9rem',
+                    gap: '0.45rem',
+                    opacity: pingState === 'checking' ? 0.6 : 1,
+                  }}
+                  disabled={pingState === 'checking'}
+                  onClick={async () => {
+                    setPingState('checking')
+                    await ping()
+                    setPingState(isOnline() ? 'online' : 'offline')
+                  }}
+                >
+                  <span style={{
+                    display: 'inline-block',
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: pingState === 'online' ? 'var(--good)' : pingState === 'offline' ? 'var(--hold-lt)' : 'var(--muted)',
+                  }} />
+                  {pingState === 'checking' ? '…' : t('nav.checkConnection')}
                 </button>
               </div>
 

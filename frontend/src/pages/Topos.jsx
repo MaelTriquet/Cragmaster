@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
-import { getOfflineTopoIds, getOfflineTopo, isOnline } from '../lib/offline'
+import { getOfflineTopoIds, getOfflineTopo, isOnline, ping } from '../lib/offline'
 
 const S = {
   root: {
@@ -176,35 +176,9 @@ export default function Topos() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!isOnline()) {
-      getOfflineTopoIds().then(async ids => {
-        if (ids.length > 0) {
-          const cached = []
-          for (const id of ids) {
-            const data = await getOfflineTopo(id)
-            if (data?.topo) cached.push(data.topo)
-          }
-          cached.sort((a, b) =>
-            a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
-          )
-          setTopos(cached)
-          setOfflineMode(true)
-        }
-        setLoading(false)
-      })
-      return
-    }
-
-    api.get("/topos")
-      .then(res => {
-        const list = res.data || []
-        list.sort((a, b) =>
-          a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
-        )
-        setTopos(list)
-        setOfflineMode(false)
-      })
-      .catch(async () => {
+    (async () => {
+      await ping()
+      if (!isOnline()) {
         const ids = await getOfflineTopoIds()
         if (ids.length > 0) {
           const cached = []
@@ -218,8 +192,35 @@ export default function Topos() {
           setTopos(cached)
           setOfflineMode(true)
         }
-      })
-      .finally(() => setLoading(false))
+        setLoading(false)
+        return
+      }
+
+      try {
+        const res = await api.get("/topos")
+        const list = res.data || []
+        list.sort((a, b) =>
+          a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+        )
+        setTopos(list)
+        setOfflineMode(false)
+      } catch {
+        const ids = await getOfflineTopoIds()
+        if (ids.length > 0) {
+          const cached = []
+          for (const id of ids) {
+            const data = await getOfflineTopo(id)
+            if (data?.topo) cached.push(data.topo)
+          }
+          cached.sort((a, b) =>
+            a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+          )
+          setTopos(cached)
+          setOfflineMode(true)
+        }
+      }
+      setLoading(false)
+    })()
   }, [])
 
   return (

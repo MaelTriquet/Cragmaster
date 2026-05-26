@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
-import { searchOffline, isOnline } from '../lib/offline'
+import { searchOffline, isOnline, ping } from '../lib/offline'
 
 const highlightMatch = (text, matchPos, matchLen) => {
   if (matchPos == null || matchLen === 0) return text
@@ -492,6 +492,8 @@ export default function Search() {
 
     const timeout = setTimeout(async () => {
       setLoading(true)
+
+      await ping()
 
       if (!isOnline()) {
         const offlineRes = await searchOffline(query, { grade_min_sort: GRADE_OPTIONS.find(g => g.label === gradeMin)?.sort, grade_max_sort: GRADE_OPTIONS.find(g => g.label === gradeMax)?.sort })

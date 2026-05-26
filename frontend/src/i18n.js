@@ -24,6 +24,7 @@ i18n.use(initReactI18next).init({
           auditLog: 'Audit Log',
           myChanges: 'My Changes',
           syncPending: '{{count}} pending',
+          checkConnection: 'Check connection',
         },
         common: {
           loading: 'LOADING\u2026',
@@ -497,6 +498,7 @@ i18n.use(initReactI18next).init({
           auditLog: 'Journal d\'audit',
           myChanges: 'Mes modifications',
           syncPending: '{{count}} en attente',
+          checkConnection: 'Vérifier la connexion',
         },
         common: {
           loading: 'CHARGEMENT\u2026',

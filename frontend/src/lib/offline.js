@@ -73,8 +73,23 @@ export async function getOfflineTopoIds() {
   return getTopoIds()
 }
 
+let _isOnline = navigator.onLine
+
+export async function ping() {
+  try {
+    const controller = new AbortController()
+    const id = setTimeout(() => controller.abort(), 500)
+    await fetch('/api/ping', { signal: controller.signal, credentials: 'include' })
+    clearTimeout(id)
+    _isOnline = true
+  } catch {
+    _isOnline = false
+  }
+  return _isOnline
+}
+
 export function isOnline() {
-  return navigator.onLine
+  return _isOnline
 }
 
 /* ── local cache updates (for user-level mutations) ── */
