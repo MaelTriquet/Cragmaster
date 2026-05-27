@@ -1240,7 +1240,7 @@ export default function TopoDetail() {
 	  window.location.href = url;
 	};
   return (
-    <div style={S.root}>
+    <><div style={S.root}>
       <div style={S.noise} />
 
       <div style={S.container}>
@@ -1767,65 +1767,65 @@ export default function TopoDetail() {
           </div>
         )}
 
-        {/* ── CONFIRMATION MODAL ── */}
-        {confirmModal && (
-          <div style={S.overlay} onClick={() => setConfirmModal(null)}>
-            <div style={S.modal} onClick={e => e.stopPropagation()}>
-              <div style={S.modalTitle}>{t('topoDetail.confirmLocation')}</div>
-              <p style={S.modalBody}>
-                {confirmModal === 'parking'
-                  ? t('topoDetail.confirmParkingBody')
-                  : t('topoDetail.confirmRoutesBody')}
-              </p>
-              <p style={S.modalHint}>{t('topoDetail.confirmMapHint')}</p>
-              <div style={S.modalActions}>
-                <button
-                  style={{
-                    ...S.btnPrimary,
-                    flex: 1,
-                    minWidth: '120px',
-                    background: hoveredBtn === 'confirmHere' ? 'var(--hold-lt)' : 'var(--hold)',
-                  }}
-                  onMouseEnter={() => setHoveredBtn('confirmHere')}
-                  onMouseLeave={() => setHoveredBtn(null)}
-                  onClick={confirmAndSend}
-                >
-                  {t('topoDetail.confirmHere')}
-                </button>
-                <button
-                  style={{
-                    ...S.btnGhost,
-                    flex: 1,
-                    minWidth: '120px',
-                    borderColor: hoveredBtn === 'setOnMap' ? 'var(--hold)' : 'var(--line)',
-                    color: hoveredBtn === 'setOnMap' ? 'var(--hold)' : 'var(--chalk)',
-                  }}
-                  onMouseEnter={() => setHoveredBtn('setOnMap')}
-                  onMouseLeave={() => setHoveredBtn(null)}
-                  onClick={handleSetOnMap}
-                >
-                  {t('topoDetail.confirmSetOnMap')}
-                </button>
-                <button
-                  style={S.modalCancel}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--chalk)'
-                    e.currentTarget.style.color = 'var(--chalk)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--line)'
-                    e.currentTarget.style.color = 'var(--muted)'
-                  }}
-                  onClick={() => setConfirmModal(null)}
-                >
-                  {t('topoDetail.cancel')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
+
+    {confirmModal && (
+      <div style={S.overlay} onClick={() => setConfirmModal(null)}>
+        <div style={S.modal} onClick={e => e.stopPropagation()}>
+          <div style={S.modalTitle}>{t('topoDetail.confirmLocation')}</div>
+          <p style={S.modalBody}>
+            {confirmModal === 'parking'
+              ? t('topoDetail.confirmParkingBody')
+              : t('topoDetail.confirmRoutesBody')}
+          </p>
+          <p style={S.modalHint}>{t('topoDetail.confirmMapHint')}</p>
+          <div style={S.modalActions}>
+            <button
+              style={{
+                ...S.btnPrimary,
+                flex: 1,
+                minWidth: '120px',
+                background: hoveredBtn === 'confirmHere' ? 'var(--hold-lt)' : 'var(--hold)',
+              }}
+              onMouseEnter={() => setHoveredBtn('confirmHere')}
+              onMouseLeave={() => setHoveredBtn(null)}
+              onClick={confirmAndSend}
+            >
+              {t('topoDetail.confirmHere')}
+            </button>
+            <button
+              style={{
+                ...S.btnGhost,
+                flex: 1,
+                minWidth: '120px',
+                borderColor: hoveredBtn === 'setOnMap' ? 'var(--hold)' : 'var(--line)',
+                color: hoveredBtn === 'setOnMap' ? 'var(--hold)' : 'var(--chalk)',
+              }}
+              onMouseEnter={() => setHoveredBtn('setOnMap')}
+              onMouseLeave={() => setHoveredBtn(null)}
+              onClick={handleSetOnMap}
+            >
+              {t('topoDetail.confirmSetOnMap')}
+            </button>
+            <button
+              style={S.modalCancel}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--chalk)'
+                e.currentTarget.style.color = 'var(--chalk)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--line)'
+                e.currentTarget.style.color = 'var(--muted)'
+              }}
+              onClick={() => setConfirmModal(null)}
+            >
+              {t('topoDetail.cancel')}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   )
 }

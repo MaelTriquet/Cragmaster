@@ -984,7 +984,6 @@ export default function Stats() {
                       }}>
                         {r.route_name}
                       </span>
-                      <span style={S.workingTopo}>{r.topo_title}</span>
                       <span style={S.workingAttempts}>
                         {r.attempts} {t('stats.attempt', { count: r.attempts })}
                       </span>
