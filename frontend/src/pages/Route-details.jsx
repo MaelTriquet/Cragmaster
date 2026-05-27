@@ -804,6 +804,21 @@ export default function RouteDetail() {
   }
 
   const sendAttempt = () => {
+    if (isSent) {
+      if (!isOnline()) {
+        updateCachedRoute(id, data => ({
+          ...data,
+          attempt: data.attempt ? { ...data.attempt, sent: 0 } : null,
+        })).catch(() => {})
+        setAttempt(prev => prev ? { ...prev, sent: 0 } : null)
+        addPendingAction({ endpoint: `/routes/${id}/unsent_attempt`, method: 'get', type: 'user', summary: `Unsend route "${route.name}"` })
+        showToast(t('routeDetail.offlineSaved'))
+        return
+      }
+      api.get(`/routes/${id}/unsent_attempt`)
+        .then(res => setAttempt(res.data.attempt))
+      return
+    }
     if (!isOnline()) {
       updateCachedRoute(id, data => ({
         ...data,
@@ -1192,13 +1207,13 @@ export default function RouteDetail() {
             <button
               style={{
                 ...S.btnPrimary,
-                background: hoveredBtn === "sent" ? "var(--hold-lt)" : "var(--hold)",
+                background: hoveredBtn === "sent" ? "var(--hold-lt)" : isSent ? "var(--good)" : "var(--hold)",
               }}
               onMouseEnter={() => setHoveredBtn("sent")}
               onMouseLeave={() => setHoveredBtn(null)}
               onClick={sendAttempt}
             >
-              {t('routeDetail.markSent')}
+              {isSent ? t('routeDetail.sent') : t('routeDetail.markSent')}
             </button>
           </div>
         </div>

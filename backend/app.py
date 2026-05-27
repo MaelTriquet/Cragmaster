@@ -953,6 +953,20 @@ def sent_attempt(route_id):
     conn.close()
     return ok(attempt=dict(attempt), empty_categories=empty_categories)
 
+@app.route('/api/routes/<int:route_id>/unsent_attempt', methods=['GET'])
+@jwt_required()
+def unsent_attempt(route_id):
+    user_id = int(get_jwt_identity())
+    conn = get_db()
+    attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
+    if attempt and attempt['sent']:
+        log_change(conn, 'attempts', attempt['id'], 'update', user_id, 'sent', '1', '0')
+        conn.execute('UPDATE attempts SET sent=0, sent_at=NULL WHERE user_id=? AND route_id=?', (user_id, route_id))
+    attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
+    conn.commit()
+    conn.close()
+    return ok(attempt=dict(attempt) if attempt else None)
+
 # ── COMMENTS ─────────────────────────────────────────────────────────────────
 @app.route('/api/routes/<int:route_id>/comments', methods=['GET'])
 @jwt_required()

@@ -842,7 +842,7 @@ i18n.use(initReactI18next).init({
           created: 'Cr\u00e9\u00e9 \u2713',
           newUserPlaceholder: 'Identifiant du nouvel utilisateur',
           initialPasswordPlaceholder: 'Mot de passe initial',
-          generatePassphrase: 'G\u00e9n\u00e9rer une phrase de passe',
+          generatePassphrase: 'G\u00e9n\u00e9rer un mot de passe',
           passwordGenerated: 'G\u00e9n\u00e9r\u00e9 automatiquement',
           reportUser: 'Signaler',
           reportSent: 'Signalement envoy\u00e9 \u2713',
