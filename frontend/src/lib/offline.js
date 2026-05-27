@@ -23,7 +23,19 @@ export function isOnline() {
   return _connectionStatus === 1
 }
 
+let _pingPromise = null
+
 export async function ping() {
+  if (_pingPromise) return _pingPromise
+  _pingPromise = _doPing()
+  try {
+    return await _pingPromise
+  } finally {
+    _pingPromise = null
+  }
+}
+
+async function _doPing() {
   if (!navigator.onLine) {
     _connectionStatus = 2
     notifyConnListeners()
