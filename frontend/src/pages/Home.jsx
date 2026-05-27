@@ -99,69 +99,26 @@ const S = {
     textTransform: "uppercase",
     marginTop: "0.35rem",
   },
-  sectionTitle: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "1.1rem",
-    fontWeight: 600,
-    letterSpacing: "0.1em",
-    color: "var(--chalk)",
-    textTransform: "uppercase",
-    margin: "2rem 0 1rem",
-  },
-  topoGrid: {
-    display: "flex",
-    gap: "0.75rem",
-    overflowX: "auto",
-    paddingBottom: "0.5rem",
-    scrollSnapType: "x mandatory",
-  },
-  topoCard: {
-    flex: "0 0 180px",
-    scrollSnapAlign: "start",
-    background: "var(--granite)",
-    border: "1px solid var(--line)",
-    padding: "1.25rem",
-    cursor: "pointer",
-    transition: "border-color 0.15s, background 0.15s",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    minHeight: "100px",
-  },
-  topoCardTitle: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "1rem",
-    fontWeight: 600,
-    color: "var(--chalk)",
-    letterSpacing: "0.02em",
-    lineHeight: 1.2,
-  },
-  topoCardBadge: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.7rem",
-    fontWeight: 600,
-    letterSpacing: "0.1em",
-    color: "var(--muted)",
-    marginTop: "0.75rem",
-  },
   actions: {
-    display: "flex",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
     gap: "0.75rem",
     margin: "2rem 0",
-    flexWrap: "wrap",
   },
   actionBtn: {
     fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.75rem",
-    fontWeight: 600,
-    letterSpacing: "0.12em",
+    fontSize: "1.1rem",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
     textTransform: "uppercase",
-    padding: "0.65rem 1.5rem",
-    border: "1px solid var(--line)",
+    padding: "1.5rem 1rem",
+    border: "none",
+    borderBottom: "3px solid var(--hold)",
     color: "var(--chalk)",
     background: "var(--granite)",
     cursor: "pointer",
-    transition: "border-color 0.15s, background 0.15s",
+    textAlign: "center",
+    transition: "background 0.15s, border-color 0.15s",
   },
   loadingText: {
     fontFamily: "Barlow Condensed, sans-serif",
@@ -202,11 +159,6 @@ export default function Home() {
             user_count: 0,
             topo_pct: 0,
             route_pct: 0,
-            recent_topos: topos.slice(-6).reverse().map(t => ({
-              id: t.id,
-              title: t.title,
-              route_count: (t.routes || []).length,
-            })),
           })
         }
       }
@@ -221,7 +173,6 @@ export default function Home() {
   const routeScore = homeData?.route_score ?? 0
   const topoPct = homeData?.topo_pct ?? 0
   const routePct = homeData?.route_pct ?? 0
-  const recentTopos = homeData?.recent_topos ?? []
 
   return (
     <div style={S.root}>
@@ -265,52 +216,38 @@ export default function Home() {
               </div>
             </div>
 
-            {recentTopos.length > 0 && (
-              <>
-                <div style={S.sectionTitle}>{t('home.recentTopos')}</div>
-                <div style={S.topoGrid}>
-                  {recentTopos.map(topo => (
-                    <div
-                      key={topo.id}
-                      style={S.topoCard}
-                      onClick={() => navigate(`/topos/${topo.id}`)}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.background = 'var(--rock)' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--granite)' }}
-                    >
-                      <div style={S.topoCardTitle}>{topo.title}</div>
-                      <div style={S.topoCardBadge}>
-                        {topo.route_count} {topo.route_count === 1 ? t('home.route_one') : t('home.route_other')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
             <div style={S.actions}>
               <button
                 style={S.actionBtn}
-                onClick={() => navigate('/upload')}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.background = 'var(--rock)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--granite)' }}
+                onClick={() => navigate('/routes')}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--rock)'; e.currentTarget.style.borderBottomColor = 'var(--chalk)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--granite)'; e.currentTarget.style.borderBottomColor = 'var(--hold)' }}
               >
-                {t('home.actionUpload')}
+                {t('nav.routes')}
+              </button>
+              <button
+                style={S.actionBtn}
+                onClick={() => navigate('/topos')}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--rock)'; e.currentTarget.style.borderBottomColor = 'var(--chalk)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--granite)'; e.currentTarget.style.borderBottomColor = 'var(--hold)' }}
+              >
+                {t('nav.topos')}
+              </button>
+              <button
+                style={S.actionBtn}
+                onClick={() => navigate('/map')}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--rock)'; e.currentTarget.style.borderBottomColor = 'var(--chalk)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--granite)'; e.currentTarget.style.borderBottomColor = 'var(--hold)' }}
+              >
+                {t('nav.map')}
               </button>
               <button
                 style={S.actionBtn}
                 onClick={() => navigate('/stats')}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.background = 'var(--rock)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--granite)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--rock)'; e.currentTarget.style.borderBottomColor = 'var(--chalk)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--granite)'; e.currentTarget.style.borderBottomColor = 'var(--hold)' }}
               >
-                {t('home.actionStats')}
-              </button>
-              <button
-                style={S.actionBtn}
-                onClick={() => navigate('/routes')}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.background = 'var(--rock)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--granite)' }}
-              >
-                {t('home.actionBrowse')}
+                {t('nav.stats')}
               </button>
             </div>
           </>

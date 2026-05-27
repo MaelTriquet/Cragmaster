@@ -475,7 +475,7 @@ export default function Topos() {
         const data = await getOfflineTopo(id)
         if (data?.topo) cached.push(data.topo)
       }
-      const q = query.toLowerCase().trim()
+      const q = query.toLowerCase().trim().replace(/ /g, '-')
       const filtered = cached.filter(t => !q || t.title.toLowerCase().includes(q))
       setTopos(filtered)
       setOfflineMode(true)
@@ -483,7 +483,7 @@ export default function Topos() {
       return
     }
     const params = new URLSearchParams()
-    if (hasQuery) params.set("q", query.trim())
+    if (hasQuery) params.set("q", query.trim().replace(/ /g, '-'))
     activeTags.forEach(id => params.append("tag_ids", id))
     try {
       const res = await api.get(`/search?${params.toString()}`)
