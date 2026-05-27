@@ -186,7 +186,7 @@ function TagFingerprint({ data, title }) {
             <div key={cat}>
               <div style={{
                 fontFamily: 'Barlow Condensed, sans-serif',
-                fontSize: '0.6rem', fontWeight: 700,
+                fontSize: '0.7rem', fontWeight: 700,
                 letterSpacing: '0.15em', textTransform: 'uppercase',
                 color: CATEGORY_COLORS[cat] || 'var(--muted)',
                 marginBottom: '0.35rem',
@@ -596,6 +596,7 @@ const S = {
     height: '100%',
     gap: '4px',
     position: 'relative',
+    overflow: 'hidden',
     cursor: 'default',
   },
   barWrapper: {
@@ -611,7 +612,7 @@ const S = {
   },
   barLabel: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.6rem',
+    fontSize: '0.65rem',
     fontWeight: 700,
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
@@ -651,11 +652,14 @@ const S = {
   },
   hBarLabel: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.72rem',
+    fontSize: '0.7rem',
     fontWeight: 700,
     letterSpacing: '0.06em',
-    width: '36px',
+    width: '60px',
     flexShrink: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
     transition: 'color 0.15s',
   },
   hBarTrack: {

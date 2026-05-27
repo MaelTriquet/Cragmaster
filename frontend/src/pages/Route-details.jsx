@@ -395,11 +395,11 @@ const S = {
 
   commentStatus: {
     fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.6rem",
+    fontSize: "0.7rem",
     fontWeight: 600,
     letterSpacing: "0.12em",
     textTransform: "uppercase",
-    padding: "0.1rem 0.4rem",
+    padding: "0.2rem 0.5rem",
     borderRadius: "2px",
     marginLeft: "0.5rem",
   },
@@ -785,6 +785,24 @@ export default function RouteDetail() {
       .then(res => setAttempt(res.data.attempt))
   }
 
+  const removeAttempt = () => {
+    if (attemptCount === 0) return
+    if (!isOnline()) {
+      updateCachedRoute(id, data => ({
+        ...data,
+        attempt: data.attempt
+          ? { ...data.attempt, amount: Math.max(0, (data.attempt.amount || 0) - 1) }
+          : null,
+      })).catch(() => {})
+      setAttempt(prev => prev && prev.amount > 0 ? { ...prev, amount: prev.amount - 1 } : null)
+      addPendingAction({ endpoint: `/routes/${id}/remove_attempt`, method: 'get', type: 'user', summary: `Remove attempt on route "${route.name}"` })
+      showToast(t('routeDetail.offlineSaved'))
+      return
+    }
+    api.get(`/routes/${id}/remove_attempt`)
+      .then(res => setAttempt(res.data.attempt))
+  }
+
   const sendAttempt = () => {
     if (!isOnline()) {
       updateCachedRoute(id, data => ({
@@ -1147,6 +1165,18 @@ export default function RouteDetail() {
             </span>
           </div>
           <div style={S.btnRow}>
+            <button
+              style={{
+                ...S.btnGhost,
+                borderColor: hoveredBtn === "removeAttempt" ? "var(--hold)" : "var(--line)",
+                color: hoveredBtn === "removeAttempt" ? "var(--hold)" : "var(--chalk)",
+              }}
+              onMouseEnter={() => setHoveredBtn("removeAttempt")}
+              onMouseLeave={() => setHoveredBtn(null)}
+              onClick={removeAttempt}
+            >
+              {t('routeDetail.removeAttempt')}
+            </button>
             <button
               style={{
                 ...S.btnGhost,

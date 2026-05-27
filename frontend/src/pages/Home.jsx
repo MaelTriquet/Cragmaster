@@ -92,7 +92,7 @@ const S = {
   },
   statLabel: {
     fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.6rem",
+    fontSize: "0.7rem",
     fontWeight: 600,
     letterSpacing: "0.15em",
     color: "var(--muted)",

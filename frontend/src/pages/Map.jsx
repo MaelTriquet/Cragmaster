@@ -188,7 +188,7 @@ const S = {
   ctxHeader: {
     padding: '0.45rem 0.85rem',
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.6rem',
+    fontSize: '0.7rem',
     fontWeight: 700,
     letterSpacing: '0.22em',
     textTransform: 'uppercase',
@@ -201,7 +201,7 @@ const S = {
 
   ctxCoords: {
     fontFamily: 'monospace',
-    fontSize: '0.6rem',
+    fontSize: '0.7rem',
     color: 'var(--muted)',
     fontWeight: 400,
     letterSpacing: 0,
@@ -216,7 +216,7 @@ const S = {
   ctxSectionLabel: {
     padding: '0.3rem 0.85rem 0.15rem',
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.58rem',
+    fontSize: '0.7rem',
     fontWeight: 700,
     letterSpacing: '0.18em',
     textTransform: 'uppercase',

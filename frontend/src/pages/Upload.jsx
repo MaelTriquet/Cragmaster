@@ -73,7 +73,7 @@ const S = {
   /* ── Section label ── */
   sectionLabel: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.6rem',
+    fontSize: '0.7rem',
     fontWeight: 700,
     letterSpacing: '0.25em',
     textTransform: 'uppercase',
@@ -122,7 +122,7 @@ const S = {
     bottom: '0.5rem',
     right: '0.75rem',
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.6rem',
+    fontSize: '0.7rem',
     letterSpacing: '0.15em',
     textTransform: 'uppercase',
     color: 'var(--hold)',
@@ -155,7 +155,7 @@ const S = {
   },
   dividerText: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.6rem',
+    fontSize: '0.7rem',
     fontWeight: 700,
     letterSpacing: '0.2em',
     textTransform: 'uppercase',

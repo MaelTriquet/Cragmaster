@@ -20,12 +20,12 @@ const S = {
   },
   label: {
     fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '0.55rem',
+    fontSize: '0.6rem',
     fontWeight: 600,
     letterSpacing: '0.18em',
     color: 'var(--muted)',
     textTransform: 'uppercase',
-    marginRight: '0.2rem',
+    marginRight: '0.35rem',
     opacity: 0.5,
   },
   btn: {

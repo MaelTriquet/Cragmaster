@@ -373,7 +373,7 @@ function ResetPassword({ token }) {
                 type="button"
                 style={{
                   fontFamily: 'Barlow Condensed, sans-serif',
-                  fontSize: '0.6rem',
+                  fontSize: '0.7rem',
                   fontWeight: 700,
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',

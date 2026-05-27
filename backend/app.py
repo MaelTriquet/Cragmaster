@@ -896,13 +896,27 @@ def add_attempt(route_id):
         cur = conn.execute('INSERT INTO attempts (user_id, route_id, amount) VALUES (?,?,1)', (user_id, route_id))
         log_change(conn, 'attempts', cur.lastrowid, 'insert', user_id, summary=f'Started attempts on route {route_id}')
     else:
-        if not attempt['sent']:
-            conn.execute('UPDATE attempts SET amount=amount+1 WHERE user_id=? AND route_id=?', (user_id, route_id))
-            log_change(conn, 'attempts', attempt['id'], 'update', user_id, 'amount', str(attempt['amount']), str(attempt['amount'] + 1))
+        conn.execute('UPDATE attempts SET amount=amount+1 WHERE user_id=? AND route_id=?', (user_id, route_id))
+        log_change(conn, 'attempts', attempt['id'], 'update', user_id, 'amount', str(attempt['amount']), str(attempt['amount'] + 1))
     attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
     conn.commit()
     conn.close()
     return ok(attempt=dict(attempt))
+
+
+@app.route('/api/routes/<int:route_id>/remove_attempt', methods=['GET'])
+@jwt_required()
+def remove_attempt(route_id):
+    user_id = int(get_jwt_identity())
+    conn = get_db()
+    attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
+    if attempt and attempt['amount'] > 0:
+        conn.execute('UPDATE attempts SET amount=amount-1 WHERE user_id=? AND route_id=? AND amount>0', (user_id, route_id))
+        log_change(conn, 'attempts', attempt['id'], 'update', user_id, 'amount', str(attempt['amount']), str(attempt['amount'] - 1))
+    attempt = conn.execute('SELECT * FROM attempts WHERE user_id=? AND route_id=?', (user_id, route_id)).fetchone()
+    conn.commit()
+    conn.close()
+    return ok(attempt=dict(attempt) if attempt else None)
 
 @app.route('/api/routes/<int:route_id>/sent_attempt', methods=['GET'])
 @jwt_required()

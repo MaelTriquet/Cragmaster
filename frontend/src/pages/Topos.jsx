@@ -181,12 +181,12 @@ const S = {
   },
 
   tagDropdownCat: {
-    padding: "0.3rem 0.75rem 0.15rem",
+    padding: "0.3rem 0.75rem 0.25rem",
   },
 
   tagDropdownCatLabel: {
     fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.6rem",
+    fontSize: "0.7rem",
     fontWeight: 700,
     letterSpacing: "0.18em",
     textTransform: "uppercase",
@@ -216,7 +216,7 @@ const S = {
 
   tagDropdownClear: {
     fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "0.6rem",
+    fontSize: "0.7rem",
     fontWeight: 600,
     letterSpacing: "0.12em",
     textTransform: "uppercase",
