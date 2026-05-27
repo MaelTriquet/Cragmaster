@@ -1,4 +1,5 @@
 import { get, set, del, keys } from 'idb-keyval'
+import { baseURL } from '../api/client'
 import api from '../api/client'
 
 const TOPO_PREFIX = 'offline-topo-'
@@ -76,10 +77,14 @@ export async function getOfflineTopoIds() {
 let _isOnline = navigator.onLine
 
 export async function ping() {
+  if (!navigator.onLine) {
+    _isOnline = false
+    return false
+  }
   try {
     const controller = new AbortController()
     const id = setTimeout(() => controller.abort(), 500)
-    await fetch('/api/ping', { signal: controller.signal, credentials: 'include' })
+    await fetch(`${baseURL}/ping`, { signal: controller.signal, credentials: 'include' })
     clearTimeout(id)
     _isOnline = true
   } catch {
