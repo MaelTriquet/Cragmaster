@@ -249,7 +249,7 @@ const S = {
     borderLeftColor: 'var(--hold)',
   },
   progressItemDone: {
-    borderLeftColor: '#5a9e6f',
+    borderLeftColor: 'var(--good)',
   },
   progressItemError: {
     borderLeftColor: 'var(--hold)',
@@ -292,7 +292,7 @@ const S = {
   progressBarInner: (pct, status) => ({
     height: '100%',
     width: `${pct}%`,
-    background: status === 'done' ? '#5a9e6f' : 'var(--hold)',
+    background: status === 'done' ? 'var(--good)' : 'var(--hold)',
     transition: 'width 0.3s ease',
   }),
   progressMsg: {
@@ -305,7 +305,7 @@ const S = {
 
   /* ── Summary ── */
   summary: {
-    borderLeft: '3px solid #5a9e6f',
+    borderLeft: '3px solid var(--good)',
     background: 'rgba(90,158,111,0.07)',
     padding: '1.1rem 1.4rem',
     display: 'flex',
@@ -697,11 +697,11 @@ export default function Upload() {
               <button
                 style={{
                   ...S.urlBtn(false),
-                  background: '#5a9e6f',
+                  background: 'var(--good)',
                   cursor: 'pointer',
                 }}
                 onMouseEnter={e => { e.target.style.background = '#6db87e' }}
-                onMouseLeave={e => { e.target.style.background = '#5a9e6f' }}
+                onMouseLeave={e => { e.target.style.background = 'var(--good)' }}
                 onClick={() => navigate(`/topos/${createdTopoId}`)}
               >
                 {t('upload.createdTopo')} →

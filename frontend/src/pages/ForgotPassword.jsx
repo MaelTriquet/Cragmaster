@@ -120,7 +120,7 @@ const S = {
     textTransform: 'uppercase',
     color: '#7fc99a',
     padding: '0.4rem 0.75rem',
-    borderLeft: '2px solid #5a9e6f',
+    borderLeft: '2px solid var(--good)',
     background: 'rgba(90,158,111,0.08)',
   },
   error: {
@@ -355,7 +355,7 @@ function ResetPassword({ token }) {
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
                     padding: '0.6rem 0.8rem',
-                    border: `1px solid ${copied ? '#5a9e6f' : 'var(--line)'}`,
+                    border: `1px solid ${copied ? 'var(--good)' : 'var(--line)'}`,
                     color: copied ? '#7fc99a' : 'var(--muted)',
                     background: 'none',
                     cursor: 'pointer',

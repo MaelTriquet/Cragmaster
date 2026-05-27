@@ -111,7 +111,6 @@ const S = {
     background: "var(--hold)",
   },
 
-  // ── SEARCH BAR ──
   searchWrap: {
     position: "relative",
     margin: "2rem 0 0.75rem",
@@ -160,7 +159,6 @@ const S = {
     transition: "color 0.15s",
   },
 
-  // ── TAG MENU ──
   tagMenuWrap: {
     position: "relative",
   },
@@ -260,7 +258,6 @@ const S = {
     flex: "none",
   },
 
-  // ── FILTER SELECT ──
   filterSelect: (active) => ({
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "0.68rem",
@@ -277,15 +274,7 @@ const S = {
     transition: "border-color 0.15s, color 0.15s, background 0.15s",
   }),
 
-  // ── RESULTS LAYOUT ──
   results: {
-    display: "grid",
-    gridTemplateColumns: "var(--grid-2col, 1fr 1fr)",
-    gap: "2rem",
-    alignItems: "start",
-  },
-
-  column: {
     display: "flex",
     flexDirection: "column",
   },
@@ -316,35 +305,6 @@ const S = {
     color: "var(--muted)",
   },
 
-  topoRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0.7rem 0",
-    borderBottom: "1px solid var(--line)",
-    cursor: "pointer",
-    gap: "0.75rem",
-  },
-
-  topoName: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "1rem",
-    fontWeight: 700,
-    letterSpacing: "0.04em",
-    textTransform: "uppercase",
-    color: "var(--chalk)",
-    transition: "color 0.15s",
-    flex: 1,
-    lineHeight: 1.2,
-  },
-
-  topoLocation: {
-    fontFamily: "Barlow, sans-serif",
-    fontSize: "0.75rem",
-    color: "var(--muted)",
-    marginTop: "0.15rem",
-  },
-
   routeRow: {
     display: "flex",
     alignItems: "center",
@@ -373,6 +333,16 @@ const S = {
     lineHeight: 1.2,
   },
 
+  topoLabel: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.6rem',
+    fontWeight: 600,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    flexShrink: 0,
+  },
+
   rowArrow: {
     fontFamily: "Barlow Condensed, sans-serif",
     fontSize: "1rem",
@@ -387,7 +357,6 @@ const S = {
   },
 
   emptyState: {
-    gridColumn: "1 / -1",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -412,7 +381,6 @@ const S = {
   },
 
   promptState: {
-    gridColumn: "1 / -1",
     padding: "3rem 0",
     display: "flex",
     flexDirection: "column",
@@ -429,7 +397,7 @@ const S = {
   },
 }
 
-const CATEGORY_ORDER = ['route_style', 'hold', 'approach', 'exposure', 'style', 'other']
+const ROUTE_CATEGORIES = ['route_style', 'hold', 'style', 'other']
 
 const GRADE_OPTIONS = []
 for (let n = 3; n <= 9; n++) {
@@ -439,7 +407,7 @@ for (let n = 3; n <= 9; n++) {
   }
 }
 
-export default function Search() {
+export default function Routes() {
   const [query, setQuery]               = useState("")
   const [results, setResults]           = useState(null)
   const [loading, setLoading]           = useState(false)
@@ -540,9 +508,11 @@ export default function Search() {
   const hasQuery   = query.length > 0
   const hasTags    = activeTags.size > 0
   const hasGrade   = gradeMin !== "" || gradeMax !== ""
-  const hasResults = results && (results.routes?.length > 0 || results.topos?.length > 0)
+  const hasResults = results && results.routes?.length > 0
   const noResults  = results && !hasResults
   const showPrompt = !hasQuery && !hasTags && !hasGrade && !projectsOnly
+
+  const routeTags = allTags.filter(t => ROUTE_CATEGORIES.includes(t.category || 'other'))
 
   return (
     <div style={S.root}>
@@ -552,8 +522,8 @@ export default function Search() {
 
         {/* ── HEADER ── */}
         <div style={S.header}>
-          <span style={S.eyebrow}>{t('search.eyebrow')}</span>
-          <h1 style={S.title}>{t('search.title')}</h1>
+          <span style={S.eyebrow}>{t('routes.eyebrow')}</span>
+          <h1 style={S.title}>{t('routes.title')}</h1>
           <div style={S.titleUnderline} />
         </div>
 
@@ -564,7 +534,7 @@ export default function Search() {
             ref={inputRef}
             style={S.searchInput}
             type="text"
-            placeholder={t('search.placeholder')}
+            placeholder={t('routes.placeholder')}
             value={query}
             onChange={e => setQuery(e.target.value)}
             onFocus={e => {
@@ -611,7 +581,7 @@ export default function Search() {
             onMouseEnter={e => { if (!projectsOnly) { e.target.style.borderColor = "var(--chalk)"; e.target.style.color = "var(--chalk)" }}}
             onMouseLeave={e => { if (!projectsOnly) { e.target.style.borderColor = "var(--line)"; e.target.style.color = "var(--muted)" }}}
           >
-            {projectsOnly ? "\u2605" : "\u2606"} {t('search.projects')}
+            {projectsOnly ? "\u2605" : "\u2606"} {t('routes.projects')}
           </button>
 
           {/* ── TAGS ── */}
@@ -638,7 +608,7 @@ export default function Search() {
                 autoFocus
               />
               <div style={S.tagDropdownBody}>
-                {CATEGORY_ORDER.map(cat => {
+                {ROUTE_CATEGORIES.map(cat => {
                   const catTags = allTags.filter(t => (t.category || 'other') === cat)
                   const catLabel = t(`tags.category_${cat}`).toLowerCase()
                   const search = tagSearch.toLowerCase()
@@ -678,9 +648,9 @@ export default function Search() {
                     </div>
                   )
                 })}
-                {allTags.length === 0 && (
+                {routeTags.length === 0 && (
                   <div style={{ padding: "0.75rem", fontFamily: "Barlow, sans-serif", fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
-                    {t('search.noTagsLoaded')}
+                    {t('routes.noTagsLoaded')}
                   </div>
                 )}
               </div>
@@ -689,7 +659,7 @@ export default function Search() {
                   style={S.tagDropdownClear}
                   onClick={() => { setActiveTags(new Set()); setTagMenuOpen(false) }}
                 >
-                  {t('search.clearFilters', { count: activeTags.size })}
+                  {t('routes.clearFilters', { count: activeTags.size })}
                 </button>
               )}
             </div>
@@ -702,7 +672,7 @@ export default function Search() {
             value={gradeMin}
             onChange={e => setGradeMin(e.target.value)}
           >
-            <option value="">{t('search.minGrade')}</option>
+            <option value="">{t('routes.minGrade')}</option>
             {GRADE_OPTIONS.map(g => (
               <option key={g.label} value={g.label}>{g.label}</option>
             ))}
@@ -713,7 +683,7 @@ export default function Search() {
             value={gradeMax}
             onChange={e => setGradeMax(e.target.value)}
           >
-            <option value="">{t('search.maxGrade')}</option>
+            <option value="">{t('routes.maxGrade')}</option>
             {GRADE_OPTIONS.map(g => (
               <option key={g.label} value={g.label}>{g.label}</option>
             ))}
@@ -725,18 +695,18 @@ export default function Search() {
 
           {showPrompt && (
             <div style={S.promptState}>
-              <p style={S.promptLine}>{t('search.prompt')}</p>
+              <p style={S.promptLine}>{t('routes.prompt')}</p>
             </div>
           )}
 
           {noResults && (
             <div style={S.emptyState}>
               <span style={S.emptyTitle}>
-                {t('search.noResults')}
-                {query && t('search.noResultsQuery', { query })}
-                {hasTags && t('search.noResultsTags')}
+                {t('routes.noResults')}
+                {query && t('routes.noResultsQuery', { query })}
+                {hasTags && t('routes.noResultsTags')}
               </span>
-              <span style={S.emptyHint}>{t('search.tryDifferent')}</span>
+              <span style={S.emptyHint}>{t('routes.tryDifferent')}</span>
             </div>
           )}
 
@@ -754,109 +724,73 @@ export default function Search() {
               border: '1px solid var(--good)',
               background: 'rgba(120,180,80,0.08)',
             }}>
-              {t('search.offlineBanner')}
+              {t('routes.offlineBanner')}
             </div>
           )}
 
           {hasResults && (
-            <>
-              {/* TOPOS COLUMN — only shown when text query is present */}
-              {results.topos.length > 0 && (
-                <div style={S.column}>
-                  <div style={S.columnHeader}>
-                    <span style={S.columnTitle}>{t('search.topos')}</span>
-                    <span style={S.columnCount}>{t('search.result', { count: results.topos.length })}</span>
-                  </div>
-                  {results.topos.map(topo => (
-                    <div
-                      key={topo.id}
-                      style={{
-                        ...S.topoRow,
-                        background: hovered === `topo-${topo.id}` ? "rgba(255,255,255,0.02)" : "transparent",
-                      }}
-                      onMouseEnter={() => setHovered(`topo-${topo.id}`)}
-                      onMouseLeave={() => setHovered(null)}
-                      onClick={() => navigate(`/topos/${topo.id}`)}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{
-                          ...S.topoName,
-                          color: hovered === `topo-${topo.id}` ? "var(--hold-lt)" : "var(--chalk)",
-                        }}>
-                          {highlightMatch(topo.title, topo.match_pos, query.trim().length)}
-                        </div>
-                        {topo.location && (
-                          <div style={S.topoLocation}>{topo.location}</div>
-                        )}
-                      </div>
-                      <span style={{
-                        ...S.rowArrow,
-                        ...(hovered === `topo-${topo.id}` ? S.rowArrowHover : {}),
-                      }}>›</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ROUTES COLUMN — full width when no topos */}
-              {results.routes.length > 0 && (
-                <div style={{
-                  ...S.column,
-                  gridColumn: results.topos.length === 0 ? "1 / -1" : "auto",
+            <div style={S.columnHeader}>
+              <span style={S.columnTitle}>{t('routes.routes')}</span>
+              <span style={S.columnCount}>{t('routes.result', { count: results.routes.length })}</span>
+              {hasTags && (
+                <span style={{
+                  fontFamily: "Barlow Condensed, sans-serif",
+                  fontSize: "0.6rem",
+                  fontWeight: 600,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--hold)",
+                  marginLeft: "auto",
                 }}>
-                  <div style={S.columnHeader}>
-                    <span style={S.columnTitle}>{t('search.routes')}</span>
-                    <span style={S.columnCount}>{t('search.result', { count: results.routes.length })}</span>
-                    {hasTags && (
-                      <span style={{
-                        fontFamily: "Barlow Condensed, sans-serif",
-                        fontSize: "0.6rem",
-                        fontWeight: 600,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        color: "var(--hold)",
-                        marginLeft: "auto",
-                      }}>
-                        {activeTags.size} {t('search.tagsActive', { count: activeTags.size })}
-                      </span>
-                    )}
-                  </div>
-                  {results.routes.map(route => (
-                    <div
-                      key={route.id}
-                      style={{
-                        ...S.routeRow,
-                        background: hovered === `route-${route.id}` ? "rgba(255,255,255,0.02)" : "transparent",
-                      }}
-                      onMouseEnter={() => setHovered(`route-${route.id}`)}
-                      onMouseLeave={() => setHovered(null)}
-                      onClick={() => navigate(`/routes/${route.id}`)}
-                    >
-                      {route.grade && (
-                        <span style={{
-                          ...S.routeGrade,
-                          background: getGradeColor(route.sorting_grade),
-                        }}>
-                          {route.grade}
-                        </span>
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          ...S.routeName,
-                          color: hovered === `route-${route.id}` ? "var(--hold-lt)" : "var(--chalk)",
-                        }}>
-                          {highlightMatch(route.name, route.match_pos, query.trim().length)}
-                        </div>
-                      </div>
-                      <span style={{
-                        ...S.rowArrow,
-                        ...(hovered === `route-${route.id}` ? S.rowArrowHover : {}),
-                      }}>›</span>
-                    </div>
-                  ))}
-                </div>
+                  {activeTags.size} {t('routes.tagsActive', { count: activeTags.size })}
+                </span>
               )}
-            </>
+            </div>
+          )}
+
+          {results?.routes.map(route => (
+            <div
+              key={route.id}
+              style={{
+                ...S.routeRow,
+                background: hovered === `route-${route.id}` ? "rgba(255,255,255,0.02)" : "transparent",
+              }}
+              onMouseEnter={() => setHovered(`route-${route.id}`)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => navigate(`/routes/${route.id}`)}
+            >
+              {route.grade && (
+                <span style={{
+                  ...S.routeGrade,
+                  background: getGradeColor(route.sorting_grade),
+                }}>
+                  {route.grade}
+                </span>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  ...S.routeName,
+                  color: hovered === `route-${route.id}` ? "var(--hold-lt)" : "var(--chalk)",
+                }}>
+                  {highlightMatch(route.name, route.match_pos, query.trim().length)}
+                </div>
+              </div>
+              {route.topo_title && (
+                <span style={S.topoLabel}>{route.topo_title}</span>
+              )}
+              <span style={{
+                ...S.rowArrow,
+                ...(hovered === `route-${route.id}` ? S.rowArrowHover : {}),
+              }}>›</span>
+            </div>
+          ))}
+
+          {loading && (
+            <div style={{ padding: "2rem 0", textAlign: "center" }}>
+              <span style={{ fontFamily: "Barlow Condensed, sans-serif", fontSize: "0.85rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted)" }}>
+                {t('routes.loading')}
+              </span>
+            </div>
           )}
 
         </div>

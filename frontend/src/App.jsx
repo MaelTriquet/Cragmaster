@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes as RouterRoutes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import PrivateRoute from './components/PrivateRoute'
@@ -9,8 +9,8 @@ import ForgotPassword from './pages/ForgotPassword'
 import Upload from './pages/Upload'
 import Topos from './pages/Topos'
 import TopoDetail from './pages/Topo-details'
+import Routes from './pages/Routes'
 import RouteDetail from './pages/Route-details'
-import Search from './pages/Search'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import EmailPrompt from './components/EmailPrompt'
@@ -23,6 +23,7 @@ import About from './pages/About'
 import FAQ from './pages/FAQ'
 import ComingSoon from './pages/ComingSoon'
 import AuditLog from './pages/AuditLog'
+import Home from './pages/Home'
 const PAGE_WRAPPER = {
   display: 'flex',
   flexDirection: 'column',
@@ -53,14 +54,15 @@ function AppLayout() {
     <div style={PAGE_WRAPPER}>
       <Navbar />
       <main style={MAIN}>
-        <Routes>
+        <RouterRoutes>
+          <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
           <Route path="/topos"        element={<PrivateRoute><Topos /></PrivateRoute>} />
           <Route path="/topos/:id"    element={<PrivateRoute><TopoDetail /></PrivateRoute>} />
+          <Route path="/routes"       element={<PrivateRoute><Routes /></PrivateRoute>} />
           <Route path="/routes/:id"   element={<PrivateRoute><RouteDetail /></PrivateRoute>} />
-          <Route path="/search"       element={<PrivateRoute><Search /></PrivateRoute>} />
           <Route path="/upload"       element={<PrivateRoute><Upload /></PrivateRoute>} />
           <Route path="/admin"        element={<PrivateRoute adminOnly><Notifications /></PrivateRoute>} />
           <Route path="/profile"      element={<PrivateRoute><Profile /></PrivateRoute>} />
@@ -74,7 +76,7 @@ function AppLayout() {
           <Route path="/audit-log" element={<PrivateRoute><AuditLog /></PrivateRoute>} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
+        </RouterRoutes>
       </main>
       {!hideFooter && <Footer />}
       <EmailPrompt />

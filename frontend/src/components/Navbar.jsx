@@ -8,7 +8,7 @@ import { getPendingCount, onSyncChange, processSyncQueue, getConnectionStatus, i
 
 const NAV_ITEM_KEYS = [
   { key: 'nav.topos', path: '/topos' },
-  { key: 'nav.search', path: '/search' },
+  { key: 'nav.routes', path: '/routes' },
   { key: 'nav.stats', path: '/stats' },
   { key: 'nav.upload', path: '/upload' },
   { key: 'nav.map', path: '/map' },
@@ -343,7 +343,7 @@ export default function Navbar() {
       <>
         <nav style={S.nav}>
           {/* Logo */}
-          <button style={S.logo} onClick={() => navigate('/topos')}>
+          <button style={S.logo} onClick={() => navigate('/')}>
             <span style={S.logoAccent}>Crag</span>Master
           </button>
 
@@ -396,9 +396,12 @@ export default function Navbar() {
                   }}
                   disabled={pingState === 'checking'}
                   onClick={async () => {
+                    const prev = getConnectionStatus()
                     setPingState('checking')
                     await checkConnection()
-                    setPingState(isOnline() ? 'online' : 'offline')
+                    const cur = getConnectionStatus()
+                    setPingState(cur === 1 ? 'online' : 'offline')
+                    if (prev !== cur && prev !== 0) window.location.reload()
                   }}
                 >
                   <span style={{
@@ -539,7 +542,7 @@ export default function Navbar() {
       {/* Logo */}
       <button
         style={S.logo}
-        onClick={() => navigate('/topos')}
+        onClick={() => navigate('/')}
       >
         <span style={S.logoAccent}>Crag</span>Master
       </button>

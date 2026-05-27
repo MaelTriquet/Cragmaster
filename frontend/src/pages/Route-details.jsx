@@ -268,7 +268,7 @@ const S = {
     padding: "0.25rem 0.65rem",
     background: sent ? "rgba(90,158,111,0.15)" : "rgba(255,255,255,0.04)",
     color: sent ? "#7fc99a" : "var(--muted)",
-    border: `1px solid ${sent ? "#5a9e6f" : "var(--line)"}`,
+    border: `1px solid ${sent ? "var(--good)" : "var(--line)"}`,
   }),
 
   btnRow: {

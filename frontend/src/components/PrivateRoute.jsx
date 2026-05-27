@@ -15,7 +15,7 @@ export default function PrivateRoute({ children, adminOnly = false }) {
   )
 
   if (!user) return <Navigate to="/login" replace />
-  if (adminOnly && !user.is_admin) return <Navigate to="/topos" replace />
+  if (adminOnly && !user.is_admin) return <Navigate to="/" replace />
 
   return children
 }

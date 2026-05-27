@@ -797,7 +797,7 @@ export default function Stats() {
         </div>
 
         {isOtherUser && reportSent && (
-          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--good)', padding: '0.4rem 0.75rem', borderLeft: '2px solid #5a9e6f', background: 'rgba(90,158,111,0.08)', display: 'inline-block' }}>
+          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--good)', padding: '0.4rem 0.75rem', borderLeft: '2px solid var(--good)', background: 'rgba(90,158,111,0.08)', display: 'inline-block' }}>
             {t('profile.reportSent')}
           </span>
         )}

@@ -10,7 +10,7 @@ export default function Login() {
 
   // If already authenticated (e.g. token restored from storage), skip login
   useEffect(() => {
-    if (!authLoading && user) navigate('/topos', { replace: true })
+    if (!authLoading && user) navigate('/', { replace: true })
   }, [user, authLoading, navigate])
 
   const [username, setUsername] = useState('')
@@ -25,7 +25,7 @@ export default function Login() {
     setLoading(true)
     try {
       await login(username, password, remember)
-      navigate('/topos')
+      navigate('/')
     } catch (err) {
       setError(err.response?.data?.error || t('login.loginFailed'))
     } finally {

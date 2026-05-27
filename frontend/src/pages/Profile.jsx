@@ -191,7 +191,7 @@ const S = {
     textTransform: 'uppercase',
     color: '#7fc99a',
     padding: '0.4rem 0.75rem',
-    borderLeft: '2px solid #5a9e6f',
+    borderLeft: '2px solid var(--good)',
     background: 'rgba(90,158,111,0.08)',
   },
 

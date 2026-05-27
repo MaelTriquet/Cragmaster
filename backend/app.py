@@ -1633,6 +1633,51 @@ def get_audit_log():
     return ok(logs=[dict(r) for r in rows])
 
 # ── CONTRIBUTIONS ─────────────────────────────────────────────────────────────
+@app.route('/api/home', methods=['GET'])
+@jwt_required()
+def home():
+    conn = get_db()
+    topo_count  = conn.execute('SELECT COUNT(*) FROM topos').fetchone()[0]
+    route_count = conn.execute('SELECT COUNT(*) FROM routes').fetchone()[0]
+    user_count  = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+
+    # Topo completion: 0.25 each for approach tag, exposure tag, parking location, routes location
+    topo_score = conn.execute('''
+        SELECT COALESCE(SUM(
+            CASE WHEN EXISTS (SELECT 1 FROM tag_topos tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.topo_id = t.id AND tg.category = 'approach') THEN 0.25 ELSE 0 END +
+            CASE WHEN EXISTS (SELECT 1 FROM tag_topos tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.topo_id = t.id AND tg.category = 'exposure') THEN 0.25 ELSE 0 END +
+            CASE WHEN t.parking_lat IS NOT NULL AND t.parking_lon IS NOT NULL THEN 0.25 ELSE 0 END +
+            CASE WHEN t.routes_lat IS NOT NULL AND t.routes_lon IS NOT NULL THEN 0.25 ELSE 0 END
+        ), 0) FROM topos t
+    ''').fetchone()[0]
+
+    # Route completion: 0.25 each for photo, route_style tag, hold tag, style tag
+    route_score = conn.execute('''
+        SELECT COALESCE(SUM(
+            CASE WHEN r.photo IS NOT NULL THEN 0.25 ELSE 0 END +
+            CASE WHEN EXISTS (SELECT 1 FROM tag_routes tr JOIN tags tg ON tr.tag_id = tg.id WHERE tr.route_id = r.id AND tg.category = 'route_style') THEN 0.25 ELSE 0 END +
+            CASE WHEN EXISTS (SELECT 1 FROM tag_routes tr JOIN tags tg ON tr.tag_id = tg.id WHERE tr.route_id = r.id AND tg.category = 'hold') THEN 0.25 ELSE 0 END +
+            CASE WHEN EXISTS (SELECT 1 FROM tag_routes tr JOIN tags tg ON tr.tag_id = tg.id WHERE tr.route_id = r.id AND tg.category = 'style') THEN 0.25 ELSE 0 END
+        ), 0) FROM routes r
+    ''').fetchone()[0]
+
+    topo_pct = round(topo_score / topo_count * 100, 2) if topo_count > 0 else 0.0
+    route_pct = round(route_score / route_count * 100, 2) if route_count > 0 else 0.0
+
+    recent = conn.execute('''
+        SELECT t.id, t.title,
+               (SELECT COUNT(*) FROM routes r WHERE r.topo_id = t.id) AS route_count
+        FROM topos t ORDER BY t.id DESC LIMIT 6
+    ''').fetchall()
+    conn.close()
+    return ok(topo_count=topo_count, route_count=route_count,
+              user_count=user_count,
+              topo_score=topo_score,
+              route_score=route_score,
+              topo_pct=topo_pct,
+              route_pct=route_pct,
+              recent_topos=[dict(r) for r in recent])
+
 @app.route('/api/contributions', methods=['GET'])
 @jwt_required()
 def get_contributions():

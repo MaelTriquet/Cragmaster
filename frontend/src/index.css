@@ -2,13 +2,14 @@
 @import "tailwindcss";
 
 :root {
-  --rock:    #1a1a18;
+  --rock:    #1c1c1a;
   --chalk:   #f0ede6;
-  --granite: #2e2e2a;
-  --hold:    #c8502a;
-  --hold-lt: #e06540;
-  --muted:   #6b6b60;
-  --line:    #3a3a34;
+  --granite: #343430;
+  --hold:    #d45a34;
+  --hold-lt: #e87852;
+  --muted:   #90907e;
+  --line:    #42423c;
+  --good:    #5a9e6f;
 
   --page-padding: 3rem 2rem;
   --title-4xl: 4rem;
