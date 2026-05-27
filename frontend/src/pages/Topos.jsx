@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from 'react-i18next'
 import api from '../api/client'
-import { getOfflineTopoIds, getOfflineTopo, isOnline, ping } from '../lib/offline'
+import { getOfflineTopoIds, getOfflineTopo, getConnectionStatus, isOnline, ping } from '../lib/offline'
 
 const S = {
   root: {
@@ -177,7 +177,7 @@ export default function Topos() {
 
   useEffect(() => {
     (async () => {
-      await ping()
+      if (getConnectionStatus() === 0) await ping()
       if (!isOnline()) {
         const ids = await getOfflineTopoIds()
         if (ids.length > 0) {

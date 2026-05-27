@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api/client'
-import { getPendingCount, onSyncChange, processSyncQueue, isOnline, ping } from '../lib/offline'
+import { getPendingCount, onSyncChange, processSyncQueue, getConnectionStatus, isOnline, ping, checkConnection, onConnectionChange } from '../lib/offline'
 
 
 const NAV_ITEM_KEYS = [
@@ -274,21 +274,34 @@ export default function Navbar() {
   const [pingState, setPingState] = useState(null) // null | 'checking' | 'online' | 'offline'
 
   useEffect(() => {
-    ping().then(() => {
-      getPendingCount().then(count => {
-        setPendingSyncCount(count)
-        if (count > 0 && isOnline()) processSyncQueue().then(r => getPendingCount().then(setPendingSyncCount))
+    const s = getConnectionStatus()
+    if (s === 0) {
+      ping().then(() => {
+        setPingState(isOnline() ? 'online' : 'offline')
       })
+    } else {
+      setPingState(s === 1 ? 'online' : 'offline')
+    }
+    getPendingCount().then(count => {
+      setPendingSyncCount(count)
+      if (count > 0 && isOnline()) processSyncQueue().then(r => getPendingCount().then(setPendingSyncCount))
     })
-    const unsub = onSyncChange(setPendingSyncCount)
-    return unsub
+    const unsubSync = onSyncChange(setPendingSyncCount)
+    const unsubConn = onConnectionChange(status => {
+      setPingState(status === 1 ? 'online' : 'offline')
+    })
+    return () => { unsubSync(); unsubConn() }
   }, [])
 
   useEffect(() => {
-    const handleOnline = () => { processSyncQueue().then(r => { if (r.synced > 0) getPendingCount().then(setPendingSyncCount) }) }
+    const handleOnline = () => {
+      ping().then(() => {
+        if (isOnline() && pendingSyncCount > 0) processSyncQueue().then(r => getPendingCount().then(setPendingSyncCount))
+      })
+    }
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)
-  }, [])
+  }, [pendingSyncCount])
 
   useEffect(() => {
     if (user?.is_admin) {
@@ -384,7 +397,7 @@ export default function Navbar() {
                   disabled={pingState === 'checking'}
                   onClick={async () => {
                     setPingState('checking')
-                    await ping()
+                    await checkConnection()
                     setPingState(isOnline() ? 'online' : 'offline')
                   }}
                 >

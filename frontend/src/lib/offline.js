@@ -9,6 +9,71 @@ const PENDING_KEY = 'offline-pending'
 const SEARCH_INDEX_KEY = 'offline-search-index'
 
 let _syncListeners = []
+let _connListeners = []
+
+/* ── connection status (0=unknown, 1=online, 2=offline) ── */
+
+let _connectionStatus = 0
+
+export function getConnectionStatus() {
+  return _connectionStatus
+}
+
+export function isOnline() {
+  return _connectionStatus === 1
+}
+
+export async function ping() {
+  if (!navigator.onLine) {
+    _connectionStatus = 2
+    notifyConnListeners()
+    return 2
+  }
+  try {
+    const controller = new AbortController()
+    const id = setTimeout(() => controller.abort(), 500)
+    await fetch(`${baseURL}/ping`, { signal: controller.signal, credentials: 'include' })
+    clearTimeout(id)
+    if (_connectionStatus !== 1) {
+      _connectionStatus = 1
+      notifyConnListeners()
+    }
+  } catch {
+    if (_connectionStatus !== 2) {
+      _connectionStatus = 2
+      notifyConnListeners()
+    }
+  }
+  return _connectionStatus
+}
+
+export function checkConnection() {
+  return ping()
+}
+
+export function onConnectionChange(fn) {
+  _connListeners.push(fn)
+  return () => { _connListeners = _connListeners.filter(f => f !== fn) }
+}
+
+function notifyConnListeners() {
+  _connListeners.forEach(fn => fn(_connectionStatus))
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    if (_connectionStatus !== 0) {
+      _connectionStatus = 0
+      notifyConnListeners()
+    }
+  })
+  window.addEventListener('offline', () => {
+    if (_connectionStatus !== 2) {
+      _connectionStatus = 2
+      notifyConnListeners()
+    }
+  })
+}
 
 /* ── helpers ─────────────────────────────────────── */
 
@@ -72,29 +137,6 @@ export async function removeOfflineTopo(topoId) {
 
 export async function getOfflineTopoIds() {
   return getTopoIds()
-}
-
-let _isOnline = navigator.onLine
-
-export async function ping() {
-  if (!navigator.onLine) {
-    _isOnline = false
-    return false
-  }
-  try {
-    const controller = new AbortController()
-    const id = setTimeout(() => controller.abort(), 500)
-    await fetch(`${baseURL}/ping`, { signal: controller.signal, credentials: 'include' })
-    clearTimeout(id)
-    _isOnline = true
-  } catch {
-    _isOnline = false
-  }
-  return _isOnline
-}
-
-export function isOnline() {
-  return _isOnline
 }
 
 /* ── local cache updates (for user-level mutations) ── */

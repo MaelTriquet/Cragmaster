@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { authApi } from '../api/client'
-import { isOnline, ping } from '../lib/offline'
+import { getConnectionStatus, isOnline, ping } from '../lib/offline'
 
 const AuthContext = createContext(null)
 
@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
   // On mount, rehydrate user from stored token
   useEffect(() => {
     (async () => {
-      await ping()
+      if (getConnectionStatus() === 0) await ping()
       const token = localStorage.getItem('token')
       if (!token) { setLoading(false); return }
 
