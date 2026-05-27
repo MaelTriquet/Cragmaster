@@ -437,7 +437,7 @@ export default function Navbar() {
                 </div>
               )}
 
-              {pendingSyncCount > 0 && (
+        {pendingSyncCount > 0 && (
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                   <button
                     style={{
@@ -588,6 +588,36 @@ export default function Navbar() {
           onClick={toggleLang}
         >
           {currentLang === 'en' ? '\ud83c\uddeb\ud83c\uddf7' : '\ud83c\uddec\ud83c\udde7'}
+        </button>
+
+        <button
+          style={{
+            ...S.langBtn,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '28px',
+            height: '28px',
+            padding: 0,
+            cursor: pingState === 'checking' ? 'default' : 'pointer',
+            opacity: pingState === 'checking' ? 0.5 : 1,
+          }}
+          disabled={pingState === 'checking'}
+          title={pingState === 'online' ? t('nav.online') : pingState === 'offline' ? t('nav.offline') : t('nav.unknown')}
+          onClick={async () => {
+            setPingState('checking')
+            await checkConnection()
+            setPingState(isOnline() ? 'online' : 'offline')
+          }}
+        >
+          <span style={{
+            display: 'inline-block',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: pingState === 'online' ? 'var(--good)' : pingState === 'offline' ? 'var(--hold-lt)' : 'var(--muted)',
+            transition: 'background 0.2s',
+          }} />
         </button>
 
         {pendingSyncCount > 0 && (

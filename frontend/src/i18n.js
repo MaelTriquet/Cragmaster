@@ -26,6 +26,9 @@ i18n.use(initReactI18next).init({
           myChanges: 'My Changes',
           syncPending: '{{count}} pending',
           checkConnection: 'Check connection',
+          online: 'Connected to server',
+          offline: 'No connection to server',
+          unknown: 'Checking connection\u2026',
         },
         home: {
           tagline: 'Your climbing library',
@@ -544,6 +547,9 @@ i18n.use(initReactI18next).init({
           myChanges: 'Mes modifications',
           syncPending: '{{count}} en attente',
           checkConnection: 'Vérifier la connexion',
+          online: 'Connecté au serveur',
+          offline: 'Aucune connexion au serveur',
+          unknown: 'Vérification de la connexion\u2026',
         },
         home: {
           tagline: 'Votre bibliothèque d\u2019escalade',
