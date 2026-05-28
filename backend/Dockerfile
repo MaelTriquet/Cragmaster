@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Cragmaster - climbing topo manager
+# Copyright (C) 2026  mtriquet
 FROM mambaorg/micromamba:latest
 
 WORKDIR /app

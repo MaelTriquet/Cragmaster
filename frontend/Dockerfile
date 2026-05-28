@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Cragmaster - climbing topo manager
+# Copyright (C) 2026  mtriquet
 FROM node:20 AS build
 
 WORKDIR /app

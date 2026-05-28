@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Cragmaster - climbing topo manager
+# Copyright (C) 2026  mtriquet
 cd frontend
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
 export ANDROID_HOME=$HOME/Android
