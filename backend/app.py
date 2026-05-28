@@ -288,20 +288,20 @@ def create_user():
         return api_error('Username already taken', 409)
     finally: conn.close()
 
-@app.route('/api/query', methods=['POST'])
-@jwt_required()
-def query():
-    try: require_admin()
-    except PermissionError as e: return api_error(str(e), 403)
-    d = request.get_json() or {}
-    sql = (d.get('sql') or '').strip()
-    if not sql: return api_error('SQL query required')
-    conn = get_db()
-    cursor = conn.execute(sql).fetchall()
-    if sql.split(' ')[0].lower() in ['update', 'insert', 'delete']:
-        conn.commit()
-    conn.close()
-    return ok(rows=[dict(r) for r in cursor])
+# @app.route('/api/query', methods=['POST'])
+# @jwt_required()
+# def query():
+#     try: require_admin()
+#     except PermissionError as e: return api_error(str(e), 403)
+#     d = request.get_json() or {}
+#     sql = (d.get('sql') or '').strip()
+#     if not sql: return api_error('SQL query required')
+#     conn = get_db()
+#     cursor = conn.execute(sql).fetchall()
+#     if sql.split(' ')[0].lower() in ['update', 'insert', 'delete']:
+#         conn.commit()
+#     conn.close()
+#     return ok(rows=[dict(r) for r in cursor])
 
 @app.route('/api/query/gate', methods=['POST'])
 def query_gate():
