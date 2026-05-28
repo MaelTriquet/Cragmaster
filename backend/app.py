@@ -1861,4 +1861,4 @@ def restore_audit_log(log_id):
 if __name__ == '__main__':
     init_db()
     seed.seed()
-    app.run(debug=True, port=5757, host='0.0.0.0')
+    app.run(debug=False, port=5757, host='0.0.0.0')

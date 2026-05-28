@@ -16,7 +16,7 @@ import Footer from './components/Footer'
 import EmailPrompt from './components/EmailPrompt'
 import Profile from './pages/Profile'
 import Stats from './pages/Stats'
-import Query from './pages/Query'
+// import Query from './pages/Query'
 import Notifications from './pages/Notifications'
 import Map from './pages/Map'
 import About from './pages/About'
@@ -68,7 +68,7 @@ function AppLayout() {
           <Route path="/profile"      element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="/stats"        element={<PrivateRoute><Stats /></PrivateRoute>} />
           <Route path="/stats/:userId" element={<PrivateRoute><Stats /></PrivateRoute>} />
-          <Route path="/query"        element={<PrivateRoute><Query /></PrivateRoute>} />
+          {/* <Route path="/query"        element={<PrivateRoute><Query /></PrivateRoute>} /> */}
           <Route path="/map"          element={<PrivateRoute><Map /></PrivateRoute>} />
           <Route path="/about"       element={<PrivateRoute><About /></PrivateRoute>} />
           <Route path="/faq"        element={<PrivateRoute><FAQ /></PrivateRoute>} />
