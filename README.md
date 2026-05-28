@@ -1,95 +1,88 @@
 # Cragmaster
 
-A climbing topo manager
+A climbing topo manager — browse, annotate, and track progress on climbing routes.
 
-## DB
+---
 
-### User
+## Upload PDF topos
 
-- id
-- username
-- password_hash
-- is_admin
+Import PDF climbing guides on the **Upload** page. Drag-and-drop one or more PDFs, and the app extracts route names and French grades (`3a`–`9c+`) automatically using OCR. Each topo gets a title from its filename and becomes available immediately. Duplicate filenames are rejected.
 
-### Topo
+---
 
-- id
-- title
-- location
-- ocr_text
-- uploaded_by
-- filename
+## Browse topos and routes
 
-### Route
+The **Topos** page lists every uploaded guide in alphabetical order. Click any topo to open its detail page, where routes are displayed in two modes:
 
-- id
-- index
-- name
-- grade
-- sorting_grade
-- length
-- topo_id
+- **By Grade** — a sideways histogram showing how many routes exist at each grade. Click a grade row to expand and see those routes.
+- **By Index** — a flat list ordered by route number (`#1`, `#2`, …), handy for following the PDF page order.
 
-### Comment
+Each route shows its name, grade (color-coded), and length in meters.
 
-- id
-- user_id
-- route_id
-- stars
-- body
-- perceived_grade
-- created_at
+On the topo detail page you can also download the original PDF, add routes manually, rename the topo, and **set parking and route-base locations** using your browser's geolocation — once set, a button opens Google Maps / Apple Maps directions straight to the crag.
 
-### Attempt
+---
 
-- id
-- user_id
-- route_id
-- sent
-- amount
+## Track attempts
 
-### Tag
+Head to any **Route** detail page to log your climbing progress:
 
-- id
-- name
+- Click **"+ Attempt"** to log a try.
+- Click **"Mark Sent"** to log a try and mark the route as sent.
+- The route shows one of three statuses: *Not attempted*, *Working*, or *Sent*.
 
-### RouteTag
+---
 
-- id
-- route_id
-- tag_id
+## Dashboard and stats
 
-## Uploads
+The **Stats** page gives you a personal climbing dashboard:
 
-All PDFs are uploaded to this folder
+- Summary cards for routes sent, total attempts, and routes in progress.
+- Your hardest grade sent, with a miniature grade pyramid.
+- Full grade pyramid (sends per grade) as a vertical bar chart.
+- Average attempts to send per grade.
+- A **Working routes** list — every route you've tried but haven't sent yet, with a link straight to its detail page.
 
-## Pages
+---
 
-### Login
+## Comment and share beta
 
-a login page, asking for username and password. First page presented to user.
+On any route detail page, leave a comment with:
 
-### Topos
+- A star rating (0–5 in half-star steps).
+- A perceived grade (defaults to the route's listed grade).
+- A visible note and an optional **hidden beta** field — beta text is hidden behind a "Show beta" toggle, so you can share crux moves without spoiling others.
 
-a page listing all topos in alphabetical order. Each topo has a link to its detail page.
+One comment per user per route; posting again overwrites your previous one.
 
-### Topo detail
+---
 
-a page detailing a topo. It shows the topo's info from the database, and the routes it contains.
-By default, the routes are shown as a sideways histogram of grades. Clicking on a grade will show the routes with that grade, clicking again will hide them.
-The routes can also be shown orderd by index.
-Each route has a link to its detail page.
+## Tag routes
 
-### Route detail
+Routes can have tags organized by category: **Route profile** (overhang, slab, …), **Hold** (crimp, jug, sloper, …), **Approach** (approach time, exposure, …), **Exposure**, **Style** (power, endurance, technical, …), and **Other** (classic, project, …). Add or remove tags on a route's detail page.
 
-a page detailing a route. It shows the route's info from the database, its tags, its attempts and the comments it contains.
-you can add a comment by clicking on the "Add Comment" button, presenting a form to write the comment.
+---
 
-### Search
+## Search
 
-a search page, with a search bar. a search query is sent when there are at least 3 characters in the search bar, and whenever a character is added to the search bar. 
-the results show as 2 columns: the topos and the routes.
+The **Search** page lets you find topos and routes by name — starts searching as soon as you type 3 characters. Results are split into two columns (topos and routes), and each result is clickable to go straight to its detail page.
 
-### Upload
+---
 
-an upload page, asking for a PDF file. The file is uploaded to the uploads folder, and the topo and routes are parsed and added to the database.
+## Map
+
+The **Map** page shows all topos with geographic coordinates on an interactive Leaflet map. Three tile layers: **Topo** (relief + trails), **Street** (OSM), and **Satellite**. Blue markers are parking spots, orange markers are route-base locations. Click any marker to see the topo name and navigate to its detail page.
+
+**Right-click** on empty map space to see a menu of topos that are missing a parking or route-base location — pick one to assign the clicked coordinates.
+
+---
+
+## Profile and account
+
+The **Profile** page lets you change your username and password.
+
+**Admin users** also see a user creation form with a "Generate a passphrase" button that creates random route-name passwords. An **SQL query console** (`/query`) lets admins run arbitrary SELECT/INSERT/UPDATE/DELETE statements against the database with results shown in a table.
+
+---
+
+Cragmaster is free software. Report issues at the [GitHub repository](https://github.com/anomalyco/topo-manager).

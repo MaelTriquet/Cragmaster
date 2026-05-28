@@ -310,7 +310,7 @@ function makeIcon(color, label) {
   }
 }
 
-function popupHtml(topo, type, viewTopoLabel, parkingLabel, routesLabel) {
+function popupHtml(topo, type, viewTopoLabel, adjustLabel, parkingLabel, routesLabel) {
   const typeLabel = type === 'parking'
     ? (parkingLabel || '🅿 Parking')
     : (routesLabel || '🧗 Routes')
@@ -319,7 +319,10 @@ function popupHtml(topo, type, viewTopoLabel, parkingLabel, routesLabel) {
       <div style="background:#c8502a;padding:0.4rem 0.75rem;font-size:0.62rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#f0ede6;">${typeLabel}</div>
       <div style="padding:0.6rem 0.75rem;">
         <div style="font-size:1rem;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:0.3rem;line-height:1.1;">${topo.title}</div>
-        <a href="/topos/${topo.id}" style="display:inline-block;margin-top:0.4rem;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e06540;text-decoration:none;">${viewTopoLabel}</a>
+        <div style="display:flex;gap:0.75rem;margin-top:0.4rem;">
+          <a href="/topos/${topo.id}" style="display:inline-block;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e06540;text-decoration:none;">${viewTopoLabel}</a>
+          <button data-adjust-key="${topo.id}-${type}" style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#4a8fa8;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px;">${adjustLabel}</button>
+        </div>
       </div>
     </div>`
 }
@@ -349,6 +352,13 @@ export default function MapPage() {
   const [toast, setToast]   = useState({ visible: false, msg: '' })
   const toastTimer           = useRef(null)
 
+  // Marker registry (topoId-type → L.marker)
+  const markersRef           = useRef({})
+
+  // Adjust mode
+  const [adjusting, setAdjusting] = useState(false)
+  const adjustRef                  = useRef(null)
+
   const showToast = useCallback(msg => {
     clearTimeout(toastTimer.current)
     setToast({ visible: true, msg })
@@ -374,6 +384,60 @@ export default function MapPage() {
       else g.remove()
     }
   }, [showRoutes])
+
+  // ── Adjust mode ─────────────────────────────────────────────────────────────
+  const startAdjust = useCallback((marker, key, originalPos, topo, type) => {
+    marker.dragging.enable()
+    marker.setOpacity(0.7)
+    adjustRef.current = { marker, key, originalPos, topo, type }
+    setAdjusting(true)
+  }, [])
+
+  const cancelAdjust = useCallback(() => {
+    const data = adjustRef.current
+    if (!data) return
+    data.marker.setLatLng(data.originalPos)
+    data.marker.dragging.disable()
+    data.marker.setOpacity(1)
+    adjustRef.current = null
+    setAdjusting(false)
+  }, [])
+
+  const saveAdjust = useCallback(async () => {
+    const data = adjustRef.current
+    if (!data) return
+    const { marker, topo, type, originalPos } = data
+    const newPos = marker.getLatLng()
+    if (newPos.lat === originalPos.lat && newPos.lng === originalPos.lng) {
+      cancelAdjust()
+      return
+    }
+    try {
+      await api.put(`/topos/${topo.id}/location`, { lat: newPos.lat, lon: newPos.lng, type })
+      toposRef.current = toposRef.current.map(t => {
+        if (t.id !== topo.id) return t
+        return type === 'parking'
+          ? { ...t, parking_lat: newPos.lat, parking_lon: newPos.lng }
+          : { ...t, routes_lat: newPos.lat, routes_lon: newPos.lng }
+      })
+      showToast(t('map.positionUpdated', { title: topo.title }))
+      marker.dragging.disable()
+      marker.setOpacity(1)
+      adjustRef.current = null
+      setAdjusting(false)
+    } catch (err) {
+      showToast(`✗ ${err.response?.data?.error || t('map.failedLocation')}`)
+      marker.setLatLng(originalPos)
+    }
+  }, [cancelAdjust, showToast])
+
+  // Escape also cancels adjust mode
+  useEffect(() => {
+    if (!adjusting) return
+    const onKey = e => { if (e.key === 'Escape') cancelAdjust() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [adjusting, cancelAdjust])
 
   // Close context menu on outside click or Escape
   useEffect(() => {
@@ -411,9 +475,10 @@ export default function MapPage() {
       const group = type === 'parking' ? parkingGroupRef.current : routesGroupRef.current
       if (L && leafletRef.current) {
         const icon = L.icon(makeIcon(type === 'parking' ? '#4a8fa8' : '#c8502a', type === 'parking' ? 'P' : 'R'))
-        L.marker([latlng.lat, latlng.lng], { icon })
-          .bindPopup(popupHtml(topo, type, t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 })
+        const marker = L.marker([latlng.lat, latlng.lng], { icon })
+          .bindPopup(popupHtml(topo, type, t('map.viewTopo'), t('map.adjust'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 })
           .addTo(group || leafletRef.current)
+        markersRef.current[`${topo.id}-${type}`] = marker
         setMarkerCount(n => n + 1)
       }
 
@@ -501,13 +566,19 @@ export default function MapPage() {
           if (topo.parking_lat != null && topo.parking_lon != null) {
             const ll = [topo.parking_lat, topo.parking_lon]
             bounds.push(ll)
-            L.marker(ll, { icon: parkingIcon }).bindPopup(popupHtml(topo, 'parking', t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 }).addTo(parkingGroup)
+            const marker = L.marker(ll, { icon: parkingIcon })
+              .bindPopup(popupHtml(topo, 'parking', t('map.viewTopo'), t('map.adjust'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 })
+              .addTo(parkingGroup)
+            markersRef.current[`${topo.id}-parking`] = marker
             count++
           }
           if (topo.routes_lat != null && topo.routes_lon != null) {
             const ll = [topo.routes_lat, topo.routes_lon]
             bounds.push(ll)
-            L.marker(ll, { icon: routesIcon }).bindPopup(popupHtml(topo, 'routes', t('map.viewTopo'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 }).addTo(routesGroup)
+            const marker = L.marker(ll, { icon: routesIcon })
+              .bindPopup(popupHtml(topo, 'routes', t('map.viewTopo'), t('map.adjust'), t('map.popupParking'), t('map.popupRoutes')), { maxWidth: 260 })
+              .addTo(routesGroup)
+            markersRef.current[`${topo.id}-routes`] = marker
             count++
           }
         })
@@ -519,14 +590,39 @@ export default function MapPage() {
         console.error('Failed to load topos:', err)
       }
 
+      // ── Popup open → bind adjust button ──────────────────────────────
+      map.on('popupopen', e => {
+        if (adjustRef.current) {
+          cancelAdjust()
+        }
+        const popupEl = e.popup.getElement()
+        if (!popupEl) return
+        const btn = popupEl.querySelector('[data-adjust-key]')
+        if (!btn) return
+        btn.onclick = () => {
+          const key = btn.dataset.adjustKey
+          const marker = markersRef.current[key]
+          if (!marker) return
+          const [topoId, type] = key.split('-')
+          const topo = toposRef.current.find(t => t.id === parseInt(topoId, 10))
+          if (!topo) return
+          const originalPos = marker.getLatLng()
+          map.closePopup()
+          startAdjust(marker, key, originalPos, topo, type)
+        }
+      })
+
       // ── Right-click → open context menu ────────────────────────────────
       map.on('contextmenu', e => {
         e.originalEvent.preventDefault()
 
+        if (adjustRef.current) {
+          cancelAdjust()
+        }
+
         const topos = toposRef.current
         const needParking = topos.filter(t => t.parking_lat == null || t.parking_lon == null)
         const needRoutes  = topos.filter(t => t.routes_lat  == null || t.routes_lon  == null)
-		console.log(needParking, needRoutes)
 
         // Nothing to offer? Do nothing.
         if (needParking.length === 0 && needRoutes.length === 0) return
@@ -805,6 +901,71 @@ export default function MapPage() {
     </div>
   </div>
 )}
+
+{/* ── ADJUST MODE SAVE/CANCEL BAR ── */}
+{adjusting && (() => {
+  const barStyle = {
+    position: 'fixed',
+    bottom: '2rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 3000,
+    background: '#1a1a18',
+    border: '1px solid var(--line)',
+    padding: '0.65rem 1.5rem',
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--chalk)',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1.25rem',
+    whiteSpace: 'nowrap',
+  }
+  const btnBase = {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: '0.78rem',
+    fontWeight: 700,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '0.4rem 1rem',
+    transition: 'opacity 0.15s',
+  }
+  return (
+    <div style={barStyle}>
+      <span style={{ color: 'var(--hold)' }}>
+        {adjustRef.current?.topo?.title} — {adjustRef.current?.type === 'parking' ? t('map.popupParking') : t('map.popupRoutes')}
+      </span>
+      <span style={{ color: 'var(--muted)', fontSize: '0.7rem', fontWeight: 400 }}>
+        Drag to adjust
+      </span>
+      <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+        <button
+          style={{ ...btnBase, background: '#c8502a', color: '#f0ede6' }}
+          onClick={saveAdjust}
+          onMouseEnter={e => e.target.style.opacity = '0.8'}
+          onMouseLeave={e => e.target.style.opacity = '1'}
+        >
+          {t('map.save')}
+        </button>
+        <button
+          style={{ ...btnBase, background: '#3a3a34', color: '#b0aca4' }}
+          onClick={cancelAdjust}
+          onMouseEnter={e => e.target.style.opacity = '0.8'}
+          onMouseLeave={e => e.target.style.opacity = '1'}
+        >
+          {t('map.cancel')}
+        </button>
+      </div>
+    </div>
+  )
+})()}
+
 {/* ── TOAST notification ── */}
       <div style={S.toast(toast.visible)}>{toast.msg}</div>
     </div>

@@ -650,6 +650,31 @@ def set_location_routes(topo_id):
     conn.close()
     return ok(routes_location=dict(routes_location))
 
+@app.route('/api/topos/<int:topo_id>/location', methods=['PUT'])
+@jwt_required()
+def update_location(topo_id):
+    user = get_current_user()
+    if not user: return api_error('Authentication required', 401)
+    d = request.get_json() or {}
+    lat = d.get('lat')
+    lon = d.get('lon')
+    loc_type = d.get('type')
+    if not lat or not lon or loc_type not in ('parking', 'routes'):
+        return api_error('Invalid request. Provide lat, lon, and type ("parking" or "routes")')
+    conn = get_db()
+    cursor = conn.execute('SELECT id FROM topos WHERE id=?', (topo_id,)).fetchone()
+    if not cursor:
+        conn.close(); return api_error('Topo not found', 404)
+    lat_col = f'{loc_type}_lat'
+    lon_col = f'{loc_type}_lon'
+    old_row = conn.execute(f'SELECT {lat_col}, {lon_col} FROM topos WHERE id=?', (topo_id,)).fetchone()
+    old = f'{old_row[lat_col]},{old_row[lon_col]}' if old_row[lat_col] else 'none'
+    conn.execute(f'UPDATE topos SET {lat_col}=?, {lon_col}=? WHERE id=?', (lat, lon, topo_id))
+    log_change(conn, 'topos', topo_id, 'update', user['id'], f'{loc_type}_location', old, f'{lat},{lon}')
+    conn.commit()
+    conn.close()
+    return ok(message=f'{loc_type} location updated')
+
 # ── ROUTES ────────────────────────────────────────────────────────────────────
 @app.route('/api/routes/generate-passphrase')
 def generate_passphrase():
