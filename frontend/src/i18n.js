@@ -18,8 +18,8 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 const savedLang = typeof window !== 'undefined'
-  ? localStorage.getItem('lang') || 'en'
-  : 'en'
+  ? localStorage.getItem('lang') || 'fr'
+  : 'fr'
 
 i18n.use(initReactI18next).init({
   resources: {

@@ -4,6 +4,7 @@
 cd frontend
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
 export ANDROID_HOME=$HOME/Android
+export VITE_API_URL=https://cragmaster.fr
 npm run build
 npx cap sync
 cd android && ./gradlew assembleDebug && cd ..

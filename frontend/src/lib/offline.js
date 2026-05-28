@@ -52,14 +52,9 @@ export async function ping() {
 }
 
 async function _doPing() {
-  if (!navigator.onLine) {
-    _connectionStatus = 2
-    notifyConnListeners()
-    return 2
-  }
   try {
     const controller = new AbortController()
-    const id = setTimeout(() => controller.abort(), 500)
+    const id = setTimeout(() => controller.abort(), 1000)
     await fetch(`${baseURL}/ping`, { signal: controller.signal, credentials: 'include' })
     clearTimeout(id)
     if (_connectionStatus !== 1) {
