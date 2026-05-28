@@ -36,4 +36,5 @@ dependencies:
       - pyjwt
       - pypdfium2
       - pytesseract
+      - gunicorn
       - werkzeug

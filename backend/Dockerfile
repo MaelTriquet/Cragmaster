@@ -13,4 +13,4 @@ SHELL ["micromamba", "run", "-n", "cragmaster", "/bin/bash", "-c"]
 
 EXPOSE 5757
 
-CMD ["micromamba", "run", "-n", "cragmaster", "python", "app.py"]
+CMD ["micromamba", "run", "-n", "cragmaster", "gunicorn", "-w", "4", "-b", "0.0.0.0:5757", "--access-logfile", "-", "--error-logfile", "-", "app:app"]

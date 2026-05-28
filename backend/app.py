@@ -26,7 +26,8 @@ if not jwt_secret:
     raise RuntimeError("JWT_SECRET environment variable is required")
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
-CORS(app, resources={r"/api/*": {"origins": re.compile(r'^(https?://)?(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$|^capacitor://localhost(:\d+)?$|^https?://[a-zA-Z0-9.-]+\.home(:\d+)?$|^https?://.*\.cragmaster')}}, supports_credentials=True)
+CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost,capacitor://localhost')
+CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in CORS_ORIGINS.split(',') if o.strip()]}}, supports_credentials=True)
 app.config['JWT_SECRET_KEY'] = jwt_secret
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 app.config["JWT_BLOCKLIST_ENABLED"] = True
@@ -46,7 +47,7 @@ SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER = os.environ.get('SMTP_USER', '')
 SMTP_PASS = os.environ.get('SMTP_PASS', '')
 MAIL_FROM = os.environ.get('MAIL_FROM', 'noreply@cragmaster')
-APP_URL   = os.environ.get('APP_URL', 'http://localhost:5173')
+APP_URL   = os.environ.get('APP_URL', '')
 
 def send_email(to, subject, text):
     if not SMTP_HOST:
@@ -106,7 +107,7 @@ def ping():
 # ───────────────────────────────────────────────────────────────────────────────
 
 @app.route('/api/auth/login', methods=['POST'])
-@limiter.limit("10 per minute")
+@limiter.limit("4 per minute")
 def login():
     d = request.get_json() or {}
     username = (d.get('username') or '').strip()
@@ -288,38 +289,7 @@ def create_user():
         return api_error('Username already taken', 409)
     finally: conn.close()
 
-# @app.route('/api/query', methods=['POST'])
-# @jwt_required()
-# def query():
-#     try: require_admin()
-#     except PermissionError as e: return api_error(str(e), 403)
-#     d = request.get_json() or {}
-#     sql = (d.get('sql') or '').strip()
-#     if not sql: return api_error('SQL query required')
-#     conn = get_db()
-#     cursor = conn.execute(sql).fetchall()
-#     if sql.split(' ')[0].lower() in ['update', 'insert', 'delete']:
-#         conn.commit()
-#     conn.close()
-#     return ok(rows=[dict(r) for r in cursor])
 
-@app.route('/api/query/gate', methods=['POST'])
-def query_gate():
-    d = request.get_json() or {}
-    username = (d.get('username') or '').strip()
-    password = (d.get('password') or '').strip()
-    if not username or not password:
-        return api_error('Username and password required')
-    conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
-    if not user or not check_password(password, user['password_hash']):
-        if user:
-            conn.execute('UPDATE users SET banned_until=?, token_version=token_version+1 WHERE id=?', ((datetime.now() + timedelta(days=3)).isoformat(), user['id']))
-            conn.commit()
-        conn.close()
-        return ok(authorized=False, banned=bool(user))
-    conn.close()
-    return ok(authorized=True, is_admin=bool(user['is_admin']))
 
 @app.route('/api/users/<int:uid>', methods=['DELETE'])
 @jwt_required()
@@ -1861,4 +1831,3 @@ def restore_audit_log(log_id):
 if __name__ == '__main__':
     init_db()
     seed.seed()
-    app.run(debug=False, port=5757, host='0.0.0.0')
