@@ -515,6 +515,8 @@ const CATEGORY_ORDER = ['route_style', 'hold', 'style', 'other']
 function TagManager({ routeId, tags, onTagsChange }) {
   const [allTags, setAllTags] = useState([])
   const [showPicker, setShowPicker] = useState(false)
+  const [draftIds, setDraftIds] = useState(new Set())
+  const [saving, setSaving] = useState(false)
   const [hovered, setHovered] = useState(null)
   const { t, i18n } = useTranslation()
   const { showToast } = useToast()
@@ -540,19 +542,43 @@ function TagManager({ routeId, tags, onTagsChange }) {
     if (!assignedByCategory[cat]) assignedByCategory[cat] = []
     assignedByCategory[cat].push(tag)
   }
-  const assignedIds = new Set(tags.map(t => t.id))
-
-  const handleAssign = async (tagId) => {
-    if (assignedIds.has(tagId)) return
-    if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${routeId}/tags`, method: 'post', body: { tag_id: tagId }, type: 'community', summary: `Assign tag to route` }); return }
-    const res = await api.post(`/routes/${routeId}/tags`, { tag_id: tagId })
-    onTagsChange(res.data.tags)
-  }
-
   const handleRemove = async (tagId) => {
     if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${routeId}/tags/${tagId}`, method: 'delete', type: 'community', summary: `Remove tag from route` }); return }
     const res = await api.delete(`/routes/${routeId}/tags/${tagId}`)
     onTagsChange(res.data.tags)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    const originalIds = new Set(tags.map(t => t.id))
+    const toAdd = [...draftIds].filter(id => !originalIds.has(id))
+    const toRemove = [...originalIds].filter(id => !draftIds.has(id))
+
+    try {
+      for (const tagId of toRemove) {
+        if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${routeId}/tags/${tagId}`, method: 'delete', type: 'community', summary: `Remove tag from route` }); setSaving(false); return }
+        const res = await api.delete(`/routes/${routeId}/tags/${tagId}`)
+        onTagsChange(res.data.tags)
+      }
+      for (const tagId of toAdd) {
+        if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${routeId}/tags`, method: 'post', body: { tag_id: tagId }, type: 'community', summary: `Assign tag to route` }); setSaving(false); return }
+        const res = await api.post(`/routes/${routeId}/tags`, { tag_id: tagId })
+        onTagsChange(res.data.tags)
+      }
+    } catch (e) {
+      // API error — changes are partially saved; close and let parent state reflect what was committed
+    }
+    setSaving(false)
+    setShowPicker(false)
+  }
+
+  const openPicker = () => {
+    setDraftIds(new Set(tags.map(t => t.id)))
+    setShowPicker(true)
+  }
+
+  const closePicker = () => {
+    setShowPicker(false)
   }
 
   return (
@@ -596,7 +622,7 @@ function TagManager({ routeId, tags, onTagsChange }) {
         }}
         onMouseEnter={() => setHovered("addTags")}
         onMouseLeave={() => setHovered(null)}
-        onClick={() => setShowPicker(true)}
+        onClick={openPicker}
       >
         + {t('tags.addTag')}
       </button>
@@ -607,7 +633,7 @@ function TagManager({ routeId, tags, onTagsChange }) {
           background: 'rgba(0,0,0,0.7)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '1rem',
-        }} onClick={() => setShowPicker(false)}>
+        }} onClick={closePicker}>
           <div style={{
             background: 'var(--granite)',
             border: '1px solid var(--line)',
@@ -634,7 +660,7 @@ function TagManager({ routeId, tags, onTagsChange }) {
                 }}
                 onMouseEnter={e => e.target.style.color = 'var(--chalk)'}
                 onMouseLeave={e => e.target.style.color = 'var(--muted)'}
-                onClick={() => setShowPicker(false)}
+                onClick={closePicker}
               >
                 ✕
               </button>
@@ -658,7 +684,7 @@ function TagManager({ routeId, tags, onTagsChange }) {
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                       {available.map(tg => {
-                        const as = assignedIds.has(tg.id)
+                        const inDraft = draftIds.has(tg.id)
                         return (
                           <button
                             key={tg.id}
@@ -667,14 +693,21 @@ function TagManager({ routeId, tags, onTagsChange }) {
                               fontSize: '0.68rem', fontWeight: 600,
                               letterSpacing: '0.05em', textTransform: 'uppercase',
                               padding: '0.3rem 0.6rem', borderRadius: '3px',
-                              cursor: as ? 'default' : 'pointer', border: '1px solid',
-                              background: as ? 'var(--hold)' : 'transparent',
-                              borderColor: as ? 'var(--hold)' : 'var(--line)',
-                              color: as ? '#fff' : hovered === `pick-${tg.id}` ? 'var(--chalk)' : 'var(--muted)',
+                              cursor: 'pointer', border: '1px solid',
+                              background: inDraft ? 'var(--hold)' : 'transparent',
+                              borderColor: inDraft ? 'var(--hold)' : 'var(--line)',
+                              color: inDraft ? '#fff' : hovered === `pick-${tg.id}` ? 'var(--chalk)' : 'var(--muted)',
                             }}
-                            onMouseEnter={() => !as && setHovered(`pick-${tg.id}`)}
+                            onMouseEnter={() => setHovered(`pick-${tg.id}`)}
                             onMouseLeave={() => setHovered(null)}
-                            onClick={() => !as && handleAssign(tg.id)}
+                            onClick={() => {
+                              setDraftIds(prev => {
+                                const next = new Set(prev)
+                                if (next.has(tg.id)) next.delete(tg.id)
+                                else next.add(tg.id)
+                                return next
+                              })
+                            }}
                           >
                             {tagName(tg)}
                           </button>
@@ -692,6 +725,43 @@ function TagManager({ routeId, tags, onTagsChange }) {
                   {t('tags.loading')}
                 </div>
               )}
+            </div>
+
+            <div style={{
+              display: 'flex', justifyContent: 'flex-end', gap: '0.5rem',
+              padding: '0.75rem 1.25rem', borderTop: '1px solid var(--line)',
+              flexShrink: 0,
+            }}>
+              <button
+                style={{
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontSize: '0.75rem', fontWeight: 600,
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  padding: '0.4rem 1rem', borderRadius: '3px',
+                  border: '1px solid var(--line)',
+                  background: 'transparent', color: 'var(--muted)',
+                  cursor: 'pointer',
+                }}
+                onClick={closePicker}
+              >
+                {t('tags.cancel')}
+              </button>
+              <button
+                style={{
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontSize: '0.75rem', fontWeight: 600,
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  padding: '0.4rem 1rem', borderRadius: '3px',
+                  border: 'none',
+                  background: 'var(--hold)', color: '#fff',
+                  cursor: saving ? 'wait' : 'pointer',
+                  opacity: saving ? 0.6 : 1,
+                }}
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {t('tags.save')}
+              </button>
             </div>
           </div>
         </div>
@@ -726,6 +796,8 @@ export default function RouteDetail() {
   const [showCongrats, setShowCongrats] = useState(false)
   const [emptyCategories, setEmptyCategories] = useState([])
   const [allTags, setAllTags] = useState([])
+  const [popupDraftIds, setPopupDraftIds] = useState(new Set())
+  const [popupSaving, setPopupSaving] = useState(false)
   const [popupTagSearch, setPopupTagSearch] = useState("")
   const [popupHovered, setPopupHovered] = useState(null)
   const tagsRef = useRef(null)
@@ -852,7 +924,9 @@ export default function RouteDetail() {
         setAttempt(res.data.attempt)
         if (res.data.empty_categories?.length > 0) {
           setEmptyCategories(res.data.empty_categories)
-          initialTagIdsRef.current = new Set(tags.map(t => t.id))
+          const initialIds = new Set(tags.map(t => t.id))
+          initialTagIdsRef.current = initialIds
+          setPopupDraftIds(new Set(initialIds))
           setShowCongrats(true)
           api.get("/tags").then(r => setAllTags(r.data.tags || [])).catch(() => {})
         }
@@ -936,7 +1010,7 @@ export default function RouteDetail() {
   const isSent = attempt?.sent
   const assignedTagIds = new Set(tags.map(t => t.id))
   const hasNewTags = initialTagIdsRef.current
-    ? tags.some(t => !initialTagIdsRef.current.has(t.id))
+    ? [...popupDraftIds].some(id => !initialTagIdsRef.current.has(id))
     : false
 
   return (
@@ -1262,7 +1336,7 @@ export default function RouteDetail() {
                 }}
                 onMouseEnter={e => e.target.style.color = 'var(--chalk)'}
                 onMouseLeave={e => e.target.style.color = 'var(--muted)'}
-                onClick={() => setShowCongrats(false)}
+                onClick={() => { initialTagIdsRef.current = null; setShowCongrats(false) }}
               >
                 ✕
               </button>
@@ -1306,7 +1380,7 @@ export default function RouteDetail() {
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                       {filtered.map(tg => {
-                        const assigned = assignedTagIds.has(tg.id)
+                        const inDraft = popupDraftIds.has(tg.id)
                         const key = `pop-${tg.id}`
                         return (
                           <button
@@ -1317,29 +1391,20 @@ export default function RouteDetail() {
                               letterSpacing: '0.05em', textTransform: 'uppercase',
                               padding: '0.3rem 0.65rem', borderRadius: '3px',
                               cursor: 'pointer', border: '1px solid',
-                              background: assigned ? 'var(--hold)' : 'transparent',
-                              borderColor: assigned ? 'var(--hold)' : 'var(--line)',
-                              color: assigned ? '#fff' : popupHovered === key ? 'var(--chalk)' : 'var(--muted)',
+                              background: inDraft ? 'var(--hold)' : 'transparent',
+                              borderColor: inDraft ? 'var(--hold)' : 'var(--line)',
+                              color: inDraft ? '#fff' : popupHovered === key ? 'var(--chalk)' : 'var(--muted)',
                               transition: 'none',
                             }}
                             onMouseEnter={() => setPopupHovered(key)}
                             onMouseLeave={() => setPopupHovered(null)}
-                            onClick={async () => {
-                              if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${id}/tags${assigned ? '/' + tg.id : ''}`, method: assigned ? 'delete' : 'post', body: assigned ? undefined : { tag_id: tg.id }, type: 'community', summary: `${assigned ? 'Remove' : 'Assign'} tag "${tg.name}" on route` }); return }
-                              if (assigned) {
-                                const res = await api.delete(`/routes/${id}/tags/${tg.id}`)
-                                setTags(res.data.tags)
-                              } else {
-                                const res = await api.post(`/routes/${id}/tags`, { tag_id: tg.id })
-                                setTags(res.data.tags)
-                                // check if this category is no longer empty
-                                const newAssigned = res.data.tags
-                                const catIds = allTags.filter(t => t.category === cat).map(t => t.id)
-                                const nowHasTag = newAssigned.some(t => catIds.includes(t.id))
-                                if (isEmpty && nowHasTag) {
-                                  setEmptyCategories(prev => prev.filter(c => c !== cat))
-                                }
-                              }
+                            onClick={() => {
+                              setPopupDraftIds(prev => {
+                                const next = new Set(prev)
+                                if (next.has(tg.id)) next.delete(tg.id)
+                                else next.add(tg.id)
+                                return next
+                              })
                             }}
                           >
                             {tagName(tg)}
@@ -1368,19 +1433,57 @@ export default function RouteDetail() {
             }}>
               <button
                 style={{
-                  padding: '0.6rem 1.4rem', cursor: 'pointer',
-                  background: 'transparent',
-                  border: `1px solid ${hasNewTags ? 'var(--hold)' : 'var(--line)'}`,
-                  borderRadius: '4px',
-                  color: hasNewTags ? 'var(--hold)' : 'var(--muted)',
                   fontFamily: 'Barlow Condensed, sans-serif',
-                  fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.05em',
+                  fontSize: '0.75rem', fontWeight: 600,
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  padding: '0.6rem 1rem', borderRadius: '3px',
+                  border: '1px solid var(--line)',
+                  background: 'transparent', color: 'var(--muted)',
+                  cursor: 'pointer',
                 }}
-                onMouseEnter={e => { e.target.style.color = hasNewTags ? 'var(--hold-lt)' : 'var(--chalk)'; e.target.style.borderColor = hasNewTags ? 'var(--hold-lt)' : 'var(--chalk)' }}
-                onMouseLeave={e => { e.target.style.color = hasNewTags ? 'var(--hold)' : 'var(--muted)'; e.target.style.borderColor = hasNewTags ? 'var(--hold)' : 'var(--line)' }}
                 onClick={() => { initialTagIdsRef.current = null; setShowCongrats(false) }}
               >
-                {t(hasNewTags ? 'routeDetail.save' : 'routeDetail.dismiss')}
+                {t('routeDetail.dismiss')}
+              </button>
+              <button
+                style={{
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontSize: '0.75rem', fontWeight: 600,
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  padding: '0.6rem 1.4rem', borderRadius: '3px',
+                  border: 'none',
+                  background: 'var(--hold)', color: '#fff',
+                  cursor: popupSaving ? 'wait' : 'pointer',
+                  opacity: popupSaving ? 0.6 : 1,
+                }}
+                disabled={popupSaving || !hasNewTags}
+                onClick={async () => {
+                  setPopupSaving(true)
+                  const originalIds = initialTagIdsRef.current
+                  if (!originalIds) { setShowCongrats(false); return }
+                  const toAdd = [...popupDraftIds].filter(id => !originalIds.has(id))
+                  const toRemove = [...originalIds].filter(id => !popupDraftIds.has(id))
+                  try {
+                    for (const tagId of toRemove) {
+                      if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${id}/tags/${tagId}`, method: 'delete', type: 'community', summary: `Remove tag from route` }); setPopupSaving(false); return }
+                      await api.delete(`/routes/${id}/tags/${tagId}`)
+                    }
+                    for (const tagId of toAdd) {
+                      if (!isOnline()) { showToast(t('topoDetail.offlineQueued')); addPendingAction({ endpoint: `/routes/${id}/tags`, method: 'post', body: { tag_id: tagId }, type: 'community', summary: `Assign tag to route` }); setPopupSaving(false); return }
+                      await api.post(`/routes/${id}/tags`, { tag_id: tagId })
+                    }
+                    // reload tags after all changes
+                    const fresh = await api.get(`/routes/${id}`)
+                    setTags(fresh.data.tags || [])
+                  } catch (e) {
+                    // partial save
+                  }
+                  initialTagIdsRef.current = null
+                  setPopupSaving(false)
+                  setShowCongrats(false)
+                }}
+              >
+                {t('tags.save')}
               </button>
             </div>
           </div>

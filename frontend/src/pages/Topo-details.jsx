@@ -582,6 +582,8 @@ const CATEGORY_COLORS = {
 function TopoTagManager({ topoId, tags, onTagsChange }) {
   const [allTags, setAllTags] = useState([])
   const [showPicker, setShowPicker] = useState(false)
+  const [draftIds, setDraftIds] = useState(new Set())
+  const [saving, setSaving] = useState(false)
   const [hovered, setHovered] = useState(null)
   const { t, i18n } = useTranslation()
   const { showToast } = useToast()
@@ -605,19 +607,6 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
     if (!assignedByCategory[cat]) assignedByCategory[cat] = []
     assignedByCategory[cat].push(tag)
   }
-  const assignedIds = new Set(tags.map(t => t.id))
-
-  const handleAssign = async (tagId) => {
-    if (assignedIds.has(tagId)) return
-    if (!isOnline()) {
-      const tag = allTags.find(t => t.id === tagId)
-      await addPendingAction({ endpoint: `/topos/${topoId}/tags`, method: 'post', body: { tag_id: tagId }, type: 'community', summary: `Assign tag "${tag?.name || tagId}" to topo` })
-      showToast(t('topoDetail.offlineQueued'))
-      return
-    }
-    const res = await api.post(`/topos/${topoId}/tags`, { tag_id: tagId })
-    onTagsChange(res.data.tags)
-  }
 
   const handleRemove = async (tagId) => {
     if (!isOnline()) {
@@ -628,6 +617,49 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
     }
     const res = await api.delete(`/topos/${topoId}/tags/${tagId}`)
     onTagsChange(res.data.tags)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    const originalIds = new Set(tags.map(t => t.id))
+    const toAdd = [...draftIds].filter(id => !originalIds.has(id))
+    const toRemove = [...originalIds].filter(id => !draftIds.has(id))
+
+    try {
+      for (const tagId of toRemove) {
+        if (!isOnline()) {
+          const tag = tags.find(t => t.id === tagId)
+          await addPendingAction({ endpoint: `/topos/${topoId}/tags/${tagId}`, method: 'delete', type: 'community', summary: `Remove tag "${tag?.name || tagId}" from topo` })
+          showToast(t('topoDetail.offlineQueued'))
+          setSaving(false); return
+        }
+        const res = await api.delete(`/topos/${topoId}/tags/${tagId}`)
+        onTagsChange(res.data.tags)
+      }
+      for (const tagId of toAdd) {
+        if (!isOnline()) {
+          const tag = allTags.find(t => t.id === tagId)
+          await addPendingAction({ endpoint: `/topos/${topoId}/tags`, method: 'post', body: { tag_id: tagId }, type: 'community', summary: `Assign tag "${tag?.name || tagId}" to topo` })
+          showToast(t('topoDetail.offlineQueued'))
+          setSaving(false); return
+        }
+        const res = await api.post(`/topos/${topoId}/tags`, { tag_id: tagId })
+        onTagsChange(res.data.tags)
+      }
+    } catch (e) {
+      // partial save — close and let parent reflect what was committed
+    }
+    setSaving(false)
+    setShowPicker(false)
+  }
+
+  const openPicker = () => {
+    setDraftIds(new Set(tags.map(t => t.id)))
+    setShowPicker(true)
+  }
+
+  const closePicker = () => {
+    setShowPicker(false)
   }
 
   const tagS = {
@@ -757,7 +789,7 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
         }}
         onMouseEnter={() => setHovered("addTags")}
         onMouseLeave={() => setHovered(null)}
-        onClick={() => setShowPicker(true)}
+        onClick={openPicker}
       >
         + {t('tags.addTag')}
       </button>
@@ -768,7 +800,7 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
           background: 'rgba(0,0,0,0.7)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '1rem',
-        }} onClick={() => setShowPicker(false)}>
+        }} onClick={closePicker}>
           <div style={{
             background: 'var(--granite)',
             border: '1px solid var(--line)',
@@ -795,7 +827,7 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
                 }}
                 onMouseEnter={e => e.target.style.color = 'var(--chalk)'}
                 onMouseLeave={e => e.target.style.color = 'var(--muted)'}
-                onClick={() => setShowPicker(false)}
+                onClick={closePicker}
               >
                 ✕
               </button>
@@ -819,7 +851,7 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                       {available.map(tg => {
-                        const as = assignedIds.has(tg.id)
+                        const inDraft = draftIds.has(tg.id)
                         return (
                           <button
                             key={tg.id}
@@ -828,14 +860,21 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
                               fontSize: '0.68rem', fontWeight: 600,
                               letterSpacing: '0.05em', textTransform: 'uppercase',
                               padding: '0.3rem 0.6rem', borderRadius: '3px',
-                              cursor: as ? 'default' : 'pointer', border: '1px solid',
-                              background: as ? 'var(--hold)' : 'transparent',
-                              borderColor: as ? 'var(--hold)' : 'var(--line)',
-                              color: as ? '#fff' : hovered === `pick-${tg.id}` ? 'var(--chalk)' : 'var(--muted)',
+                              cursor: 'pointer', border: '1px solid',
+                              background: inDraft ? 'var(--hold)' : 'transparent',
+                              borderColor: inDraft ? 'var(--hold)' : 'var(--line)',
+                              color: inDraft ? '#fff' : hovered === `pick-${tg.id}` ? 'var(--chalk)' : 'var(--muted)',
                             }}
-                            onMouseEnter={() => !as && setHovered(`pick-${tg.id}`)}
+                            onMouseEnter={() => setHovered(`pick-${tg.id}`)}
                             onMouseLeave={() => setHovered(null)}
-                            onClick={() => !as && handleAssign(tg.id)}
+                            onClick={() => {
+                              setDraftIds(prev => {
+                                const next = new Set(prev)
+                                if (next.has(tg.id)) next.delete(tg.id)
+                                else next.add(tg.id)
+                                return next
+                              })
+                            }}
                           >
                             {tagName(tg)}
                           </button>
@@ -853,6 +892,43 @@ function TopoTagManager({ topoId, tags, onTagsChange }) {
                   {t('tags.loading')}
                 </div>
               )}
+            </div>
+
+            <div style={{
+              display: 'flex', justifyContent: 'flex-end', gap: '0.5rem',
+              padding: '0.75rem 1.25rem', borderTop: '1px solid var(--line)',
+              flexShrink: 0,
+            }}>
+              <button
+                style={{
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontSize: '0.75rem', fontWeight: 600,
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  padding: '0.4rem 1rem', borderRadius: '3px',
+                  border: '1px solid var(--line)',
+                  background: 'transparent', color: 'var(--muted)',
+                  cursor: 'pointer',
+                }}
+                onClick={closePicker}
+              >
+                {t('tags.cancel')}
+              </button>
+              <button
+                style={{
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontSize: '0.75rem', fontWeight: 600,
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  padding: '0.4rem 1rem', borderRadius: '3px',
+                  border: 'none',
+                  background: 'var(--hold)', color: '#fff',
+                  cursor: saving ? 'wait' : 'pointer',
+                  opacity: saving ? 0.6 : 1,
+                }}
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {t('tags.save')}
+              </button>
             </div>
           </div>
         </div>

@@ -52,17 +52,32 @@ const S = {
     marginBottom: "1.5rem",
   },
   logo: {
-    fontFamily: "Barlow Condensed, sans-serif",
-    fontSize: "clamp(2.8rem, 8vw, 5rem)",
-    fontWeight: 800,
-    letterSpacing: "0.02em",
-    textTransform: "uppercase",
-    color: "var(--chalk)",
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '1rem',
     margin: 0,
     lineHeight: 0.9,
+    flexWrap: 'wrap',
+  },
+  logoImg: {
+    height: 'clamp(40px, 8vw, 72px)',
+    display: 'block',
+    border: '2px solid var(--chalk)',
+    borderRadius: '8px',
+    aspectRatio: '1',
+    objectFit: 'cover',
+  },
+  logoText: {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontSize: 'clamp(2rem, 6vw, 3.5rem)',
+    fontWeight: 800,
+    letterSpacing: '0.02em',
+    textTransform: 'uppercase',
+    color: 'var(--chalk)',
   },
   logoAccent: {
-    color: "var(--hold)",
+    color: 'var(--hold)',
   },
   tagline: {
     fontFamily: "Barlow Condensed, sans-serif",
@@ -196,7 +211,10 @@ export default function Home() {
       <div style={S.container}>
         <div style={S.hero}>
           <h1 style={S.logo}>
-            <span style={S.logoAccent}>Crag</span>Master
+            <img src="/logo.jpg" alt="CragMaster" style={S.logoImg} />
+            <span style={S.logoText}>
+              <span style={S.logoAccent}>Crag</span>Master
+            </span>
           </h1>
           <div style={S.tagline}>{t('home.tagline')}</div>
         </div>

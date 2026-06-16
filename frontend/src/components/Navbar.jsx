@@ -48,23 +48,19 @@ const S = {
   },
 
   logo: {
-    fontFamily: 'Barlow Condensed, sans-serif',
-    fontSize: '1.15rem',
-    fontWeight: 800,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: 'var(--chalk)',
     cursor: 'pointer',
     marginRight: '2rem',
     flexShrink: 0,
     background: 'none',
     border: 'none',
     padding: 0,
-    transition: 'color 0.15s',
+    display: 'flex',
+    alignItems: 'center',
   },
 
-  logoAccent: {
-    color: 'var(--hold)',
+  logoImg: {
+    height: '28px',
+    display: 'block',
   },
 
   divider: {
@@ -360,7 +356,7 @@ export default function Navbar() {
         <nav style={S.nav}>
           {/* Logo */}
           <button style={S.logo} onClick={() => navigate('/')}>
-            <span style={S.logoAccent}>Crag</span>Master
+            <img src="/logo.jpg" alt="CragMaster" style={S.logoImg} />
           </button>
 
           {/* Hamburger toggle */}
@@ -417,7 +413,7 @@ export default function Navbar() {
                     await checkConnection()
                     const cur = getConnectionStatus()
                     setPingState(cur === 1 ? 'online' : 'offline')
-                    if (prev !== cur && prev !== 0) window.location.reload()
+                    if (prev !== 0) window.location.reload()
                   }}
                 >
                   <span style={{
@@ -560,7 +556,7 @@ export default function Navbar() {
         style={S.logo}
         onClick={() => navigate('/')}
       >
-        <span style={S.logoAccent}>Crag</span>Master
+        <img src="/logo.jpg" alt="CragMaster" style={S.logoImg} />
       </button>
 
       <div style={S.divider} />

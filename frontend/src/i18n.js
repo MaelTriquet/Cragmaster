@@ -103,6 +103,8 @@ i18n.use(initReactI18next).init({
           copied: 'Copied!',
           generateNewPassword: 'Generate new',
           loginFailed: 'Login failed',
+          showPassword: 'Show password',
+          hidePassword: 'Hide password',
           footer: 'Send it.',
         },
         search: {
@@ -313,6 +315,7 @@ i18n.use(initReactI18next).init({
           admin: 'Admin',
           editProfile: 'Edit Profile',
           username: 'Username',
+          password: 'Password',
           currentPassword: 'Current Password',
           currentPasswordPlaceholder: 'Required to save changes',
           newPassword: 'New Password',
@@ -348,6 +351,8 @@ i18n.use(initReactI18next).init({
           reportPlaceholder: 'Why are you reporting this user?',
           reportCancel: 'Cancel',
           userNotFound: 'User not found',
+          copyCredentials: 'Copy credentials',
+          copied: 'Copied!',
         },
         stats: {
           eyebrow: 'Your Progress',
@@ -495,7 +500,8 @@ i18n.use(initReactI18next).init({
           removeTag: 'Remove',
           searchPlaceholder: 'Search tags\u2026',
           title: 'Tags',
-
+          cancel: 'Cancel',
+          save: 'Save',
         },
       comingSoon: {
         eyebrow: 'ROADMAP',
@@ -626,6 +632,8 @@ i18n.use(initReactI18next).init({
           backToLogin: 'Retour \u00e0 la connexion',
           copyPassword: 'Copier',
           copied: 'Copi\u00e9 !',
+          showPassword: 'Afficher le mot de passe',
+          hidePassword: 'Masquer le mot de passe',
           generateNewPassword: 'G\u00e9n\u00e9rer',
           loginFailed: '\u00c9chec de connexion',
           footer: 'Envoyez.',
@@ -836,6 +844,7 @@ i18n.use(initReactI18next).init({
           admin: 'Admin',
           editProfile: 'Modifier le profil',
           username: 'Identifiant',
+          password: 'Mot de passe',
           currentPassword: 'Mot de passe actuel',
           currentPasswordPlaceholder: 'Requis pour enregistrer',
           newPassword: 'Nouveau mot de passe',
@@ -871,6 +880,8 @@ i18n.use(initReactI18next).init({
           reportPlaceholder: 'Pourquoi signalez-vous cet utilisateur\u00a0?',
           reportCancel: 'Annuler',
           userNotFound: 'Utilisateur introuvable',
+          copyCredentials: 'Copier les identifiants',
+          copied: 'Copi\u00e9 !',
         },
         stats: {
           eyebrow: 'Votre progression',
@@ -1018,7 +1029,8 @@ i18n.use(initReactI18next).init({
           removeTag: 'Retirer',
           searchPlaceholder: 'Chercher un tag\u2026',
           title: 'Tags',
-
+          cancel: 'Annuler',
+          save: 'Enregistrer',
         },
         comingSoon: {
           eyebrow: 'ROADMAP',

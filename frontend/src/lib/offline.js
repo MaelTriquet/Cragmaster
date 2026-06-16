@@ -20,6 +20,7 @@ import api from '../api/client'
 
 const TOPO_PREFIX = 'offline-topo-'
 const ROUTE_PREFIX = 'offline-route-'
+const PDF_PREFIX = 'offline-pdf-'
 const IDS_KEY = 'offline-topo-ids'
 const PENDING_KEY = 'offline-pending'
 const SEARCH_INDEX_KEY = 'offline-search-index'
@@ -133,6 +134,14 @@ export async function saveTopoForOffline(topoId) {
     }
   }
 
+  if (topo.filename && !topo.filename.startsWith('http')) {
+    try {
+      const pdfRes = await api.get(`/topos/${topoId}/download`, { responseType: 'blob' })
+      await set(`${PDF_PREFIX}${topoId}`, pdfRes.data)
+    } catch {
+    }
+  }
+
   await buildSearchIndex()
   return { topoData, routeDetails }
 }
@@ -153,9 +162,14 @@ export async function removeOfflineTopo(topoId) {
     }
   }
   await del(`${TOPO_PREFIX}${topoId}`)
+  await del(`${PDF_PREFIX}${topoId}`)
   const ids = await getTopoIds()
   await set(IDS_KEY, ids.filter(id => id !== topoId))
   await buildSearchIndex()
+}
+
+export async function getOfflineTopoPdf(topoId) {
+  return get(`${PDF_PREFIX}${topoId}`)
 }
 
 export async function getOfflineTopoIds() {

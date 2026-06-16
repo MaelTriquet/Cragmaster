@@ -27,7 +27,7 @@ const S = {
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.6rem 1rem',
-    background: '#121210',
+    background: 'var(--granite)',
   },
   group: {
     display: 'flex',

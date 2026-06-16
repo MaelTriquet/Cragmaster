@@ -281,6 +281,8 @@ export default function Profile() {
   const [createStatus, setCreateStatus] = useState(null)
   const [createLoading, setCreateLoading] = useState(false)
   const [createdUser, setCreatedUser] = useState(null)
+  const [createdCredentials, setCreatedCredentials] = useState(null)
+  const [copied, setCopied] = useState(false)
 
   const handleProfileSave = async () => {
     const { username, email, current_password, password, confirm } = profileForm
@@ -327,6 +329,7 @@ export default function Profile() {
     try {
       const res = await api.post('/users', { username: username.trim(), password, is_admin })
       setCreatedUser(res.data)
+      setCreatedCredentials({ username: username.trim(), password })
       setCreateStatus({ type: 'success', msg: t('profile.userCreated') })
       setCreateForm({ username: '', password: '', is_admin: false })
     } catch (err) {
@@ -592,6 +595,36 @@ export default function Profile() {
                     {t('profile.created')}
                   </span>
                 </div>
+                {createdCredentials && (
+                  <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button
+                      onClick={() => {
+                        const text = `${t('profile.username')}: ${createdCredentials.username}\n${t('profile.password')}: ${createdCredentials.password}`
+                        navigator.clipboard.writeText(text).then(() => {
+                          setCopied(true)
+                          setTimeout(() => setCopied(false), 2000)
+                        })
+                      }}
+                      style={{
+                        fontFamily: 'Barlow Condensed, sans-serif',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        padding: '0.3rem 0.6rem',
+                        border: '1px solid var(--line)',
+                        color: copied ? '#7fc99a' : 'var(--muted)',
+                        background: 'none',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.15s, color 0.15s',
+                      }}
+                      onMouseEnter={e => { if (!copied) { e.currentTarget.style.borderColor = 'var(--hold)'; e.currentTarget.style.color = 'var(--hold)' } }}
+                      onMouseLeave={e => { if (!copied) { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--muted)' } }}
+                    >
+                      {copied ? t('profile.copied') : t('profile.copyCredentials')}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

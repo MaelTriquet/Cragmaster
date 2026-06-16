@@ -6,9 +6,10 @@ backend/__pycache__
 /frontend/dist
 /frontend/android
 /frontend/release
+/frontend/nginx.conf
 /static
 docker-compose.yml
 AGENTS.md
 .env
-/example/*/*
+/example
 \\
