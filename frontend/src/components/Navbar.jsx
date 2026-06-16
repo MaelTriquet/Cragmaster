@@ -197,7 +197,7 @@ const S = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(26,26,24,0.98)',
+    background: 'var(--rock)',
     backdropFilter: 'blur(10px)',
     zIndex: 99,
     display: 'flex',
@@ -373,6 +373,8 @@ export default function Navbar() {
                 <button
                   key={item.path}
                   style={S.drawerLink(active)}
+                  onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'var(--chalk)' } }}
+                  onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--muted)' } }}
                   onClick={() => navigate(item.path)}
                 >
                   {t(item.key)}
@@ -438,9 +440,10 @@ export default function Navbar() {
                       textTransform: 'uppercase',
                       color: 'var(--chalk)',
                       cursor: 'pointer',
-                      background: 'none',
+                      background: 'var(--line)',
                       border: 'none',
-                      padding: 0,
+                      borderRadius: 6,
+                      padding: '0.3rem 0.8rem',
                     }}
                     onClick={() => navigate('/profile')}
                   >
@@ -679,10 +682,12 @@ export default function Navbar() {
             {user.is_admin ? t('nav.auditLog') : t('nav.myChanges')}
           </button>
         )}
-        {user && (
+          {user && (
           <>
             <button
               style={{ ...S.username, cursor: 'pointer', background: 'none', border: 'none' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--hold)'; e.currentTarget.style.textDecoration = 'underline' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.textDecoration = 'none' }}
               onClick={() => navigate('/profile')}
             >
               {user.username}
